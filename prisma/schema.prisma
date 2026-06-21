@@ -1,0 +1,249 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model roles {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre           String             @unique
+  creado_en        DateTime           @default(now()) @db.Timestamptz(6)
+  permisos_por_rol permisos_por_rol[]
+  usuarios         usuarios[]
+}
+
+model modulos {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo           String             @unique
+  descripcion      String?
+  creado_en        DateTime           @default(now()) @db.Timestamptz(6)
+  permisos_por_rol permisos_por_rol[]
+}
+
+model permisos_por_rol {
+  rol_id           String  @db.Uuid
+  modulo_id        String  @db.Uuid
+  puede_leer       Boolean @default(true)
+  puede_crear      Boolean @default(false)
+  puede_actualizar Boolean @default(false)
+  puede_borrar     Boolean @default(false)
+  modulos          modulos @relation(fields: [modulo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles            roles   @relation(fields: [rol_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([rol_id, modulo_id])
+  @@index([modulo_id], map: "ix_permisos_por_rol_modulo_id")
+}
+
+model usuarios {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  auth_user_id       String?              @unique @db.Uuid
+  username           String               @unique
+  pass_hash          String
+  rol_id             String               @db.Uuid
+  activo             Boolean              @default(true)
+  nombre             String?
+  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
+  actualizado_en     DateTime             @default(now()) @db.Timestamptz(6)
+  auditoria_eventos  auditoria_eventos[]
+  cortes             cortes[]
+  numeros_bloqueados numeros_bloqueados[]
+  pagos_premios      pagos_premios[]
+  resultados         resultados[]
+  roles              roles                @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendedores         vendedores?
+  ventas_anuladas    ventas[]             @relation("ventas_anuladas")
+
+  @@index([rol_id], map: "ix_usuarios_rol_id")
+  @@index([username], map: "ix_usuarios_username")
+}
+
+model vendedores {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id              String                    @unique @db.Uuid
+  nombre                  String
+  cedula                  String                    @unique
+  telefono                String?
+  direccion               String?
+  activo                  Boolean                   @default(true)
+  creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
+  limites_numero_vendedor limites_numero_vendedor[]
+  usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ventas                  ventas[]
+
+  @@index([usuario_id], map: "ix_vendedores_usuario")
+}
+
+model sorteos_config {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                  String   @unique
+  hora                    DateTime @db.Time(6)
+  solo_martes             Boolean  @default(false)
+  lock_segundos_antes     Int      @default(60)
+  reopen_segundos_despues Int      @default(600)
+  activo                  Boolean  @default(true)
+  creado_en               DateTime @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime @default(now()) @db.Timestamptz(6)
+  turnos                  turnos[]
+
+  @@index([activo, hora], map: "ix_sorteos_activo_hora")
+}
+
+model turnos {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fecha              DateTime             @db.Date
+  config_id          String               @db.Uuid
+  estado             turno_estado         @default(ABIERTO)
+  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
+  actualizado_en     DateTime             @default(now()) @db.Timestamptz(6)
+  numeros_bloqueados numeros_bloqueados[]
+  resultados         resultados?
+  sorteos_config     sorteos_config       @relation(fields: [config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ventas             ventas[]
+
+  @@unique([fecha, config_id])
+  @@index([config_id], map: "ix_turnos_config_id")
+  @@index([estado], map: "ix_turnos_estado")
+  @@index([fecha, config_id], map: "ix_turnos_fecha_cfg")
+}
+
+model ventas {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vendedor_id      String          @db.Uuid
+  turno_id         String?         @db.Uuid
+  creado_en        DateTime        @default(now()) @db.Timestamptz(6)
+  total_miles      Int             @default(0)
+  estado           venta_estado    @default(ACTIVA)
+  anulada_por      String?         @db.Uuid
+  anulada_en       DateTime?       @db.Timestamptz(6)
+  motivo_anulacion String?
+  pagos_premios    pagos_premios?
+  venta_detalle    venta_detalle[]
+  usuarios         usuarios?       @relation("ventas_anuladas", fields: [anulada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos           turnos?         @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendedores       vendedores      @relation(fields: [vendedor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([anulada_por], map: "ix_ventas_anulada_por")
+  @@index([turno_id, estado], map: "ix_ventas_turno_estado")
+  @@index([vendedor_id, creado_en(sort: Desc)], map: "ix_ventas_vendedor_creado")
+}
+
+model venta_detalle {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venta_id     String   @db.Uuid
+  numero       String   @db.Char(2)
+  premio_miles Int
+  creado_en    DateTime @default(now()) @db.Timestamptz(6)
+  ventas       ventas   @relation(fields: [venta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([numero], map: "ix_venta_detalle_numero")
+  @@index([venta_id], map: "ix_venta_detalle_venta")
+}
+
+model limites_numero_vendedor {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vendedor_id   String     @db.Uuid
+  numero        String     @db.Char(2)
+  limite_miles  Int
+  vigente_desde DateTime   @default(dbgenerated("CURRENT_DATE")) @db.Date
+  vigente_hasta DateTime?  @db.Date
+  creado_en     DateTime   @default(now()) @db.Timestamptz(6)
+  vendedores    vendedores @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([vendedor_id, numero], map: "uq_limites_vendedor_numero_activo", where: raw("(vigente_hasta IS NULL)"))
+  @@index([vendedor_id, numero], map: "ix_limites_vendedor_numero")
+}
+
+model numeros_bloqueados {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numero     String    @db.Char(2)
+  turno_id   String?   @db.Uuid
+  fecha      DateTime? @db.Date
+  motivo     String?
+  creado_por String?   @db.Uuid
+  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios? @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos     turnos?   @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([numero, fecha], map: "uq_bloq_num_diario", where: raw("(turno_id IS NULL)"))
+  @@unique([numero, turno_id], map: "uq_bloq_num_turno", where: raw("(turno_id IS NOT NULL)"))
+  @@index([creado_por], map: "ix_numeros_bloqueados_creado_por")
+  @@index([numero, fecha], map: "ix_bloq_num_fecha")
+  @@index([numero, turno_id], map: "ix_bloq_num_turno")
+  @@index([turno_id], map: "ix_numeros_bloqueados_turno_id")
+}
+
+model resultados {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id       String          @unique @db.Uuid
+  numero_ganador String          @db.Char(2)
+  creado_por     String?         @db.Uuid
+  creado_en      DateTime        @default(now()) @db.Timestamptz(6)
+  pagos_premios  pagos_premios[]
+  usuarios       usuarios?       @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turnos         turnos          @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([creado_en], map: "ix_resultados_creado_en")
+  @@index([creado_por], map: "ix_resultados_creado_por")
+  @@index([turno_id], map: "ix_resultados_turno")
+}
+
+model pagos_premios {
+  venta_id           String     @id @db.Uuid
+  resultado_id       String     @db.Uuid
+  monto_pagado_miles Int
+  pagado_por         String?    @db.Uuid
+  pagado_en          DateTime   @default(now()) @db.Timestamptz(6)
+  usuarios           usuarios?  @relation(fields: [pagado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resultados         resultados @relation(fields: [resultado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ventas             ventas     @relation(fields: [venta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pagado_en], map: "ix_pagos_premios_pagado_en")
+  @@index([pagado_por], map: "ix_pagos_premios_pagado_por")
+  @@index([resultado_id], map: "ix_pagos_premios_resultado_id")
+}
+
+model parametros {
+  clave          String   @id
+  valor          String
+  actualizado_en DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model cortes {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fecha_inicio         DateTime  @db.Date
+  fecha_fin            DateTime  @db.Date
+  descripcion          String?
+  visible_a_vendedores Boolean   @default(true)
+  creado_por           String?   @db.Uuid
+  creado_en            DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios             usuarios? @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([creado_por], map: "ix_cortes_creado_por")
+}
+
+model auditoria_eventos {
+  id         BigInt    @id @default(autoincrement())
+  usuario_id String?   @db.Uuid
+  evento     String
+  payload    Json?
+  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([creado_en(sort: Desc)], map: "ix_auditoria_eventos_creado_en")
+  @@index([usuario_id], map: "ix_auditoria_eventos_usuario_id")
+}
+
+enum turno_estado {
+  ABIERTO
+  BLOQUEO
+  CERRADO
+}
+
+enum venta_estado {
+  ACTIVA
+  ANULADA
+}
