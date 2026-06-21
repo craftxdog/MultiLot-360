@@ -9,6 +9,11 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import {
+  CursorPaginationQuery,
+  OffsetPaginationQuery,
+  SortDirection,
+} from '../../shared-kernel';
 import { trimString } from '../constants';
 
 export const DEFAULT_CURSOR_LIMIT = 50;
@@ -17,9 +22,7 @@ export const DEFAULT_OFFSET_PAGE = 1;
 export const DEFAULT_OFFSET_LIMIT = 25;
 export const MAX_OFFSET_LIMIT = 100;
 
-export type SortDirection = 'asc' | 'desc';
-
-export class CursorPaginationQueryDto {
+export class CursorPaginationQueryDto implements CursorPaginationQuery {
   @IsOptional()
   @Transform(({ value }) => trimString(value))
   @IsString()
@@ -45,7 +48,7 @@ export class CursorPaginationQueryDto {
   sortDirection: SortDirection = 'desc';
 }
 
-export class OffsetPaginationQueryDto {
+export class OffsetPaginationQueryDto implements OffsetPaginationQuery {
   @IsOptional()
   @Type(() => Number)
   @IsInt()

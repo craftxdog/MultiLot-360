@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { PaginatedResult } from '../../../../../common';
+import { PaginatedResult } from '../../../../../shared-kernel';
 import {
   BatchResult,
   CursorPaginationParams,

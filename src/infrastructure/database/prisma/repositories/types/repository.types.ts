@@ -1,9 +1,9 @@
 import { Prisma } from '@prisma/client';
 import {
-  CursorPaginationQueryDto,
-  OffsetPaginationQueryDto,
-} from '../../../../../common';
-import { PaginatedResult } from '../../../../../common/interfaces';
+  CursorPaginationQuery,
+  OffsetPaginationQuery,
+  PaginatedResult,
+} from '../../../../../shared-kernel';
 
 export type PrismaDelegate<T = unknown> = {
   findUnique: (args: Record<string, any>) => Promise<T | null>;
@@ -46,7 +46,7 @@ export interface FindAllParams<M extends RepositoryTypeMap = DefaultTypeMap> {
 export interface CursorPaginationParams<
   M extends RepositoryTypeMap = DefaultTypeMap,
 > {
-  pagination: CursorPaginationQueryDto;
+  pagination: CursorPaginationQuery;
   where?: M['WhereInput'];
   orderBy?: M['OrderByInput'];
   include?: M['Include'];
@@ -56,7 +56,7 @@ export interface CursorPaginationParams<
 export interface OffsetPaginationParams<
   M extends RepositoryTypeMap = DefaultTypeMap,
 > {
-  pagination: OffsetPaginationQueryDto;
+  pagination: OffsetPaginationQuery;
   where?: M['WhereInput'];
   orderBy?: M['OrderByInput'];
   include?: M['Include'];

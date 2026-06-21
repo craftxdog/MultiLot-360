@@ -1,10 +1,13 @@
 import { PaginationMeta } from '../../shared-kernel';
 export type {
   CursorPaginationMeta,
+  CursorPaginationQuery,
   OffsetPaginationMeta,
+  OffsetPaginationQuery,
   PaginatedResult,
   PaginationMeta,
   PaginationStrategy,
+  SortDirection,
 } from '../../shared-kernel';
 
 export type ApiRequestMeta = {

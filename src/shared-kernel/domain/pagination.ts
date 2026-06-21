@@ -1,5 +1,21 @@
 export type PaginationStrategy = 'cursor' | 'offset';
 
+export type SortDirection = 'asc' | 'desc';
+
+export type CursorPaginationQuery = {
+  cursor?: string;
+  limit: number;
+  sortBy: string;
+  sortDirection: SortDirection;
+};
+
+export type OffsetPaginationQuery = {
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortDirection: SortDirection;
+};
+
 export type CursorPaginationMeta = {
   strategy: 'cursor';
   limit: number;
@@ -9,7 +25,7 @@ export type CursorPaginationMeta = {
   nextCursor: string | null;
   previousCursor: string | null;
   sortBy: string;
-  sortDirection: 'asc' | 'desc';
+  sortDirection: SortDirection;
 };
 
 export type OffsetPaginationMeta = {
@@ -22,7 +38,7 @@ export type OffsetPaginationMeta = {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   sortBy: string;
-  sortDirection: 'asc' | 'desc';
+  sortDirection: SortDirection;
 };
 
 export type PaginationMeta = CursorPaginationMeta | OffsetPaginationMeta;

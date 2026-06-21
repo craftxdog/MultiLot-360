@@ -48,4 +48,16 @@ describe('SellerOnboardingHttpMapper', () => {
       sortDirection: 'desc',
     });
   });
+
+  it('maps revoke params into an application command', () => {
+    expect(
+      SellerOnboardingHttpMapper.toRevokeInvitationCommand(
+        'invitation-id',
+        admin,
+      ),
+    ).toEqual({
+      invitationId: 'invitation-id',
+      adminUserId: 'admin-id',
+    });
+  });
 });
