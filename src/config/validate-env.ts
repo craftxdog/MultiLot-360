@@ -60,5 +60,8 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     MAILERSEND_FROM_EMAIL: str({ default: '' }),
     MAILERSEND_FROM_NAME: str({ default: 'MultiLot 360' }),
     MAILERSEND_REPLY_TO_EMAIL: str({ default: '' }),
+
+    SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES: num({ default: 15 }),
+    SELLER_ACCESS_CODE_SECRET: str({ default: '' }),
   });
 }

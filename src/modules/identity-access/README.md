@@ -47,3 +47,24 @@ Example:
 
 Domain/application code does not know about JWT, HTTP or Prisma. Those details
 stay in presentation and infrastructure adapters.
+
+## Seller onboarding
+
+Admin creates the seller:
+
+```txt
+POST /api/v1/identity-access/sellers/invitations
+  -> creates inactive usuarios + vendedores
+  -> stores a hashed access code
+  -> sends the code by email
+```
+
+Seller confirms the code after obtaining a Supabase access token:
+
+```txt
+POST /api/v1/identity-access/sellers/access-code/confirm
+  -> verifies Bearer Supabase JWT
+  -> validates access code
+  -> links usuarios.auth_user_id to the JWT sub
+  -> activates usuarios and vendedores
+```

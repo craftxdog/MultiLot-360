@@ -53,6 +53,11 @@ export interface AppConfig {
     fromName: string;
     replyToEmail: string;
   };
+
+  sellerAccess: {
+    codeExpiresInMinutes: number;
+    codeSecret: string;
+  };
 }
 
 export default (): AppConfig => {
@@ -104,6 +109,10 @@ export default (): AppConfig => {
       fromEmail: env.MAILERSEND_FROM_EMAIL,
       fromName: env.MAILERSEND_FROM_NAME,
       replyToEmail: env.MAILERSEND_REPLY_TO_EMAIL,
+    },
+    sellerAccess: {
+      codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
+      codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
     },
   };
 };

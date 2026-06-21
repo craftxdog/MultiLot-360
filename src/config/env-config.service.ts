@@ -34,4 +34,7 @@ export class EnvConfigService {
   get mailer() {
     return this.get('mailer');
   }
+  get sellerAccess() {
+    return this.get('sellerAccess');
+  }
 }
