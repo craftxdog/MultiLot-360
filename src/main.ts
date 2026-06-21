@@ -4,6 +4,12 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import {
+  HttpExceptionFilter,
+  RequestContextInterceptor,
+  ResultInterceptor,
+  TransformInterceptor,
+} from './common';
 import { AppLoggerService } from './config/app-logger.service';
 import { EnvConfigService } from './config/env-config.service';
 
@@ -22,6 +28,12 @@ async function bootstrap() {
   });
   app.use(helmet());
   app.use(cookieParser());
+  app.useGlobalFilters(app.get(HttpExceptionFilter));
+  app.useGlobalInterceptors(
+    app.get(RequestContextInterceptor),
+    app.get(TransformInterceptor),
+    app.get(ResultInterceptor),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({
