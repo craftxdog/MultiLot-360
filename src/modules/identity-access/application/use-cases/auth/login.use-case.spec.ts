@@ -26,6 +26,7 @@ describe('LoginUseCase', () => {
     signInWithPassword: jest.fn(),
     refreshSession: jest.fn(),
     signOut: jest.fn(),
+    verifyAccessToken: jest.fn(),
   };
   const authAccountRepository: jest.Mocked<AuthAccountRepository> = {
     createInternalUser: jest.fn(),

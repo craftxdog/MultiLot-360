@@ -1,4 +1,8 @@
-import { AuthProviderSession, AuthProviderUser } from '../entities';
+import {
+  AuthProviderSession,
+  AuthProviderUser,
+  SupabaseJwtPayload,
+} from '../entities';
 
 export const AUTH_PROVIDER = Symbol('AUTH_PROVIDER');
 
@@ -22,4 +26,5 @@ export interface AuthProviderPort {
   ): Promise<AuthProviderSession>;
   refreshSession(refreshToken: string): Promise<AuthProviderSession>;
   signOut(accessToken: string): Promise<void>;
+  verifyAccessToken(accessToken: string): Promise<SupabaseJwtPayload>;
 }

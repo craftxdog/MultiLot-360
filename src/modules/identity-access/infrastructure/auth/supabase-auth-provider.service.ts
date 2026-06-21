@@ -7,6 +7,7 @@ import {
   AuthProviderUser,
   CreateAuthUserInput,
   SignInWithPasswordInput,
+  SupabaseJwtPayload,
 } from '../../domain';
 
 @Injectable()
@@ -85,6 +86,28 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
     if (error) {
       throw new Error(error.message);
     }
+  }
+
+  async verifyAccessToken(accessToken: string): Promise<SupabaseJwtPayload> {
+    const { data, error } =
+      await this.getUserClient().auth.getUser(accessToken);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error('Supabase user was not returned');
+    }
+
+    return {
+      sub: data.user.id,
+      email: data.user.email,
+      phone: data.user.phone,
+      role: data.user.role,
+      app_metadata: data.user.app_metadata,
+      user_metadata: data.user.user_metadata,
+    };
   }
 
   private toSession(

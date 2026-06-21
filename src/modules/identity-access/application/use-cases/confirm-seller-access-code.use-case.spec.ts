@@ -14,6 +14,7 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     signInWithPassword: jest.fn(),
     refreshSession: jest.fn(),
     signOut: jest.fn(),
+    verifyAccessToken: jest.fn(),
   };
   const accessCodeService = {
     hash: jest.fn(),
