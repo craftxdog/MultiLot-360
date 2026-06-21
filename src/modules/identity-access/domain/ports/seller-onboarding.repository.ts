@@ -1,9 +1,12 @@
 import {
   ConfirmedSellerAccess,
   CreateSellerInvitationCommand,
+  ListSellerInvitationsQuery,
   ResendSellerAccessCodeCommand,
+  SellerInvitationListItem,
   SellerInvitation,
 } from '../entities';
+import { PaginatedResult } from '../../../../common';
 
 export const SELLER_ONBOARDING_REPOSITORY = Symbol(
   'SELLER_ONBOARDING_REPOSITORY',
@@ -34,6 +37,9 @@ export type PendingSellerAccess = {
 };
 
 export interface SellerOnboardingRepository {
+  listInvitations(
+    query: ListSellerInvitationsQuery,
+  ): Promise<PaginatedResult<SellerInvitationListItem>>;
   createInvitation(
     input: PersistSellerInvitationInput,
   ): Promise<SellerInvitation>;

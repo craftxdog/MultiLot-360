@@ -5,6 +5,7 @@ import { ResendSellerAccessCodeUseCase } from './resend-seller-access-code.use-c
 
 describe('ResendSellerAccessCodeUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
+    listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
     findPendingAccessCode: jest.fn(),

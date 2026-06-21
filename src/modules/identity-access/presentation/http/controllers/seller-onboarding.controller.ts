@@ -1,4 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -15,14 +23,17 @@ import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
+  ListSellerInvitationsUseCase,
   ResendSellerAccessCodeUseCase,
 } from '../../../application';
 import {
   ConfirmSellerAccessCodeDto,
   ConfirmSellerAccessCodeResponseDto,
   CreateSellerInvitationDto,
+  ListSellerInvitationsQueryDto,
   ResendSellerAccessCodeDto,
   ResendSellerAccessCodeResponseDto,
+  SellerInvitationListItemResponseDto,
   SellerInvitationResponseDto,
 } from '../dto';
 
@@ -33,7 +44,26 @@ export class SellerOnboardingController {
     private readonly createSellerInvitation: CreateSellerInvitationUseCase,
     private readonly confirmSellerAccessCode: ConfirmSellerAccessCodeUseCase,
     private readonly resendSellerAccessCode: ResendSellerAccessCodeUseCase,
+    private readonly listSellerInvitations: ListSellerInvitationsUseCase,
   ) {}
+
+  @Get('invitations')
+  @ApiBearerAuth()
+  @RequireModules('usuarios')
+  @Permissions('usuarios.read')
+  @ApiOkResponse({ type: [SellerInvitationListItemResponseDto] })
+  listInvitations(@Query() query: ListSellerInvitationsQueryDto) {
+    return this.listSellerInvitations.execute({
+      email: query.email,
+      username: query.username,
+      sellerName: query.sellerName,
+      status: query.status,
+      page: query.page,
+      limit: query.limit,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+    });
+  }
 
   @Post('invitations')
   @ApiBearerAuth()

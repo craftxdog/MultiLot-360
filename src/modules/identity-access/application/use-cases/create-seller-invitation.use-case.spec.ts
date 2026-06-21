@@ -5,6 +5,7 @@ import { CreateSellerInvitationUseCase } from './create-seller-invitation.use-ca
 
 describe('CreateSellerInvitationUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
+    listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
     findPendingAccessCode: jest.fn(),

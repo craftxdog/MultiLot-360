@@ -118,6 +118,22 @@ POST /api/v1/identity-access/sellers/access-code/resend
 }
 ```
 
+Admin lists seller invitations:
+
+```txt
+GET /api/v1/identity-access/sellers/invitations
+  -> requires usuarios.read
+  -> filters by email, username, sellerName or status
+  -> returns paginated invitation read models
+  -> status=EXPIRADO includes pending codes whose expiration date already passed
+```
+
+Example query:
+
+```txt
+GET /api/v1/identity-access/sellers/invitations?status=PENDIENTE&page=1&limit=25
+```
+
 Seller confirms the code and sets a password:
 
 ```txt

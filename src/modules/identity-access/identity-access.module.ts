@@ -6,6 +6,7 @@ import {
   AccessTokenVerifierService,
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
+  ListSellerInvitationsUseCase,
   LoginUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
@@ -48,6 +49,7 @@ import {
     SupabaseAuthProviderService,
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
+    ListSellerInvitationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
@@ -90,6 +92,7 @@ import {
   exports: [
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
+    ListSellerInvitationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,

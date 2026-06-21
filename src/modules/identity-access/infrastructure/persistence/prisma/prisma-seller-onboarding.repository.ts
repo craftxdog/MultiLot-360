@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, codigo_acceso_estado } from '@prisma/client';
+import {
+  buildOffsetPagination,
+  getOffsetSkip,
+  PaginatedResult,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import {
   ConfirmSellerAccessInput,
@@ -8,7 +13,13 @@ import {
   PersistSellerInvitationInput,
   SellerOnboardingRepository,
 } from '../../../domain/ports';
-import { ConfirmedSellerAccess, SellerInvitation } from '../../../domain';
+import {
+  ConfirmedSellerAccess,
+  ListSellerInvitationsQuery,
+  SellerAccessCodeStatus,
+  SellerInvitation,
+  SellerInvitationListItem,
+} from '../../../domain';
 
 const DEFAULT_SELLER_ROLE_NAME = 'vendedor';
 const PENDING_PASSWORD_HASH = 'supabase:pending';
@@ -16,6 +27,71 @@ const PENDING_PASSWORD_HASH = 'supabase:pending';
 @Injectable()
 export class PrismaSellerOnboardingRepository implements SellerOnboardingRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listInvitations(
+    query: ListSellerInvitationsQuery,
+  ): Promise<PaginatedResult<SellerInvitationListItem>> {
+    const where = this.buildInvitationListWhere(query);
+    const orderBy = this.buildInvitationListOrderBy(query);
+    const { items, total } = await this.prisma.$transaction(async (tx) => {
+      const items = await tx.codigos_acceso_vendedor.findMany({
+        where,
+        include: {
+          usuarios: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          vendedores: {
+            select: {
+              id: true,
+              nombre: true,
+              cedula: true,
+            },
+          },
+          creador: {
+            select: {
+              id: true,
+              username: true,
+              nombre: true,
+            },
+          },
+        },
+        orderBy,
+        skip: getOffsetSkip(query),
+        take: query.limit,
+      });
+      const total = await tx.codigos_acceso_vendedor.count({ where });
+
+      return { items, total };
+    });
+
+    return buildOffsetPagination(
+      items.map((item) => ({
+        id: item.id,
+        userId: item.usuario_id,
+        sellerId: item.vendedor_id,
+        email: item.email,
+        username: item.usuarios.username,
+        sellerName: item.vendedores.nombre,
+        documentId: item.vendedores.cedula,
+        status: this.toEffectiveStatus(item.estado, item.expira_en),
+        expiresAt: item.expira_en,
+        usedAt: item.usado_en,
+        createdAt: item.creado_en,
+        createdBy: item.creador
+          ? {
+              userId: item.creador.id,
+              username: item.creador.username,
+              name: item.creador.nombre,
+            }
+          : null,
+      })),
+      total,
+      query,
+    );
+  }
 
   async createInvitation(
     input: PersistSellerInvitationInput,
@@ -150,6 +226,110 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
     return error instanceof Error
       ? error
       : new Error('Could not persist seller invitation');
+  }
+
+  private buildInvitationListWhere(
+    query: ListSellerInvitationsQuery,
+  ): Prisma.codigos_acceso_vendedorWhereInput {
+    return {
+      AND: [
+        this.buildStatusWhere(query.status),
+        query.email
+          ? {
+              email: {
+                contains: query.email,
+                mode: 'insensitive',
+              },
+            }
+          : {},
+        query.username
+          ? {
+              usuarios: {
+                username: {
+                  contains: query.username,
+                  mode: 'insensitive',
+                },
+              },
+            }
+          : {},
+        query.sellerName
+          ? {
+              vendedores: {
+                nombre: {
+                  contains: query.sellerName,
+                  mode: 'insensitive',
+                },
+              },
+            }
+          : {},
+      ],
+    };
+  }
+
+  private buildStatusWhere(
+    status?: SellerAccessCodeStatus,
+  ): Prisma.codigos_acceso_vendedorWhereInput {
+    if (!status) {
+      return {};
+    }
+
+    if (status === 'PENDIENTE') {
+      return {
+        estado: codigo_acceso_estado.PENDIENTE,
+        expira_en: {
+          gte: new Date(),
+        },
+      };
+    }
+
+    if (status === 'EXPIRADO') {
+      return {
+        OR: [
+          { estado: codigo_acceso_estado.EXPIRADO },
+          {
+            estado: codigo_acceso_estado.PENDIENTE,
+            expira_en: {
+              lt: new Date(),
+            },
+          },
+        ],
+      };
+    }
+
+    return {
+      estado: status,
+    };
+  }
+
+  private buildInvitationListOrderBy(
+    query: ListSellerInvitationsQuery,
+  ): Prisma.codigos_acceso_vendedorOrderByWithRelationInput {
+    const direction = query.sortDirection;
+
+    if (query.sortBy === 'email') {
+      return { email: direction };
+    }
+
+    if (query.sortBy === 'status' || query.sortBy === 'estado') {
+      return { estado: direction };
+    }
+
+    if (query.sortBy === 'expiresAt' || query.sortBy === 'expira_en') {
+      return { expira_en: direction };
+    }
+
+    return { creado_en: direction };
+  }
+
+  private toEffectiveStatus(
+    status: codigo_acceso_estado,
+    expiresAt: Date,
+  ): SellerAccessCodeStatus {
+    if (status === codigo_acceso_estado.PENDIENTE && expiresAt < new Date()) {
+      return 'EXPIRADO';
+    }
+
+    return status;
   }
 
   async resendAccessCode(
