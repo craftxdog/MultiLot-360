@@ -90,6 +90,12 @@ export class ConfirmSellerAccessCodeDto {
   @IsString()
   @Matches(/^\d{6}$/)
   accessCode: string;
+
+  @ApiProperty({ example: 'Sup3rSecret2026!' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  password: string;
 }
 
 export class ConfirmSellerAccessCodeResponseDto {

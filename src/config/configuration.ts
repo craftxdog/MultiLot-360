@@ -58,6 +58,11 @@ export interface AppConfig {
     codeExpiresInMinutes: number;
     codeSecret: string;
   };
+
+  auth: {
+    signupEnabled: boolean;
+    adminRoleName: string;
+  };
 }
 
 export default (): AppConfig => {
@@ -113,6 +118,10 @@ export default (): AppConfig => {
     sellerAccess: {
       codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
       codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
+    },
+    auth: {
+      signupEnabled: env.AUTH_SIGNUP_ENABLED,
+      adminRoleName: env.AUTH_ADMIN_ROLE_NAME,
     },
   };
 };

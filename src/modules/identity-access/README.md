@@ -21,6 +21,17 @@ The guard attaches this request context:
 
 ## Swagger smoke test
 
+Use `POST /api/v1/auth/login` to obtain a Supabase-backed session:
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "Sup3rSecret2026!"
+}
+```
+
+The response includes `accessToken`; paste it in Swagger `Authorize`.
+
 Use `GET /api/v1/auth/me` to verify the whole auth bridge:
 
 ```txt
@@ -50,21 +61,41 @@ stay in presentation and infrastructure adapters.
 
 ## Seller onboarding
 
+Create the first admin:
+
+```txt
+POST /api/v1/auth/signup
+  -> creates a Supabase Auth user
+  -> creates an active internal usuarios record
+  -> assigns AUTH_ADMIN_ROLE_NAME
+  -> returns accessToken + refreshToken
+```
+
 Admin creates the seller:
 
 ```txt
 POST /api/v1/identity-access/sellers/invitations
   -> creates inactive usuarios + vendedores
-  -> stores a hashed access code
+  -> revokes previous pending codes for the same seller/email
+  -> stores a new hashed access code with expiration
   -> sends the code by email
 ```
 
-Seller confirms the code after obtaining a Supabase access token:
+Seller confirms the code and sets a password:
 
 ```txt
 POST /api/v1/identity-access/sellers/access-code/confirm
-  -> verifies Bearer Supabase JWT
-  -> validates access code
-  -> links usuarios.auth_user_id to the JWT sub
+  -> validates email + accessCode
+  -> creates a Supabase Auth user with the provided password
+  -> links usuarios.auth_user_id to the Supabase user id
   -> activates usuarios and vendedores
+```
+
+Seller signs in normally:
+
+```txt
+POST /api/v1/auth/login
+  -> Supabase signInWithPassword
+  -> internal user lookup by auth_user_id
+  -> returns accessToken + refreshToken
 ```

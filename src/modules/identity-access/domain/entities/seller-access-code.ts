@@ -12,7 +12,7 @@ export type CreateSellerInvitationCommand = {
 export type ConfirmSellerAccessCodeCommand = {
   email: string;
   accessCode: string;
-  authUserId: string;
+  password: string;
 };
 
 export type SellerInvitation = {

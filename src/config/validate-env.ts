@@ -63,5 +63,8 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
 
     SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES: num({ default: 15 }),
     SELLER_ACCESS_CODE_SECRET: str({ default: '' }),
+
+    AUTH_SIGNUP_ENABLED: bool({ default: true }),
+    AUTH_ADMIN_ROLE_NAME: str({ default: 'admin' }),
   });
 }

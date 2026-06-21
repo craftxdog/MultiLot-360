@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  Headers,
-  Post,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -16,14 +10,12 @@ import {
   Permissions,
   Public,
   RequireModules,
-  extractBearerToken,
 } from '../../../../../common';
 import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
 } from '../../../application';
-import { SupabaseTokenVerifierService } from '../../../infrastructure';
 import {
   ConfirmSellerAccessCodeDto,
   ConfirmSellerAccessCodeResponseDto,
@@ -37,7 +29,6 @@ export class SellerOnboardingController {
   constructor(
     private readonly createSellerInvitation: CreateSellerInvitationUseCase,
     private readonly confirmSellerAccessCode: ConfirmSellerAccessCodeUseCase,
-    private readonly supabaseTokenVerifier: SupabaseTokenVerifierService,
   ) {}
 
   @Post('invitations')
@@ -63,32 +54,12 @@ export class SellerOnboardingController {
 
   @Public()
   @Post('access-code/confirm')
-  @ApiBearerAuth()
   @ApiOkResponse({ type: ConfirmSellerAccessCodeResponseDto })
-  async confirmAccessCode(
-    @Headers('authorization') authorization: string | undefined,
-    @Body() body: ConfirmSellerAccessCodeDto,
-  ) {
-    const token = extractBearerToken({
-      headers: {
-        authorization,
-      },
-    });
-
-    if (!token) {
-      throw new UnauthorizedException('Bearer token is required');
-    }
-
-    const payload = await this.supabaseTokenVerifier.verify(token);
-
-    if (!payload.sub) {
-      throw new UnauthorizedException('Supabase subject claim is required');
-    }
-
+  confirmAccessCode(@Body() body: ConfirmSellerAccessCodeDto) {
     return this.confirmSellerAccessCode.execute({
       email: body.email,
       accessCode: body.accessCode,
-      authUserId: payload.sub,
+      password: body.password,
     });
   }
 }

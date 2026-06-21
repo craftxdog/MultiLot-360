@@ -5,19 +5,28 @@ import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
+  LoginUseCase,
+  LogoutUseCase,
+  RefreshSessionUseCase,
   ResolveRequestIdentityUseCase,
   SellerAccessCodeService,
+  SignupAdminUseCase,
 } from './application';
 import {
+  AUTH_ACCOUNT_REPOSITORY,
+  AUTH_PROVIDER,
   IDENTITY_ACCESS_REPOSITORY,
   SELLER_ONBOARDING_REPOSITORY,
 } from './domain';
 import {
+  PrismaAuthAccountRepository,
   PrismaIdentityAccessRepository,
   PrismaSellerOnboardingRepository,
+  SupabaseAuthProviderService,
   SupabaseTokenVerifierService,
 } from './infrastructure';
 import {
+  AuthController,
   AuthMeController,
   ModulesGuard,
   PermissionsGuard,
@@ -28,15 +37,29 @@ import {
 
 @Module({
   imports: [DatabaseModule, JwtModule.register({})],
-  controllers: [AuthMeController, SellerOnboardingController],
+  controllers: [AuthController, AuthMeController, SellerOnboardingController],
   providers: [
+    PrismaAuthAccountRepository,
     PrismaIdentityAccessRepository,
     PrismaSellerOnboardingRepository,
     SellerAccessCodeService,
+    SupabaseAuthProviderService,
     SupabaseTokenVerifierService,
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshSessionUseCase,
     ResolveRequestIdentityUseCase,
+    SignupAdminUseCase,
+    {
+      provide: AUTH_ACCOUNT_REPOSITORY,
+      useExisting: PrismaAuthAccountRepository,
+    },
+    {
+      provide: AUTH_PROVIDER,
+      useExisting: SupabaseAuthProviderService,
+    },
     {
       provide: IDENTITY_ACCESS_REPOSITORY,
       useExisting: PrismaIdentityAccessRepository,
@@ -65,7 +88,11 @@ import {
   exports: [
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshSessionUseCase,
     ResolveRequestIdentityUseCase,
+    SignupAdminUseCase,
   ],
 })
 export class IdentityAccessModule {}

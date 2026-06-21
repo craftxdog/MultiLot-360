@@ -37,4 +37,7 @@ export class EnvConfigService {
   get sellerAccess() {
     return this.get('sellerAccess');
   }
+  get auth() {
+    return this.get('auth');
+  }
 }
