@@ -1,6 +1,7 @@
 import {
   ConfirmedSellerAccess,
   CreateSellerInvitationCommand,
+  ResendSellerAccessCodeCommand,
   SellerInvitation,
 } from '../entities';
 
@@ -19,6 +20,12 @@ export type ConfirmSellerAccessInput = {
   authUserId: string;
 };
 
+export type PersistResendSellerAccessCodeInput =
+  ResendSellerAccessCodeCommand & {
+    accessCodeHash: string;
+    expiresAt: Date;
+  };
+
 export type PendingSellerAccess = {
   userId: string;
   sellerId: string;
@@ -30,6 +37,9 @@ export interface SellerOnboardingRepository {
   createInvitation(
     input: PersistSellerInvitationInput,
   ): Promise<SellerInvitation>;
+  resendAccessCode(
+    input: PersistResendSellerAccessCodeInput,
+  ): Promise<SellerInvitation | null>;
   findPendingAccessCode(
     email: string,
     accessCodeHash: string,

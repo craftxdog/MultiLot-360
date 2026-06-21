@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -15,11 +15,14 @@ import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
+  ResendSellerAccessCodeUseCase,
 } from '../../../application';
 import {
   ConfirmSellerAccessCodeDto,
   ConfirmSellerAccessCodeResponseDto,
   CreateSellerInvitationDto,
+  ResendSellerAccessCodeDto,
+  ResendSellerAccessCodeResponseDto,
   SellerInvitationResponseDto,
 } from '../dto';
 
@@ -29,6 +32,7 @@ export class SellerOnboardingController {
   constructor(
     private readonly createSellerInvitation: CreateSellerInvitationUseCase,
     private readonly confirmSellerAccessCode: ConfirmSellerAccessCodeUseCase,
+    private readonly resendSellerAccessCode: ResendSellerAccessCodeUseCase,
   ) {}
 
   @Post('invitations')
@@ -61,6 +65,22 @@ export class SellerOnboardingController {
       email: body.email,
       accessCode: body.accessCode,
       password: body.password,
+    });
+  }
+
+  @Post('access-code/resend')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @RequireModules('usuarios')
+  @Permissions('usuarios.create')
+  @ApiOkResponse({ type: ResendSellerAccessCodeResponseDto })
+  resendAccessCode(
+    @CurrentUser() admin: AuthenticatedUserContext,
+    @Body() body: ResendSellerAccessCodeDto,
+  ) {
+    return this.resendSellerAccessCode.execute({
+      email: body.email,
+      adminUserId: admin.id,
     });
   }
 }

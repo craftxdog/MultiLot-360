@@ -5,6 +5,7 @@ import {
   ConfirmSellerAccessInput,
   PendingSellerAccess,
   PersistSellerInvitationInput,
+  PersistResentSellerAccessCodeInput,
   SellerOnboardingRepository,
 } from '../../../domain/ports';
 import { ConfirmedSellerAccess, SellerInvitation } from '../../../domain';
@@ -149,6 +150,73 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
     return error instanceof Error
       ? error
       : new Error('Could not persist seller invitation');
+  }
+
+  async resendAccessCode(
+    input: PersistResentSellerAccessCodeInput,
+  ): Promise<SellerInvitation | null> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const latestAccessCode = await tx.codigos_acceso_vendedor.findFirst({
+          where: {
+            email: input.email,
+          },
+          include: {
+            usuarios: true,
+            vendedores: true,
+          },
+          orderBy: {
+            creado_en: 'desc',
+          },
+        });
+
+        if (!latestAccessCode) {
+          return null;
+        }
+
+        if (
+          latestAccessCode.usuarios.activo ||
+          latestAccessCode.vendedores.activo
+        ) {
+          throw new Error('Seller account is already active');
+        }
+
+        await tx.codigos_acceso_vendedor.updateMany({
+          where: {
+            OR: [
+              { email: input.email },
+              { usuario_id: latestAccessCode.usuario_id },
+              { vendedor_id: latestAccessCode.vendedor_id },
+            ],
+            estado: codigo_acceso_estado.PENDIENTE,
+          },
+          data: {
+            estado: codigo_acceso_estado.REVOCADO,
+          },
+        });
+
+        await tx.codigos_acceso_vendedor.create({
+          data: {
+            usuario_id: latestAccessCode.usuario_id,
+            vendedor_id: latestAccessCode.vendedor_id,
+            email: input.email,
+            codigo_hash: input.accessCodeHash,
+            expira_en: input.expiresAt,
+            creado_por: input.adminUserId,
+          },
+        });
+
+        return {
+          userId: latestAccessCode.usuario_id,
+          sellerId: latestAccessCode.vendedor_id,
+          email: input.email,
+          sellerName: latestAccessCode.vendedores.nombre,
+          expiresAt: input.expiresAt,
+        };
+      });
+    } catch (error) {
+      throw this.toInvitationError(error);
+    }
   }
 
   async findPendingAccessCode(
