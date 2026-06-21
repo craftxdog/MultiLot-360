@@ -51,11 +51,14 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     REDIS_DB: num({ default: 0 }),
     REDIS_KEY_PREFIX: str({ default: 'multilot360:development:' }),
 
+    MAILERSEND_ENABLED: bool({ default: false }),
+    MAILERSEND_API_TOKEN: str({ default: '' }),
     MAILERSEND_SMTP_HOST: str({ default: 'smtp.mailersend.net' }),
     MAILERSEND_SMTP_PORT: port({ default: 587 }),
     MAILERSEND_SMTP_USER: str({ default: '' }),
     MAILERSEND_SMTP_PASSWORD: str({ default: '' }),
     MAILERSEND_FROM_EMAIL: str({ default: '' }),
     MAILERSEND_FROM_NAME: str({ default: 'MultiLot 360' }),
+    MAILERSEND_REPLY_TO_EMAIL: str({ default: '' }),
   });
 }

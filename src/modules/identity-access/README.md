@@ -19,6 +19,18 @@ The guard attaches this request context:
 - `request.user`: internal user, role, modules and permissions.
 - `request.seller`: seller profile when the authenticated user has one.
 
+## Swagger smoke test
+
+Use `GET /api/v1/auth/me` to verify the whole auth bridge:
+
+```txt
+Swagger Authorize
+  -> Bearer <supabase-access-token>
+  -> SupabaseAuthGuard
+  -> usuarios.auth_user_id
+  -> AuthMeController
+```
+
 Permission keys are derived from the current schema:
 
 - `modulos.codigo + ".read"` from `puede_leer`.

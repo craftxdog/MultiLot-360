@@ -43,12 +43,15 @@ export interface AppConfig {
   };
 
   mailer: {
+    enabled: boolean;
+    apiToken: string;
     smtpHost: string;
     smtpPort: number;
     smtpUser: string;
     smtpPassword: string;
     fromEmail: string;
     fromName: string;
+    replyToEmail: string;
   };
 }
 
@@ -92,12 +95,15 @@ export default (): AppConfig => {
       keyPrefix: env.REDIS_KEY_PREFIX,
     },
     mailer: {
+      enabled: env.MAILERSEND_ENABLED,
+      apiToken: env.MAILERSEND_API_TOKEN,
       smtpHost: env.MAILERSEND_SMTP_HOST,
       smtpPort: env.MAILERSEND_SMTP_PORT,
       smtpUser: env.MAILERSEND_SMTP_USER,
       smtpPassword: env.MAILERSEND_SMTP_PASSWORD,
       fromEmail: env.MAILERSEND_FROM_EMAIL,
       fromName: env.MAILERSEND_FROM_NAME,
+      replyToEmail: env.MAILERSEND_REPLY_TO_EMAIL,
     },
   };
 };

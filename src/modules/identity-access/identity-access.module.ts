@@ -6,6 +6,7 @@ import { ResolveRequestIdentityUseCase } from './application';
 import { IDENTITY_ACCESS_REPOSITORY } from './domain';
 import { PrismaIdentityAccessRepository } from './infrastructure';
 import {
+  AuthMeController,
   ModulesGuard,
   PermissionsGuard,
   RolesGuard,
@@ -14,6 +15,7 @@ import {
 
 @Module({
   imports: [DatabaseModule, JwtModule.register({})],
+  controllers: [AuthMeController],
   providers: [
     PrismaIdentityAccessRepository,
     ResolveRequestIdentityUseCase,
