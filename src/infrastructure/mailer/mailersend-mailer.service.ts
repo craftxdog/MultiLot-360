@@ -17,6 +17,14 @@ type SendTemplateEmailInput = {
   context: Record<string, unknown>;
 };
 
+type MailerSendApiError = {
+  statusCode?: number;
+  body?: {
+    message?: string;
+    errors?: Record<string, string[]>;
+  };
+};
+
 @Injectable()
 export class MailerSendMailerService implements MailerPort {
   private readonly logger = new Logger(MailerSendMailerService.name);
@@ -117,6 +125,53 @@ export class MailerSendMailerService implements MailerPort {
       .setHtml(rendered.html)
       .setText(rendered.text);
 
-    await this.client.email.send(emailParams);
+    try {
+      await this.client.email.send(emailParams);
+    } catch (error) {
+      const mailerError = this.toMailerSendError(error);
+      this.logger.warn(mailerError.message);
+      throw mailerError;
+    }
+  }
+
+  private toMailerSendError(error: unknown): Error {
+    if (this.isMailerSendApiError(error)) {
+      const status = error.statusCode ? ` status=${error.statusCode}` : '';
+      const message =
+        error.body?.message ?? this.firstValidationMessage(error.body?.errors);
+
+      return new Error(
+        `MailerSend rejected email${status}: ${
+          message ?? 'unknown provider error'
+        }`,
+      );
+    }
+
+    if (error instanceof Error) {
+      return new Error(`MailerSend failed to send email: ${error.message}`);
+    }
+
+    return new Error('MailerSend failed to send email');
+  }
+
+  private isMailerSendApiError(error: unknown): error is MailerSendApiError {
+    return Boolean(
+      error &&
+        typeof error === 'object' &&
+        ('statusCode' in error || 'body' in error),
+    );
+  }
+
+  private firstValidationMessage(
+    errors?: Record<string, string[]>,
+  ): string | undefined {
+    if (!errors) return undefined;
+
+    for (const messages of Object.values(errors)) {
+      const [message] = messages;
+      if (message) return message;
+    }
+
+    return undefined;
   }
 }

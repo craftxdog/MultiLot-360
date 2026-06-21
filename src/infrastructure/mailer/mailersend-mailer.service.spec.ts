@@ -34,4 +34,47 @@ describe('MailerSendMailerService', () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it('normalizes MailerSend API errors', async () => {
+    const service = new MailerSendMailerService(
+      {
+        ...envConfig,
+        mailer: {
+          ...envConfig.mailer,
+          enabled: true,
+          apiToken: 'test-token',
+          fromEmail: 'no-reply@example.com',
+        },
+      } as EnvConfigService,
+      new TemplateRendererService(),
+    );
+
+    Object.defineProperty(service, 'client', {
+      value: {
+        email: {
+          send: jest.fn().mockRejectedValue({
+            statusCode: 422,
+            body: {
+              message: 'The from.email domain must be verified in your account',
+            },
+          }),
+        },
+      },
+    });
+
+    await expect(
+      service.sendSellerInvitation({
+        recipient: {
+          email: 'seller@example.com',
+          name: 'Seller',
+        },
+        adminName: 'Admin',
+        sellerName: 'Seller',
+        accessCode: '123456',
+        expiresInMinutes: 10,
+      }),
+    ).rejects.toThrow(
+      'MailerSend rejected email status=422: The from.email domain must be verified in your account',
+    );
+  });
 });
