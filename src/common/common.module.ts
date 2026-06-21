@@ -25,6 +25,6 @@ import { AccessLogMiddleware } from './middleware';
 })
 export class CommonModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AccessLogMiddleware).forRoutes('*');
+    consumer.apply(AccessLogMiddleware).forRoutes('{*path}');
   }
 }
