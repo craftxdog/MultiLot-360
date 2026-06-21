@@ -38,23 +38,25 @@ model permisos_por_rol {
 }
 
 model usuarios {
-  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  auth_user_id       String?              @unique @db.Uuid
-  username           String               @unique
-  pass_hash          String
-  rol_id             String               @db.Uuid
-  activo             Boolean              @default(true)
-  nombre             String?
-  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
-  actualizado_en     DateTime             @default(now()) @db.Timestamptz(6)
-  auditoria_eventos  auditoria_eventos[]
-  cortes             cortes[]
-  numeros_bloqueados numeros_bloqueados[]
-  pagos_premios      pagos_premios[]
-  resultados         resultados[]
-  roles              roles                @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendedores         vendedores?
-  ventas_anuladas    ventas[]             @relation("ventas_anuladas")
+  id                     String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  auth_user_id           String?                   @unique @db.Uuid
+  username               String                    @unique
+  pass_hash              String
+  rol_id                 String                    @db.Uuid
+  activo                 Boolean                   @default(true)
+  nombre                 String?
+  creado_en              DateTime                  @default(now()) @db.Timestamptz(6)
+  actualizado_en         DateTime                  @default(now()) @db.Timestamptz(6)
+  auditoria_eventos      auditoria_eventos[]
+  codigos_acceso_creados codigos_acceso_vendedor[] @relation("codigos_acceso_creados")
+  codigos_acceso_usuario codigos_acceso_vendedor[] @relation("codigos_acceso_usuario")
+  cortes                 cortes[]
+  numeros_bloqueados     numeros_bloqueados[]
+  pagos_premios          pagos_premios[]
+  resultados             resultados[]
+  roles                  roles                     @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendedores             vendedores?
+  ventas_anuladas        ventas[]                  @relation("ventas_anuladas")
 
   @@index([rol_id], map: "ix_usuarios_rol_id")
   @@index([username], map: "ix_usuarios_username")
@@ -70,11 +72,33 @@ model vendedores {
   activo                  Boolean                   @default(true)
   creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
   actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
+  codigos_acceso_vendedor codigos_acceso_vendedor[]
   limites_numero_vendedor limites_numero_vendedor[]
   usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   ventas                  ventas[]
 
   @@index([usuario_id], map: "ix_vendedores_usuario")
+}
+
+model codigos_acceso_vendedor {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id  String               @db.Uuid
+  vendedor_id String               @db.Uuid
+  email       String
+  codigo_hash String
+  estado      codigo_acceso_estado @default(PENDIENTE)
+  expira_en   DateTime             @db.Timestamptz(6)
+  usado_en    DateTime?            @db.Timestamptz(6)
+  creado_por  String?              @db.Uuid
+  creado_en   DateTime             @default(now()) @db.Timestamptz(6)
+  creador     usuarios?            @relation("codigos_acceso_creados", fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios    usuarios             @relation("codigos_acceso_usuario", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vendedores  vendedores           @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([creado_por], map: "ix_codigos_acceso_vendedor_creado_por")
+  @@index([email, estado], map: "ix_codigos_acceso_vendedor_email_estado")
+  @@index([usuario_id, estado], map: "ix_codigos_acceso_vendedor_usuario_estado")
+  @@index([vendedor_id, estado], map: "ix_codigos_acceso_vendedor_vendedor_estado")
 }
 
 model sorteos_config {
@@ -246,4 +270,11 @@ enum turno_estado {
 enum venta_estado {
   ACTIVA
   ANULADA
+}
+
+enum codigo_acceso_estado {
+  PENDIENTE
+  USADO
+  EXPIRADO
+  REVOCADO
 }

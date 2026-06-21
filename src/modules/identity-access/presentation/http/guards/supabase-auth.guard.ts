@@ -6,20 +6,18 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
 import { IS_PUBLIC_KEY, extractBearerToken } from '../../../../../common';
 import { ApiRequest } from '../../../../../common/interfaces';
-import { EnvConfigService } from '../../../../../config/env-config.service';
 import { isFailure } from '../../../../../shared-kernel';
 import { ResolveRequestIdentityUseCase } from '../../../application';
-import { IdentityUser, SupabaseJwtPayload } from '../../../domain';
+import { IdentityUser } from '../../../domain';
+import { SupabaseTokenVerifierService } from '../../../infrastructure';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   constructor(
-    private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
-    private readonly envConfig: EnvConfigService,
+    private readonly supabaseTokenVerifier: SupabaseTokenVerifierService,
     private readonly resolveRequestIdentity: ResolveRequestIdentityUseCase,
   ) {}
 
@@ -35,7 +33,7 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException('Bearer token is required');
     }
 
-    const payload = await this.verifyToken(token);
+    const payload = await this.supabaseTokenVerifier.verify(token);
     const result = await this.resolveRequestIdentity.execute(payload);
 
     if (isFailure(result)) {
@@ -49,16 +47,6 @@ export class SupabaseAuthGuard implements CanActivate {
     this.attachIdentity(request, result.value.user);
 
     return true;
-  }
-
-  private async verifyToken(token: string): Promise<SupabaseJwtPayload> {
-    try {
-      return await this.jwtService.verifyAsync<SupabaseJwtPayload>(token, {
-        secret: this.envConfig.supabase.jwtSecret,
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
   }
 
   private attachIdentity(request: ApiRequest, identity: IdentityUser): void {

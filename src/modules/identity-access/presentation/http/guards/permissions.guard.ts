@@ -22,7 +22,11 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<ApiRequest>();
-    const permissions = new Set(request.user?.permissions ?? []);
+    const permissions = new Set(
+      (request.user?.permissions ?? []).map((permission) =>
+        permission.toLowerCase(),
+      ),
+    );
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
@@ -30,7 +34,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (requiredPermissions?.length) {
       const hasAllRequired = requiredPermissions.every((permission) =>
-        permissions.has(permission),
+        permissions.has(permission.toLowerCase()),
       );
 
       if (!hasAllRequired) {
@@ -50,7 +54,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const hasAnyPermission = anyPermissions.some((permission) =>
-      permissions.has(permission),
+      permissions.has(permission.toLowerCase()),
     );
 
     if (!hasAnyPermission) {

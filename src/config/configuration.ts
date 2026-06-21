@@ -43,12 +43,25 @@ export interface AppConfig {
   };
 
   mailer: {
+    enabled: boolean;
+    apiToken: string;
     smtpHost: string;
     smtpPort: number;
     smtpUser: string;
     smtpPassword: string;
     fromEmail: string;
     fromName: string;
+    replyToEmail: string;
+  };
+
+  sellerAccess: {
+    codeExpiresInMinutes: number;
+    codeSecret: string;
+  };
+
+  auth: {
+    signupEnabled: boolean;
+    adminRoleName: string;
   };
 }
 
@@ -92,12 +105,23 @@ export default (): AppConfig => {
       keyPrefix: env.REDIS_KEY_PREFIX,
     },
     mailer: {
+      enabled: env.MAILERSEND_ENABLED,
+      apiToken: env.MAILERSEND_API_TOKEN,
       smtpHost: env.MAILERSEND_SMTP_HOST,
       smtpPort: env.MAILERSEND_SMTP_PORT,
       smtpUser: env.MAILERSEND_SMTP_USER,
       smtpPassword: env.MAILERSEND_SMTP_PASSWORD,
       fromEmail: env.MAILERSEND_FROM_EMAIL,
       fromName: env.MAILERSEND_FROM_NAME,
+      replyToEmail: env.MAILERSEND_REPLY_TO_EMAIL,
+    },
+    sellerAccess: {
+      codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
+      codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
+    },
+    auth: {
+      signupEnabled: env.AUTH_SIGNUP_ENABLED,
+      adminRoleName: env.AUTH_ADMIN_ROLE_NAME,
     },
   };
 };

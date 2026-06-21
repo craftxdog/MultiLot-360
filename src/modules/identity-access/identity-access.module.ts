@@ -2,24 +2,71 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
-import { ResolveRequestIdentityUseCase } from './application';
-import { IDENTITY_ACCESS_REPOSITORY } from './domain';
-import { PrismaIdentityAccessRepository } from './infrastructure';
 import {
+  ConfirmSellerAccessCodeUseCase,
+  CreateSellerInvitationUseCase,
+  LoginUseCase,
+  LogoutUseCase,
+  RefreshSessionUseCase,
+  ResolveRequestIdentityUseCase,
+  SellerAccessCodeService,
+  SignupAdminUseCase,
+} from './application';
+import {
+  AUTH_ACCOUNT_REPOSITORY,
+  AUTH_PROVIDER,
+  IDENTITY_ACCESS_REPOSITORY,
+  SELLER_ONBOARDING_REPOSITORY,
+} from './domain';
+import {
+  PrismaAuthAccountRepository,
+  PrismaIdentityAccessRepository,
+  PrismaSellerOnboardingRepository,
+  SupabaseAuthProviderService,
+  SupabaseTokenVerifierService,
+} from './infrastructure';
+import {
+  AuthController,
+  AuthMeController,
   ModulesGuard,
   PermissionsGuard,
   RolesGuard,
+  SellerOnboardingController,
   SupabaseAuthGuard,
 } from './presentation';
 
 @Module({
   imports: [DatabaseModule, JwtModule.register({})],
+  controllers: [AuthController, AuthMeController, SellerOnboardingController],
   providers: [
+    PrismaAuthAccountRepository,
     PrismaIdentityAccessRepository,
+    PrismaSellerOnboardingRepository,
+    SellerAccessCodeService,
+    SupabaseAuthProviderService,
+    SupabaseTokenVerifierService,
+    ConfirmSellerAccessCodeUseCase,
+    CreateSellerInvitationUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshSessionUseCase,
     ResolveRequestIdentityUseCase,
+    SignupAdminUseCase,
+    {
+      provide: AUTH_ACCOUNT_REPOSITORY,
+      useExisting: PrismaAuthAccountRepository,
+    },
+    {
+      provide: AUTH_PROVIDER,
+      useExisting: SupabaseAuthProviderService,
+    },
     {
       provide: IDENTITY_ACCESS_REPOSITORY,
       useExisting: PrismaIdentityAccessRepository,
+    },
+    {
+      provide: SELLER_ONBOARDING_REPOSITORY,
+      useExisting: PrismaSellerOnboardingRepository,
     },
     {
       provide: APP_GUARD,
@@ -38,6 +85,14 @@ import {
       useClass: ModulesGuard,
     },
   ],
-  exports: [ResolveRequestIdentityUseCase],
+  exports: [
+    ConfirmSellerAccessCodeUseCase,
+    CreateSellerInvitationUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshSessionUseCase,
+    ResolveRequestIdentityUseCase,
+    SignupAdminUseCase,
+  ],
 })
 export class IdentityAccessModule {}

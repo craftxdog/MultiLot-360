@@ -38,7 +38,7 @@ const PERMISSION_ACTIONS: Array<{
 const buildPermissionKey = (
   moduleCode: string,
   action: PermissionAction,
-): PermissionKey => `${moduleCode}.${action}`;
+): PermissionKey => `${moduleCode.toLowerCase()}.${action}`;
 
 @Injectable()
 export class PrismaIdentityAccessRepository implements IdentityAccessRepository {
@@ -58,7 +58,11 @@ export class PrismaIdentityAccessRepository implements IdentityAccessRepository 
   private mapUser(user: IdentityUserRecord): IdentityUser {
     const permissionRows = user.roles.permisos_por_rol;
     const modules = [
-      ...new Set(permissionRows.map((permission) => permission.modulos.codigo)),
+      ...new Set(
+        permissionRows.map((permission) =>
+          permission.modulos.codigo.toLowerCase(),
+        ),
+      ),
     ];
     const permissions = [
       ...new Set<PermissionKey>(
