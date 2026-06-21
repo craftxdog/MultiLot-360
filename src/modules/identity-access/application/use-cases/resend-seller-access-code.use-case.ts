@@ -1,20 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { MAILER_PORT, MailerPort } from '../../../../infrastructure/mailer';
 import {
   AppError,
   ErrorFactory,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
+import { SellerInvitation } from '../../domain/entities';
 import {
-  ResendSellerAccessCodeCommand,
-  SellerInvitation,
-} from '../../domain/entities';
-import {
+  MAILER_PORT,
+  MailerPort,
   SELLER_ONBOARDING_REPOSITORY,
   SellerOnboardingRepository,
 } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
+
+export type ResendSellerAccessCodeCommand = {
+  email: string;
+  adminUserId?: string;
+};
 
 @Injectable()
 export class ResendSellerAccessCodeUseCase extends UseCase<

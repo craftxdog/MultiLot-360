@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { EnvConfigModule } from '../../config/config.module';
-import { MAILER_PORT } from './domain';
+import { MAILER_PORT } from '../../modules/identity-access/domain';
 import { MailerSendMailerService } from './mailersend-mailer.service';
 import { TemplateRendererService } from './template-renderer.service';
 

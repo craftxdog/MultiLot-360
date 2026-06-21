@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   AUTH_PROVIDER,
   AuthProviderPort,
@@ -6,7 +6,7 @@ import {
 } from '../../domain';
 
 @Injectable()
-export class SupabaseTokenVerifierService {
+export class AccessTokenVerifierService {
   constructor(
     @Inject(AUTH_PROVIDER)
     private readonly authProvider: AuthProviderPort,
@@ -16,7 +16,7 @@ export class SupabaseTokenVerifierService {
     try {
       return await this.authProvider.verifyAccessToken(token);
     } catch {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new Error('Invalid or expired token');
     }
   }
 }

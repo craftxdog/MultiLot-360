@@ -1,10 +1,11 @@
-import { MailerPort } from '../../../../infrastructure/mailer';
 import { SellerOnboardingRepository } from '../../domain';
+import { MailerPort } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
 import { ResendSellerAccessCodeUseCase } from './resend-seller-access-code.use-case';
 
 describe('ResendSellerAccessCodeUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
+    listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
     findPendingAccessCode: jest.fn(),

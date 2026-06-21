@@ -8,5 +8,6 @@ Current adapters:
   classes.
 - `mailer`: MailerSend adapter and Nunjucks templates for transactional emails.
 
-Domain modules should depend on ports defined in `src/modules/<context>/domain`
-and bind those ports to infrastructure adapters inside module wiring.
+Domain and application modules should depend on ports defined in
+`src/modules/<context>/domain`. Infrastructure adapters implement those ports
+and are bound in module wiring.

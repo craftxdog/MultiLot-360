@@ -59,6 +59,10 @@ Example:
 Domain/application code does not know about JWT, HTTP or Prisma. Those details
 stay in presentation and infrastructure adapters.
 
+Presentation mappers translate HTTP DTOs and request context into application
+commands or queries. This keeps controllers thin and avoids leaking controller
+shape into use cases.
+
 ## Seller onboarding
 
 Create the first admin:
@@ -98,6 +102,40 @@ POST /api/v1/identity-access/sellers/invitations
   "sellerName": "Seller One",
   "documentId": "001-010190-0001A"
 }
+```
+
+Admin resends a fresh seller code:
+
+```txt
+POST /api/v1/identity-access/sellers/access-code/resend
+  -> requires usuarios.create
+  -> finds the latest invitation by email
+  -> rejects when the seller account is already active
+  -> revokes previous pending codes
+  -> stores a new hashed code with a new expiration
+  -> sends the fresh code by email
+```
+
+```json
+{
+  "email": "seller@example.com"
+}
+```
+
+Admin lists seller invitations:
+
+```txt
+GET /api/v1/identity-access/sellers/invitations
+  -> requires usuarios.read
+  -> filters by email, username, sellerName or status
+  -> returns paginated invitation read models
+  -> status=EXPIRADO includes pending codes whose expiration date already passed
+```
+
+Example query:
+
+```txt
+GET /api/v1/identity-access/sellers/invitations?status=PENDIENTE&page=1&limit=25
 ```
 
 Seller confirms the code and sets a password:
