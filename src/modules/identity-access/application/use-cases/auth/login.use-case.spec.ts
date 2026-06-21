@@ -15,8 +15,8 @@ const identityUser: IdentityUser = {
     id: 'role-id',
     name: 'admin',
   },
-  modules: ['vendedores'],
-  permissions: ['vendedores.create'],
+  modules: ['usuarios'],
+  permissions: ['usuarios.create'],
 };
 
 describe('LoginUseCase', () => {

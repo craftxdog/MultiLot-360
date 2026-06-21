@@ -84,6 +84,7 @@ Admin creates the seller:
 
 ```txt
 POST /api/v1/identity-access/sellers/invitations
+  -> requires usuarios.create
   -> creates inactive usuarios + vendedores
   -> revokes previous pending codes for the same seller/email
   -> stores a new hashed access code with expiration

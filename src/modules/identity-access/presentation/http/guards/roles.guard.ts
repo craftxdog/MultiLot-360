@@ -27,9 +27,12 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<ApiRequest>();
-    const currentRole = request.user?.roleName;
+    const currentRole = request.user?.roleName?.toLowerCase();
+    const normalizedRequiredRoles = requiredRoles.map((role) =>
+      role.toLowerCase(),
+    );
 
-    if (!currentRole || !requiredRoles.includes(currentRole)) {
+    if (!currentRole || !normalizedRequiredRoles.includes(currentRole)) {
       throw new ForbiddenException('Insufficient role for this endpoint');
     }
 

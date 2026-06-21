@@ -33,8 +33,8 @@ export class SellerOnboardingController {
 
   @Post('invitations')
   @ApiBearerAuth()
-  @RequireModules('vendedores')
-  @Permissions('vendedores.create')
+  @RequireModules('usuarios')
+  @Permissions('usuarios.create')
   @ApiCreatedResponse({ type: SellerInvitationResponseDto })
   createInvitation(
     @CurrentUser() admin: AuthenticatedUserContext,

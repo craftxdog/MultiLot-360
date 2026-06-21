@@ -27,9 +27,11 @@ export class ModulesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<ApiRequest>();
-    const modules = new Set(request.user?.modules ?? []);
+    const modules = new Set(
+      (request.user?.modules ?? []).map((module) => module.toLowerCase()),
+    );
     const hasAllModules = requiredModules.every((module) =>
-      modules.has(module),
+      modules.has(module.toLowerCase()),
     );
 
     if (!hasAllModules) {
