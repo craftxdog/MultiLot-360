@@ -42,6 +42,7 @@ export class AuthController {
   signup(@Body() body: SignupAdminDto) {
     return this.signupAdmin.execute({
       email: body.email,
+      username: body.username,
       password: body.password,
       name: body.name,
     });

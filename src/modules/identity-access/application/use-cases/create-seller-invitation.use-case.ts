@@ -41,6 +41,7 @@ export class CreateSellerInvitationUseCase extends UseCase<
         {
           ...input,
           email: input.email.trim().toLowerCase(),
+          username: input.username.trim().toLowerCase(),
           accessCodeHash: this.accessCodeService.hash(accessCode),
           expiresAt: this.accessCodeService.expiresAt(),
         },

@@ -42,6 +42,7 @@ export class SellerOnboardingController {
   ) {
     return this.createSellerInvitation.execute({
       email: body.email,
+      username: body.username,
       sellerName: body.sellerName,
       documentId: body.documentId,
       phone: body.phone,

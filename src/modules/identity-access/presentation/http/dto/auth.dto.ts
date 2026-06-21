@@ -1,7 +1,18 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { trimLowercaseString, trimString } from '../../../../../common';
+import {
+  USERNAME_FORMAT_MESSAGE,
+  USERNAME_PATTERN,
+  trimLowercaseString,
+  trimString,
+} from '../../../../../common';
 import { AuthMeResponseDto } from './auth-me-response.dto';
 
 export class LoginDto {
@@ -22,6 +33,11 @@ export class SignupAdminDto {
   @Transform(({ value }) => trimLowercaseString(value))
   @IsEmail()
   email: string;
+
+  @ApiProperty({ example: 'admin' })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @Matches(USERNAME_PATTERN, { message: USERNAME_FORMAT_MESSAGE })
+  username: string;
 
   @ApiProperty({ example: 'Admin Principal' })
   @Transform(({ value }) => trimString(value))

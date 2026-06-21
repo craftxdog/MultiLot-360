@@ -9,7 +9,7 @@ import { SignupAdminUseCase } from './signup-admin.use-case';
 const identityUser: IdentityUser = {
   id: 'user-id',
   authUserId: 'auth-user-id',
-  username: 'admin@example.com',
+  username: 'admin',
   name: 'Admin',
   active: true,
   role: {
@@ -64,6 +64,7 @@ describe('SignupAdminUseCase', () => {
   it('creates a Supabase user and an internal admin user', async () => {
     const result = await useCase.execute({
       email: 'ADMIN@example.com',
+      username: 'ADMIN',
       password: 'Sup3rSecret2026!',
       name: 'Admin',
     });
@@ -76,6 +77,7 @@ describe('SignupAdminUseCase', () => {
     expect(authAccountRepository.createInternalUser.mock.calls[0][0]).toEqual({
       authUserId: 'auth-user-id',
       email: 'admin@example.com',
+      username: 'admin',
       name: 'Admin',
       roleName: 'admin',
     });
@@ -88,6 +90,7 @@ describe('SignupAdminUseCase', () => {
 
     const result = await useCase.execute({
       email: 'admin@example.com',
+      username: 'admin',
       password: 'Sup3rSecret2026!',
       name: 'Admin',
     });

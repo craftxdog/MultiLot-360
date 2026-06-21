@@ -34,7 +34,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
     return this.prisma.$transaction(async (tx) => {
       const existingUser = await tx.usuarios.findUnique({
         where: {
-          username: input.email,
+          username: input.username,
         },
         include: {
           vendedores: true,
@@ -62,7 +62,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
           })
         : await tx.usuarios.create({
             data: {
-              username: input.email,
+              username: input.username,
               pass_hash: PENDING_PASSWORD_HASH,
               rol_id: role.id,
               activo: false,

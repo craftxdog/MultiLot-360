@@ -1,5 +1,6 @@
 export type CreateSellerInvitationCommand = {
   email: string;
+  username: string;
   sellerName: string;
   documentId: string;
   phone?: string;

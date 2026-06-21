@@ -53,6 +53,7 @@ export class SignupAdminUseCase extends UseCase<
       const user = await this.authAccountRepository.createInternalUser({
         authUserId: authUser.id,
         email,
+        username: input.username.trim().toLowerCase(),
         name: input.name,
         roleName: this.envConfig.auth.adminRoleName,
       });

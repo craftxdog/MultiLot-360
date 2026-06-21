@@ -13,6 +13,8 @@ import {
   NICARAGUA_DOCUMENT_ID_PATTERN,
   PHONE_NUMBER_FORMAT_MESSAGE,
   PHONE_NUMBER_PATTERN,
+  USERNAME_FORMAT_MESSAGE,
+  USERNAME_PATTERN,
   normalizeDocumentId,
   normalizePhoneNumber,
   trimLowercaseString,
@@ -24,6 +26,11 @@ export class CreateSellerInvitationDto {
   @Transform(({ value }) => trimLowercaseString(value))
   @IsEmail()
   email: string;
+
+  @ApiProperty({ example: 'carlos.lopez' })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @Matches(USERNAME_PATTERN, { message: USERNAME_FORMAT_MESSAGE })
+  username: string;
 
   @ApiProperty({ example: 'Carlos Lopez' })
   @Transform(({ value }) => trimString(value))

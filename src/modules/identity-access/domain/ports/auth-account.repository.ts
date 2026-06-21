@@ -5,6 +5,7 @@ export const AUTH_ACCOUNT_REPOSITORY = Symbol('AUTH_ACCOUNT_REPOSITORY');
 export type CreateInternalUserInput = {
   authUserId: string;
   email: string;
+  username: string;
   name: string;
   roleName: string;
 };

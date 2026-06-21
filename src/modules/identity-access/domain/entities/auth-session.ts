@@ -23,6 +23,7 @@ export type LogoutCommand = {
 
 export type SignupAdminCommand = {
   email: string;
+  username: string;
   password: string;
   name: string;
 };

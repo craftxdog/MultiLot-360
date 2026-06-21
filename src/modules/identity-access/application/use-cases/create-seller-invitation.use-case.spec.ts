@@ -46,6 +46,7 @@ describe('CreateSellerInvitationUseCase', () => {
   it('persists the invitation and sends the code by email', async () => {
     const result = await useCase.execute({
       email: 'SELLER@example.com',
+      username: 'seller.01',
       sellerName: 'Seller',
       documentId: '001-010190-0001A',
       adminName: 'Admin',
@@ -54,6 +55,7 @@ describe('CreateSellerInvitationUseCase', () => {
     expect(result.isSuccess).toBe(true);
     expect(repository.createInvitation.mock.calls[0][0]).toMatchObject({
       email: 'seller@example.com',
+      username: 'seller.01',
       accessCodeHash: 'hashed-code',
     });
     expect(mailer.sendSellerInvitation.mock.calls).toHaveLength(1);

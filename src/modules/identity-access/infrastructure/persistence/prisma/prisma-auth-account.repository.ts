@@ -63,7 +63,7 @@ export class PrismaAuthAccountRepository implements AuthAccountRepository {
     const user = await this.prisma.usuarios.create({
       data: {
         auth_user_id: input.authUserId,
-        username: input.email,
+        username: input.username,
         pass_hash: MANAGED_PASSWORD_HASH,
         rol_id: role.id,
         nombre: input.name,

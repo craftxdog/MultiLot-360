@@ -13,6 +13,11 @@ export const PHONE_NUMBER_FORMAT_MESSAGE =
 
 export const MODULE_CODE_PATTERN = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
+export const USERNAME_PATTERN = /^[a-z0-9._-]{3,50}$/;
+
+export const USERNAME_FORMAT_MESSAGE =
+  'El username debe tener 3 a 50 caracteres en minusculas y solo puede incluir letras, numeros, punto, guion o guion bajo.';
+
 export const normalizeDocumentId = (value: unknown): unknown => {
   if (typeof value !== 'string') return value;
 

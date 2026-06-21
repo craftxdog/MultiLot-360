@@ -71,6 +71,15 @@ POST /api/v1/auth/signup
   -> returns accessToken + refreshToken
 ```
 
+```json
+{
+  "email": "admin@example.com",
+  "username": "admin",
+  "name": "Admin Principal",
+  "password": "Sup3rSecret2026!"
+}
+```
+
 Admin creates the seller:
 
 ```txt
@@ -79,6 +88,15 @@ POST /api/v1/identity-access/sellers/invitations
   -> revokes previous pending codes for the same seller/email
   -> stores a new hashed access code with expiration
   -> sends the code by email
+```
+
+```json
+{
+  "email": "seller@example.com",
+  "username": "seller.01",
+  "sellerName": "Seller One",
+  "documentId": "001-010190-0001A"
+}
 ```
 
 Seller confirms the code and sets a password:
