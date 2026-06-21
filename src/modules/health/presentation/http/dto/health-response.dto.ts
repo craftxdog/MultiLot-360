@@ -1,4 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 export class HealthCheckDto {
   @ApiProperty({ enum: ['ok', 'error'] })
@@ -8,6 +13,7 @@ export class HealthCheckDto {
   details?: string;
 }
 
+@ApiExtraModels(HealthCheckDto)
 export class HealthResponseDto {
   @ApiProperty({ enum: ['ok', 'error'] })
   status: 'ok' | 'error';
@@ -19,7 +25,8 @@ export class HealthResponseDto {
   timestamp: string;
 
   @ApiPropertyOptional({
-    additionalProperties: { $ref: '#/components/schemas/HealthCheckDto' },
+    additionalProperties: { $ref: getSchemaPath(HealthCheckDto) },
+    type: 'object',
   })
   checks?: Record<string, HealthCheckDto>;
 }
