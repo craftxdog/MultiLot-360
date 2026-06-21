@@ -61,7 +61,12 @@ export class CreateSellerInvitationUseCase extends UseCase<
 
       return Result.success(invitation);
     } catch (error) {
-      return ErrorFactory.useCase('Could not create seller invitation', error);
+      return ErrorFactory.useCase(
+        error instanceof Error
+          ? error.message
+          : 'Could not create seller invitation',
+        error,
+      );
     }
   }
 }
