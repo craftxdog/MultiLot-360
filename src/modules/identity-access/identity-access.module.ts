@@ -8,6 +8,7 @@ import {
   LoginUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
+  ResendSellerAccessCodeUseCase,
   ResolveRequestIdentityUseCase,
   SellerAccessCodeService,
   SignupAdminUseCase,
@@ -50,6 +51,7 @@ import {
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    ResendSellerAccessCodeUseCase,
     ResolveRequestIdentityUseCase,
     SignupAdminUseCase,
     {
@@ -91,6 +93,7 @@ import {
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    ResendSellerAccessCodeUseCase,
     ResolveRequestIdentityUseCase,
     SignupAdminUseCase,
   ],

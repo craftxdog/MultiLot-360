@@ -5,6 +5,7 @@ import { ConfirmSellerAccessCodeUseCase } from './confirm-seller-access-code.use
 describe('ConfirmSellerAccessCodeUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
     createInvitation: jest.fn(),
+    resendAccessCode: jest.fn(),
     findPendingAccessCode: jest.fn(),
     confirmAccessCode: jest.fn(),
   };

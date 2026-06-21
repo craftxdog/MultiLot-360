@@ -1,9 +1,9 @@
 import { MailerPort } from '../../../../infrastructure/mailer';
 import { SellerOnboardingRepository } from '../../domain';
 import { SellerAccessCodeService } from '../services';
-import { CreateSellerInvitationUseCase } from './create-seller-invitation.use-case';
+import { ResendSellerAccessCodeUseCase } from './resend-seller-access-code.use-case';
 
-describe('CreateSellerInvitationUseCase', () => {
+describe('ResendSellerAccessCodeUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
@@ -21,44 +21,59 @@ describe('CreateSellerInvitationUseCase', () => {
     expiresAt: jest.fn(),
   } as unknown as jest.Mocked<SellerAccessCodeService>;
 
-  let useCase: CreateSellerInvitationUseCase;
+  let useCase: ResendSellerAccessCodeUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    accessCodeService.generate.mockReturnValue('123456');
-    accessCodeService.hash.mockReturnValue('hashed-code');
+    accessCodeService.generate.mockReturnValue('654321');
+    accessCodeService.hash.mockReturnValue('hashed-new-code');
     accessCodeService.expiresAt.mockReturnValue(
       new Date('2026-06-21T08:15:00.000Z'),
     );
-    repository.createInvitation.mockResolvedValue({
+    repository.resendAccessCode.mockResolvedValue({
       userId: 'user-id',
       sellerId: 'seller-id',
       email: 'seller@example.com',
       sellerName: 'Seller',
       expiresAt: new Date('2026-06-21T08:15:00.000Z'),
     });
-    useCase = new CreateSellerInvitationUseCase(
+    useCase = new ResendSellerAccessCodeUseCase(
       repository,
       mailer,
       accessCodeService,
     );
   });
 
-  it('persists the invitation and sends the code by email', async () => {
+  it('generates a fresh code and sends it by email', async () => {
     const result = await useCase.execute({
       email: 'SELLER@example.com',
-      username: 'seller.01',
-      sellerName: 'Seller',
-      documentId: '001-010190-0001A',
-      adminName: 'Admin',
+      adminUserId: 'admin-id',
     });
 
     expect(result.isSuccess).toBe(true);
-    expect(repository.createInvitation.mock.calls[0][0]).toMatchObject({
+    expect(repository.resendAccessCode.mock.calls[0][0]).toMatchObject({
       email: 'seller@example.com',
-      username: 'seller.01',
-      accessCodeHash: 'hashed-code',
+      adminUserId: 'admin-id',
+      accessCodeHash: 'hashed-new-code',
     });
-    expect(mailer.sendSellerInvitation.mock.calls).toHaveLength(1);
+    expect(mailer.sendSellerAccessCode.mock.calls[0][0]).toMatchObject({
+      recipient: {
+        email: 'seller@example.com',
+        name: 'Seller',
+      },
+      sellerName: 'Seller',
+      accessCode: '654321',
+    });
+  });
+
+  it('fails when there is no previous invitation for the email', async () => {
+    repository.resendAccessCode.mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      email: 'missing@example.com',
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(mailer.sendSellerAccessCode.mock.calls).toHaveLength(0);
   });
 });

@@ -16,6 +16,11 @@ export type ConfirmSellerAccessCodeCommand = {
   password: string;
 };
 
+export type ResendSellerAccessCodeCommand = {
+  email: string;
+  adminUserId?: string;
+};
+
 export type SellerInvitation = {
   userId: string;
   sellerId: string;
