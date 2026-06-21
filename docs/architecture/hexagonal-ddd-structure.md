@@ -125,3 +125,26 @@ Supabase Auth should be mapped at the infrastructure/presentation boundary:
 2. Resolve `auth.users.id` against `usuarios.auth_user_id`.
 3. Attach `user`, `role` and optional `seller` context to the request.
 4. Let use cases receive explicit input, not raw HTTP requests.
+
+## Current implemented context
+
+`identity-access` is the first implemented bounded context.
+
+It resolves Supabase JWT claims into the internal access model:
+
+```txt
+Supabase sub
+  -> usuarios.auth_user_id
+  -> roles.nombre
+  -> permisos_por_rol + modulos.codigo
+  -> optional vendedores profile
+```
+
+The HTTP guards are global and ordered as:
+
+1. `SupabaseAuthGuard`
+2. `RolesGuard`
+3. `PermissionsGuard`
+4. `ModulesGuard`
+
+Public endpoints must use `@Public()`.
