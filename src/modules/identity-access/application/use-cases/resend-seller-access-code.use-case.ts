@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { MAILER_PORT, MailerPort } from '../../../../infrastructure/mailer';
 import {
   AppError,
   ErrorFactory,
@@ -11,6 +10,8 @@ import {
   SellerInvitation,
 } from '../../domain/entities';
 import {
+  MAILER_PORT,
+  MailerPort,
   SELLER_ONBOARDING_REPOSITORY,
   SellerOnboardingRepository,
 } from '../../domain/ports';

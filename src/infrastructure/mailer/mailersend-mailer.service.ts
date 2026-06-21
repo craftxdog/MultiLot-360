@@ -7,7 +7,7 @@ import {
   SendAccountConfirmationInput,
   SendSellerAccessCodeInput,
   SendSellerInvitationInput,
-} from './domain';
+} from '../../modules/identity-access/domain';
 import { TemplateRendererService } from './template-renderer.service';
 
 type SendTemplateEmailInput = {
@@ -157,8 +157,8 @@ export class MailerSendMailerService implements MailerPort {
   private isMailerSendApiError(error: unknown): error is MailerSendApiError {
     return Boolean(
       error &&
-        typeof error === 'object' &&
-        ('statusCode' in error || 'body' in error),
+      typeof error === 'object' &&
+      ('statusCode' in error || 'body' in error),
     );
   }
 

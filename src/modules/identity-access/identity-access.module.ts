@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
+  AccessTokenVerifierService,
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
   LoginUseCase,
@@ -24,7 +25,6 @@ import {
   PrismaIdentityAccessRepository,
   PrismaSellerOnboardingRepository,
   SupabaseAuthProviderService,
-  SupabaseTokenVerifierService,
 } from './infrastructure';
 import {
   AuthController,
@@ -43,9 +43,9 @@ import {
     PrismaAuthAccountRepository,
     PrismaIdentityAccessRepository,
     PrismaSellerOnboardingRepository,
+    AccessTokenVerifierService,
     SellerAccessCodeService,
     SupabaseAuthProviderService,
-    SupabaseTokenVerifierService,
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
     LoginUseCase,

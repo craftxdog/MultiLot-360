@@ -1,5 +1,5 @@
-import { MailerPort } from '../../../../infrastructure/mailer';
 import { SellerOnboardingRepository } from '../../domain';
+import { MailerPort } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
 import { ResendSellerAccessCodeUseCase } from './resend-seller-access-code.use-case';
 

@@ -100,6 +100,24 @@ POST /api/v1/identity-access/sellers/invitations
 }
 ```
 
+Admin resends a fresh seller code:
+
+```txt
+POST /api/v1/identity-access/sellers/access-code/resend
+  -> requires usuarios.create
+  -> finds the latest invitation by email
+  -> rejects when the seller account is already active
+  -> revokes previous pending codes
+  -> stores a new hashed code with a new expiration
+  -> sends the fresh code by email
+```
+
+```json
+{
+  "email": "seller@example.com"
+}
+```
+
 Seller confirms the code and sets a password:
 
 ```txt

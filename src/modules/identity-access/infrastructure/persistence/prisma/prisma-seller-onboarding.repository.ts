@@ -4,8 +4,8 @@ import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import {
   ConfirmSellerAccessInput,
   PendingSellerAccess,
+  PersistResendSellerAccessCodeInput,
   PersistSellerInvitationInput,
-  PersistResentSellerAccessCodeInput,
   SellerOnboardingRepository,
 } from '../../../domain/ports';
 import { ConfirmedSellerAccess, SellerInvitation } from '../../../domain';
@@ -153,7 +153,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
   }
 
   async resendAccessCode(
-    input: PersistResentSellerAccessCodeInput,
+    input: PersistResendSellerAccessCodeInput,
   ): Promise<SellerInvitation | null> {
     try {
       return await this.prisma.$transaction(async (tx) => {

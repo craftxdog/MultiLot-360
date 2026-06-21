@@ -9,15 +9,17 @@ import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY, extractBearerToken } from '../../../../../common';
 import { ApiRequest } from '../../../../../common/interfaces';
 import { isFailure } from '../../../../../shared-kernel';
-import { ResolveRequestIdentityUseCase } from '../../../application';
-import { IdentityUser } from '../../../domain';
-import { SupabaseTokenVerifierService } from '../../../infrastructure';
+import {
+  AccessTokenVerifierService,
+  ResolveRequestIdentityUseCase,
+} from '../../../application';
+import { IdentityUser, SupabaseJwtPayload } from '../../../domain';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly supabaseTokenVerifier: SupabaseTokenVerifierService,
+    private readonly accessTokenVerifier: AccessTokenVerifierService,
     private readonly resolveRequestIdentity: ResolveRequestIdentityUseCase,
   ) {}
 
@@ -33,7 +35,7 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException('Bearer token is required');
     }
 
-    const payload = await this.supabaseTokenVerifier.verify(token);
+    const payload = await this.verifyToken(token);
     const result = await this.resolveRequestIdentity.execute(payload);
 
     if (isFailure(result)) {
@@ -68,6 +70,16 @@ export class SupabaseAuthGuard implements CanActivate {
         name: identity.seller.name,
         active: identity.seller.active,
       };
+    }
+  }
+
+  private async verifyToken(token: string): Promise<SupabaseJwtPayload> {
+    try {
+      return await this.accessTokenVerifier.verify(token);
+    } catch (error) {
+      throw new UnauthorizedException(
+        error instanceof Error ? error.message : 'Invalid or expired token',
+      );
     }
   }
 

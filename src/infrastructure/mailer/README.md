@@ -2,6 +2,10 @@
 
 Infrastructure adapter for transactional emails.
 
+The application-facing port lives in
+`src/modules/identity-access/domain/ports/mailer.port.ts`. This adapter only
+implements that contract; use cases should not import from `infrastructure`.
+
 Current provider:
 
 - MailerSend official Node.js SDK.
