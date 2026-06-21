@@ -4,7 +4,7 @@ import {
   SellerInvitationListItem,
   SellerInvitation,
 } from '../entities';
-import { PaginatedResult } from '../../../../common';
+import { PaginatedResult } from '../../../../shared-kernel';
 
 export const SELLER_ONBOARDING_REPOSITORY = Symbol(
   'SELLER_ONBOARDING_REPOSITORY',

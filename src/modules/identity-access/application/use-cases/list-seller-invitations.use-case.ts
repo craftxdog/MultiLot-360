@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { PaginatedResult } from '../../../../common';
 import {
   AppError,
   ErrorFactory,
+  PaginatedResult,
   Result,
   UseCase,
 } from '../../../../shared-kernel';

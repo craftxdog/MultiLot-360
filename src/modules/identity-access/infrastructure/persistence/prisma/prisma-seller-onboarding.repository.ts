@@ -1,11 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, codigo_acceso_estado } from '@prisma/client';
-import {
-  buildOffsetPagination,
-  getOffsetSkip,
-  PaginatedResult,
-} from '../../../../../common';
+import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
+import { PaginatedResult } from '../../../../../shared-kernel';
 import {
   ConfirmSellerAccessInput,
   ListSellerInvitationsQuery,

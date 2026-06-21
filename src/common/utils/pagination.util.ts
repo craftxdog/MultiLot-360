@@ -4,7 +4,7 @@ import {
   OffsetPaginationMeta,
   PaginatedResult,
   PaginationMeta,
-} from '../interfaces';
+} from '../../shared-kernel';
 import { decodeCursor, encodeCursor } from './cursor.util';
 
 export type CursorEntity = {
