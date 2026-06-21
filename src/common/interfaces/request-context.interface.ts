@@ -7,6 +7,8 @@ export type AuthenticatedUserContext = {
   roleId?: string;
   roleName?: string;
   active?: boolean;
+  modules?: string[];
+  permissions?: string[];
 };
 
 export type SellerContext = {
