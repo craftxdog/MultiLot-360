@@ -59,6 +59,10 @@ Example:
 Domain/application code does not know about JWT, HTTP or Prisma. Those details
 stay in presentation and infrastructure adapters.
 
+Presentation mappers translate HTTP DTOs and request context into application
+commands or queries. This keeps controllers thin and avoids leaking controller
+shape into use cases.
+
 ## Seller onboarding
 
 Create the first admin:

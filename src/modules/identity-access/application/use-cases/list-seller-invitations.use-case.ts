@@ -6,11 +6,9 @@ import {
   Result,
   UseCase,
 } from '../../../../shared-kernel';
+import { SellerInvitationListItem } from '../../domain/entities';
 import {
   ListSellerInvitationsQuery,
-  SellerInvitationListItem,
-} from '../../domain/entities';
-import {
   SELLER_ONBOARDING_REPOSITORY,
   SellerOnboardingRepository,
 } from '../../domain/ports';

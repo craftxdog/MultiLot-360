@@ -36,6 +36,7 @@ import {
   SellerInvitationListItemResponseDto,
   SellerInvitationResponseDto,
 } from '../dto';
+import { SellerOnboardingHttpMapper } from '../mappers';
 
 @ApiTags('Seller onboarding')
 @Controller('identity-access/sellers')
@@ -53,16 +54,9 @@ export class SellerOnboardingController {
   @Permissions('usuarios.read')
   @ApiOkResponse({ type: [SellerInvitationListItemResponseDto] })
   listInvitations(@Query() query: ListSellerInvitationsQueryDto) {
-    return this.listSellerInvitations.execute({
-      email: query.email,
-      username: query.username,
-      sellerName: query.sellerName,
-      status: query.status,
-      page: query.page,
-      limit: query.limit,
-      sortBy: query.sortBy,
-      sortDirection: query.sortDirection,
-    });
+    return this.listSellerInvitations.execute(
+      SellerOnboardingHttpMapper.toListInvitationsQuery(query),
+    );
   }
 
   @Post('invitations')
@@ -74,17 +68,9 @@ export class SellerOnboardingController {
     @CurrentUser() admin: AuthenticatedUserContext,
     @Body() body: CreateSellerInvitationDto,
   ) {
-    return this.createSellerInvitation.execute({
-      email: body.email,
-      username: body.username,
-      sellerName: body.sellerName,
-      documentId: body.documentId,
-      phone: body.phone,
-      address: body.address,
-      roleName: body.roleName,
-      adminUserId: admin.id,
-      adminName: admin.username ?? admin.roleName ?? 'Administrador',
-    });
+    return this.createSellerInvitation.execute(
+      SellerOnboardingHttpMapper.toCreateInvitationCommand(body, admin),
+    );
   }
 
   @Public()
@@ -108,9 +94,8 @@ export class SellerOnboardingController {
     @CurrentUser() admin: AuthenticatedUserContext,
     @Body() body: ResendSellerAccessCodeDto,
   ) {
-    return this.resendSellerAccessCode.execute({
-      email: body.email,
-      adminUserId: admin.id,
-    });
+    return this.resendSellerAccessCode.execute(
+      SellerOnboardingHttpMapper.toResendAccessCodeCommand(body, admin),
+    );
   }
 }

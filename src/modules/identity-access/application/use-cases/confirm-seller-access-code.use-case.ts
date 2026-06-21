@@ -5,10 +5,7 @@ import {
   Result,
   UseCase,
 } from '../../../../shared-kernel';
-import {
-  ConfirmedSellerAccess,
-  ConfirmSellerAccessCodeCommand,
-} from '../../domain/entities';
+import { ConfirmedSellerAccess } from '../../domain/entities';
 import {
   AUTH_PROVIDER,
   AuthProviderPort,
@@ -16,6 +13,12 @@ import {
   SellerOnboardingRepository,
 } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
+
+export type ConfirmSellerAccessCodeCommand = {
+  email: string;
+  accessCode: string;
+  password: string;
+};
 
 @Injectable()
 export class ConfirmSellerAccessCodeUseCase extends UseCase<

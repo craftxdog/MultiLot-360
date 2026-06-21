@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import {
   ConfirmSellerAccessInput,
+  ListSellerInvitationsQuery,
   PendingSellerAccess,
   PersistResendSellerAccessCodeInput,
   PersistSellerInvitationInput,
@@ -15,7 +16,6 @@ import {
 } from '../../../domain/ports';
 import {
   ConfirmedSellerAccess,
-  ListSellerInvitationsQuery,
   SellerAccessCodeStatus,
   SellerInvitation,
   SellerInvitationListItem,

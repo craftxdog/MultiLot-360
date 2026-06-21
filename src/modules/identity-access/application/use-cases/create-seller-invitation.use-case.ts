@@ -5,10 +5,7 @@ import {
   Result,
   UseCase,
 } from '../../../../shared-kernel';
-import {
-  CreateSellerInvitationCommand,
-  SellerInvitation,
-} from '../../domain/entities';
+import { SellerInvitation } from '../../domain/entities';
 import {
   MAILER_PORT,
   MailerPort,
@@ -16,6 +13,18 @@ import {
   SellerOnboardingRepository,
 } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
+
+export type CreateSellerInvitationCommand = {
+  email: string;
+  username: string;
+  sellerName: string;
+  documentId: string;
+  phone?: string;
+  address?: string;
+  roleName?: string;
+  adminUserId?: string;
+  adminName: string;
+};
 
 @Injectable()
 export class CreateSellerInvitationUseCase extends UseCase<
