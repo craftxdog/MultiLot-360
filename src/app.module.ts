@@ -8,6 +8,7 @@ import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 import { NumberLimitsModule } from './modules/number-limits';
+import { SalesModule } from './modules/sales';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { NumberLimitsModule } from './modules/number-limits';
     IdentityAccessModule,
     DrawsModule,
     NumberLimitsModule,
+    SalesModule,
     HealthModule,
   ],
   controllers: [AppController],
