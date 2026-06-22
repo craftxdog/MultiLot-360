@@ -1,10 +1,11 @@
-import { CursorPaginationQueryDto, OffsetPaginationQueryDto } from '../dto';
 import {
   CursorPaginationMeta,
+  CursorPaginationQuery,
   OffsetPaginationMeta,
+  OffsetPaginationQuery,
   PaginatedResult,
   PaginationMeta,
-} from '../interfaces';
+} from '../../shared-kernel';
 import { decodeCursor, encodeCursor } from './cursor.util';
 
 export type CursorEntity = {
@@ -30,7 +31,7 @@ export const getCursorId = (cursor?: string): string | undefined =>
 
 export const buildCursorPagination = <T extends CursorEntity>(
   records: T[],
-  query: CursorPaginationQueryDto,
+  query: CursorPaginationQuery,
 ): PaginatedResult<T> => {
   const limit = query.limit;
   const hasNextPage = records.length > limit;
@@ -56,7 +57,7 @@ export const buildCursorPagination = <T extends CursorEntity>(
 export const buildOffsetPagination = <T>(
   items: T[],
   total: number,
-  query: OffsetPaginationQueryDto,
+  query: OffsetPaginationQuery,
 ): PaginatedResult<T> => {
   const totalPages = Math.ceil(total / query.limit);
   const pagination: OffsetPaginationMeta = {
@@ -75,5 +76,5 @@ export const buildOffsetPagination = <T>(
   return { items, pagination };
 };
 
-export const getOffsetSkip = (query: OffsetPaginationQueryDto): number =>
+export const getOffsetSkip = (query: OffsetPaginationQuery): number =>
   (query.page - 1) * query.limit;

@@ -2,6 +2,7 @@ import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   CreateSellerInvitationCommand,
   ResendSellerAccessCodeCommand,
+  RevokeSellerInvitationCommand,
 } from '../../../application';
 import { ListSellerInvitationsQuery } from '../../../domain';
 import {
@@ -49,6 +50,16 @@ export class SellerOnboardingHttpMapper {
   ): ResendSellerAccessCodeCommand {
     return {
       email: dto.email,
+      adminUserId: admin.id,
+    };
+  }
+
+  static toRevokeInvitationCommand(
+    invitationId: string,
+    admin: AuthenticatedUserContext,
+  ): RevokeSellerInvitationCommand {
+    return {
+      invitationId,
       adminUserId: admin.id,
     };
   }

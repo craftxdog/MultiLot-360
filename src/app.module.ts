@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 
@@ -13,6 +14,7 @@ import { IdentityAccessModule } from './modules/identity-access';
     InfrastructureModule,
     CommonModule,
     IdentityAccessModule,
+    DrawsModule,
     HealthModule,
   ],
   controllers: [AppController],

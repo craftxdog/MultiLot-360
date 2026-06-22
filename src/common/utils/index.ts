@@ -1,5 +1,4 @@
 export * from './auth-token.util';
-export * from './build-key.util';
 export * from './cursor.util';
 export * from './pagination.util';
 export * from './parse-cors-origins.util';

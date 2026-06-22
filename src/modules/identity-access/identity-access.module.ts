@@ -12,6 +12,7 @@ import {
   RefreshSessionUseCase,
   ResendSellerAccessCodeUseCase,
   ResolveRequestIdentityUseCase,
+  RevokeSellerInvitationUseCase,
   SellerAccessCodeService,
   SignupAdminUseCase,
 } from './application';
@@ -54,6 +55,7 @@ import {
     LogoutUseCase,
     RefreshSessionUseCase,
     ResendSellerAccessCodeUseCase,
+    RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
     SignupAdminUseCase,
     {
@@ -97,6 +99,7 @@ import {
     LogoutUseCase,
     RefreshSessionUseCase,
     ResendSellerAccessCodeUseCase,
+    RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
     SignupAdminUseCase,
   ],

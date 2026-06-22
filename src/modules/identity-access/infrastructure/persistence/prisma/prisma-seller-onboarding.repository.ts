@@ -1,21 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, codigo_acceso_estado } from '@prisma/client';
-import {
-  buildOffsetPagination,
-  getOffsetSkip,
-  PaginatedResult,
-} from '../../../../../common';
+import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
+import { PaginatedResult } from '../../../../../shared-kernel';
 import {
   ConfirmSellerAccessInput,
   ListSellerInvitationsQuery,
   PendingSellerAccess,
   PersistResendSellerAccessCodeInput,
   PersistSellerInvitationInput,
+  RevokeSellerInvitationInput,
   SellerOnboardingRepository,
 } from '../../../domain/ports';
 import {
   ConfirmedSellerAccess,
+  RevokedSellerInvitation,
   SellerAccessCodeStatus,
   SellerInvitation,
   SellerInvitationListItem,
@@ -392,6 +391,59 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
           email: input.email,
           sellerName: latestAccessCode.vendedores.nombre,
           expiresAt: input.expiresAt,
+        };
+      });
+    } catch (error) {
+      throw this.toInvitationError(error);
+    }
+  }
+
+  async revokeInvitation(
+    input: RevokeSellerInvitationInput,
+  ): Promise<RevokedSellerInvitation | null> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const result = await tx.codigos_acceso_vendedor.updateMany({
+          where: {
+            id: input.invitationId,
+            estado: codigo_acceso_estado.PENDIENTE,
+            expira_en: {
+              gt: new Date(),
+            },
+          },
+          data: {
+            estado: codigo_acceso_estado.REVOCADO,
+          },
+        });
+
+        if (result.count === 0) {
+          return null;
+        }
+
+        const invitation = await tx.codigos_acceso_vendedor.findUnique({
+          where: {
+            id: input.invitationId,
+          },
+          include: {
+            vendedores: {
+              select: {
+                nombre: true,
+              },
+            },
+          },
+        });
+
+        if (!invitation) {
+          return null;
+        }
+
+        return {
+          id: invitation.id,
+          userId: invitation.usuario_id,
+          sellerId: invitation.vendedor_id,
+          email: invitation.email,
+          sellerName: invitation.vendedores.nombre,
+          status: 'REVOCADO',
         };
       });
     } catch (error) {

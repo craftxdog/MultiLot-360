@@ -7,6 +7,7 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
+    revokeInvitation: jest.fn(),
     findPendingAccessCode: jest.fn(),
     confirmAccessCode: jest.fn(),
   };

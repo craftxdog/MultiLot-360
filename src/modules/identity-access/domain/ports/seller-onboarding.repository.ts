@@ -1,10 +1,11 @@
 import {
   ConfirmedSellerAccess,
+  RevokedSellerInvitation,
   SellerAccessCodeStatus,
   SellerInvitationListItem,
   SellerInvitation,
 } from '../entities';
-import { PaginatedResult } from '../../../../common';
+import { PaginatedResult } from '../../../../shared-kernel';
 
 export const SELLER_ONBOARDING_REPOSITORY = Symbol(
   'SELLER_ONBOARDING_REPOSITORY',
@@ -47,6 +48,11 @@ export type PersistResendSellerAccessCodeInput = {
   expiresAt: Date;
 };
 
+export type RevokeSellerInvitationInput = {
+  invitationId: string;
+  adminUserId?: string;
+};
+
 export type PendingSellerAccess = {
   userId: string;
   sellerId: string;
@@ -64,6 +70,9 @@ export interface SellerOnboardingRepository {
   resendAccessCode(
     input: PersistResendSellerAccessCodeInput,
   ): Promise<SellerInvitation | null>;
+  revokeInvitation(
+    input: RevokeSellerInvitationInput,
+  ): Promise<RevokedSellerInvitation | null>;
   findPendingAccessCode(
     email: string,
     accessCodeHash: string,

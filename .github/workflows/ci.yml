@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+  push:
+    branches:
+      - develop
+      - master
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      NODE_ENV: test
+      PRISMA_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      SUPABASE_PROJECT_REF: wweiogaeaikasrlldbdy
+      SUPABASE_URL: https://wweiogaeaikasrlldbdy.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+      SUPABASE_JWT_SECRET: ci-placeholder
+      SELLER_ACCESS_CODE_SECRET: ci-placeholder
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: yarn prisma:generate
+
+      - name: Validate Prisma schema
+        run: yarn prisma:validate
+
+      - name: Lint
+        run: yarn lint:check
+
+      - name: Test
+        run: yarn test --runInBand --watchman=false
+
+      - name: Build
+        run: yarn build

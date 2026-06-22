@@ -16,6 +16,15 @@ export type SellerInvitation = {
   expiresAt: Date;
 };
 
+export type RevokedSellerInvitation = {
+  id: string;
+  userId: string;
+  sellerId: string;
+  email: string;
+  sellerName: string;
+  status: 'REVOCADO';
+};
+
 export type ConfirmedSellerAccess = {
   userId: string;
   sellerId: string;

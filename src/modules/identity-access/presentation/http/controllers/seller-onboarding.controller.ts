@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Param,
+  ParseUUIDPipe,
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -11,13 +14,16 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AnyPermissions,
   CurrentUser,
   Permissions,
   Public,
   RequireModules,
+  SYSTEM_MODULES,
 } from '../../../../../common';
 import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
@@ -25,6 +31,7 @@ import {
   CreateSellerInvitationUseCase,
   ListSellerInvitationsUseCase,
   ResendSellerAccessCodeUseCase,
+  RevokeSellerInvitationUseCase,
 } from '../../../application';
 import {
   ConfirmSellerAccessCodeDto,
@@ -33,6 +40,7 @@ import {
   ListSellerInvitationsQueryDto,
   ResendSellerAccessCodeDto,
   ResendSellerAccessCodeResponseDto,
+  RevokeSellerInvitationResponseDto,
   SellerInvitationListItemResponseDto,
   SellerInvitationResponseDto,
 } from '../dto';
@@ -46,11 +54,12 @@ export class SellerOnboardingController {
     private readonly confirmSellerAccessCode: ConfirmSellerAccessCodeUseCase,
     private readonly resendSellerAccessCode: ResendSellerAccessCodeUseCase,
     private readonly listSellerInvitations: ListSellerInvitationsUseCase,
+    private readonly revokeSellerInvitation: RevokeSellerInvitationUseCase,
   ) {}
 
   @Get('invitations')
   @ApiBearerAuth()
-  @RequireModules('usuarios')
+  @RequireModules(SYSTEM_MODULES.usuarios)
   @Permissions('usuarios.read')
   @ApiOkResponse({ type: [SellerInvitationListItemResponseDto] })
   listInvitations(@Query() query: ListSellerInvitationsQueryDto) {
@@ -61,7 +70,7 @@ export class SellerOnboardingController {
 
   @Post('invitations')
   @ApiBearerAuth()
-  @RequireModules('usuarios')
+  @RequireModules(SYSTEM_MODULES.usuarios)
   @Permissions('usuarios.create')
   @ApiCreatedResponse({ type: SellerInvitationResponseDto })
   createInvitation(
@@ -87,7 +96,7 @@ export class SellerOnboardingController {
   @Post('access-code/resend')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @RequireModules('usuarios')
+  @RequireModules(SYSTEM_MODULES.usuarios)
   @Permissions('usuarios.create')
   @ApiOkResponse({ type: ResendSellerAccessCodeResponseDto })
   resendAccessCode(
@@ -96,6 +105,23 @@ export class SellerOnboardingController {
   ) {
     return this.resendSellerAccessCode.execute(
       SellerOnboardingHttpMapper.toResendAccessCodeCommand(body, admin),
+    );
+  }
+
+  @Patch('invitations/:invitationId/revoke')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @RequireModules(SYSTEM_MODULES.usuarios)
+  @AnyPermissions('usuarios.update', 'usuarios.create')
+  @ApiParam({ name: 'invitationId', format: 'uuid' })
+  @ApiOkResponse({ type: RevokeSellerInvitationResponseDto })
+  revokeInvitation(
+    @CurrentUser() admin: AuthenticatedUserContext,
+    @Param('invitationId', new ParseUUIDPipe({ version: '4' }))
+    invitationId: string,
+  ) {
+    return this.revokeSellerInvitation.execute(
+      SellerOnboardingHttpMapper.toRevokeInvitationCommand(invitationId, admin),
     );
   }
 }
