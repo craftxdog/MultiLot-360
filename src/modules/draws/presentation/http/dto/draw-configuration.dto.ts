@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,9 +11,19 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { trimLowercaseString } from '../../../../../common';
+import {
+  OffsetPaginationQueryDto,
+  trimLowercaseString,
+} from '../../../../../common';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const DRAW_CONFIGURATION_SORT_FIELDS = [
+  'code',
+  'time',
+  'active',
+  'createdAt',
+  'updatedAt',
+] as const;
 
 const toOptionalBoolean = (value: unknown): unknown => {
   if (value === undefined || value === null || value === '') return undefined;
@@ -69,12 +80,28 @@ export class UpdateDrawConfigurationDto extends PartialType(
   CreateDrawConfigurationDto,
 ) {}
 
-export class ListDrawConfigurationsQueryDto {
+export class ListDrawConfigurationsQueryDto extends OffsetPaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => toOptionalBoolean(value))
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    default: 'time',
+    enum: DRAW_CONFIGURATION_SORT_FIELDS,
+  })
+  @IsOptional()
+  @IsIn(DRAW_CONFIGURATION_SORT_FIELDS)
+  sortBy: string = 'time';
+
+  @ApiPropertyOptional({
+    default: 'asc',
+    enum: ['asc', 'desc'],
+  })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortDirection: 'asc' | 'desc' = 'asc';
 }
 
 export class DrawConfigurationResponseDto {

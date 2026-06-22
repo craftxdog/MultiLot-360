@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  PaginatedResult,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
@@ -15,7 +16,7 @@ import {
 @Injectable()
 export class ListDrawConfigurationsUseCase extends UseCase<
   ListDrawConfigurationsQuery,
-  DrawConfiguration[],
+  PaginatedResult<DrawConfiguration>,
   AppError
 > {
   constructor(
@@ -27,7 +28,7 @@ export class ListDrawConfigurationsUseCase extends UseCase<
 
   async execute(
     input: ListDrawConfigurationsQuery,
-  ): Promise<Result<DrawConfiguration[], AppError>> {
+  ): Promise<Result<PaginatedResult<DrawConfiguration>, AppError>> {
     try {
       return Result.success(
         await this.drawsRepository.listConfigurations(input),

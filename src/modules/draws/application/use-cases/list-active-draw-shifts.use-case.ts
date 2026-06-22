@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  PaginatedResult,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
@@ -15,7 +16,7 @@ import {
 @Injectable()
 export class ListActiveDrawShiftsUseCase extends UseCase<
   ListActiveDrawShiftsQuery,
-  DrawShift[],
+  PaginatedResult<DrawShift>,
   AppError
 > {
   constructor(
@@ -27,7 +28,7 @@ export class ListActiveDrawShiftsUseCase extends UseCase<
 
   async execute(
     input: ListActiveDrawShiftsQuery,
-  ): Promise<Result<DrawShift[], AppError>> {
+  ): Promise<Result<PaginatedResult<DrawShift>, AppError>> {
     try {
       return Result.success(await this.drawsRepository.listActiveShifts(input));
     } catch (error) {

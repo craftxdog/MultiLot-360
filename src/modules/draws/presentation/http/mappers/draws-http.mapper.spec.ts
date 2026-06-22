@@ -23,10 +23,18 @@ describe('DrawsHttpMapper', () => {
       DrawsHttpMapper.toListShiftsQuery({
         date: '2026-06-21',
         status: 'ABIERTO',
+        page: 2,
+        limit: 10,
+        sortBy: 'configurationTime',
+        sortDirection: 'asc',
       }),
     ).toEqual({
       date: '2026-06-21',
       status: 'ABIERTO',
+      page: 2,
+      limit: 10,
+      sortBy: 'configurationTime',
+      sortDirection: 'asc',
     });
   });
 
@@ -51,9 +59,35 @@ describe('DrawsHttpMapper', () => {
     expect(
       DrawsHttpMapper.toListActiveShiftsQuery({
         date: '2026-06-21',
+        page: 1,
+        limit: 25,
+        sortBy: 'date',
+        sortDirection: 'desc',
       }),
     ).toEqual({
       date: '2026-06-21',
+      page: 1,
+      limit: 25,
+      sortBy: 'date',
+      sortDirection: 'desc',
+    });
+  });
+
+  it('maps configuration filters with pagination into an application query', () => {
+    expect(
+      DrawsHttpMapper.toListConfigurationsQuery({
+        active: true,
+        page: 3,
+        limit: 5,
+        sortBy: 'time',
+        sortDirection: 'asc',
+      }),
+    ).toEqual({
+      active: true,
+      page: 3,
+      limit: 5,
+      sortBy: 'time',
+      sortDirection: 'asc',
     });
   });
 });
