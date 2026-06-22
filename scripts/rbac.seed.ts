@@ -47,7 +47,7 @@ const MODULES: ModuleSeed[] = [
   { code: 'RESULTADOS', description: 'Gestion de resultados' },
   { code: 'PAGOS_PREMIOS', description: 'Gestion de pagos de premios' },
   { code: 'NUMEROS_BLOQUEADOS', description: 'Gestion de numeros bloqueados' },
-  { code: 'LIMITES_VENDEDOR', description: 'Gestion de limites por vendedor' },
+  { code: 'LIMITES_NUMERO', description: 'Gestion de limites por numero' },
   { code: 'CORTES', description: 'Gestion de cortes' },
   { code: 'PARAMETROS', description: 'Gestion de parametros del sistema' },
   { code: 'AUDITORIA', description: 'Consulta de auditoria' },

@@ -44,7 +44,7 @@ Examples of contexts for the current schema:
 - `identity-access`: `usuarios`, `roles`, `modulos`, `permisos_por_rol`.
 - `sales`: `ventas`, `venta_detalle`.
 - `draws`: `sorteos_config`, `turnos`, `resultados`.
-- `seller-limits`: `vendedores`, `limites_numero_vendedor`, `numeros_bloqueados`.
+- `number-limits`: `limites_numero`, `numeros_bloqueados`, with optional scope from `vendedores` and `sorteos_config`.
 - `payouts`: `pagos_premios`.
 - `audit`: `auditoria_eventos`, `cortes`, `parametros`.
 
