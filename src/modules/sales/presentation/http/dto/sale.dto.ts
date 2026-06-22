@@ -44,7 +44,10 @@ const normalizeStatus = (value: unknown): unknown =>
   typeof value === 'string' ? value.trim().toUpperCase() : value;
 
 export class SaleItemDto {
-  @ApiProperty({ example: '02' })
+  @ApiProperty({
+    example: '20',
+    description: 'Two-digit lottery number.',
+  })
   @Transform(({ value }) => normalizeLotteryNumber(value))
   @IsString()
   @Matches(NUMBER_PATTERN, {
@@ -52,7 +55,12 @@ export class SaleItemDto {
   })
   number: string;
 
-  @ApiProperty({ example: 20, minimum: 1, maximum: 999999 })
+  @ApiProperty({
+    example: 10,
+    minimum: 1,
+    maximum: 999999,
+    description: 'Prize amount expressed in thousands. Example: 10 = 10 mil.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -74,7 +82,17 @@ export class CreateSaleDto {
   @IsUUID('4')
   shiftId: string;
 
-  @ApiProperty({ type: [SaleItemDto] })
+  @ApiProperty({
+    description:
+      'Numbers included in the same ticket. Send one item for a normal single-number sale, or multiple items for a multi-number sale.',
+    example: [
+      { number: '20', prizeMiles: 10 },
+      { number: '30', prizeMiles: 40 },
+      { number: '50', prizeMiles: 1 },
+      { number: '00', prizeMiles: 30 },
+    ],
+    type: [SaleItemDto],
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ArrayMaxSize(100)

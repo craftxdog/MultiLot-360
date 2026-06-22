@@ -20,6 +20,35 @@ describe('SalesHttpMapper', () => {
     });
   });
 
+  it('maps a multi-number sale into the application command', () => {
+    expect(
+      SalesHttpMapper.toCreateCommand(
+        {
+          shiftId: 'shift-id',
+          items: [
+            { number: '20', prizeMiles: 10 },
+            { number: '30', prizeMiles: 40 },
+            { number: '50', prizeMiles: 1 },
+            { number: '00', prizeMiles: 30 },
+          ],
+        },
+        'seller-id',
+        'VENDEDOR',
+      ),
+    ).toEqual({
+      requestedSellerId: undefined,
+      currentSellerId: 'seller-id',
+      actorRoleName: 'VENDEDOR',
+      shiftId: 'shift-id',
+      items: [
+        { number: '20', prizeMiles: 10 },
+        { number: '30', prizeMiles: 40 },
+        { number: '50', prizeMiles: 1 },
+        { number: '00', prizeMiles: 30 },
+      ],
+    });
+  });
+
   it('maps list query with actor scope into an application query', () => {
     expect(
       SalesHttpMapper.toListQuery(

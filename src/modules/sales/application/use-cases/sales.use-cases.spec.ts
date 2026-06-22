@@ -84,6 +84,65 @@ describe('Sales use cases', () => {
     });
   });
 
+  it('creates a seller sale with several different numbers in the same ticket', async () => {
+    repository.create.mockResolvedValue(
+      createSale({
+        totalMiles: 81,
+        details: [
+          {
+            id: 'detail-20',
+            number: '20',
+            prizeMiles: 10,
+            createdAt: new Date('2026-06-22T08:00:00.000Z'),
+          },
+          {
+            id: 'detail-30',
+            number: '30',
+            prizeMiles: 40,
+            createdAt: new Date('2026-06-22T08:00:00.000Z'),
+          },
+          {
+            id: 'detail-50',
+            number: '50',
+            prizeMiles: 1,
+            createdAt: new Date('2026-06-22T08:00:00.000Z'),
+          },
+          {
+            id: 'detail-00',
+            number: '00',
+            prizeMiles: 30,
+            createdAt: new Date('2026-06-22T08:00:00.000Z'),
+          },
+        ],
+      }),
+    );
+    const useCase = new CreateSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      currentSellerId: 'seller-id',
+      actorRoleName: 'VENDEDOR',
+      shiftId: 'shift-id',
+      items: [
+        { number: '20', prizeMiles: 10 },
+        { number: '30', prizeMiles: 40 },
+        { number: '50', prizeMiles: 1 },
+        { number: '00', prizeMiles: 30 },
+      ],
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.create.mock.calls[0][0]).toEqual({
+      sellerId: 'seller-id',
+      shiftId: 'shift-id',
+      items: [
+        { number: '20', prizeMiles: 10 },
+        { number: '30', prizeMiles: 40 },
+        { number: '50', prizeMiles: 1 },
+        { number: '00', prizeMiles: 30 },
+      ],
+    });
+  });
+
   it('prevents a seller from creating sales for another seller', async () => {
     const useCase = new CreateSaleUseCase(repository);
 
