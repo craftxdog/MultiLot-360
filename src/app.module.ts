@@ -9,6 +9,7 @@ import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 import { NumberLimitsModule } from './modules/number-limits';
+import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
 
 @Module({
@@ -21,6 +22,7 @@ import { SalesModule } from './modules/sales';
     NumberLimitsModule,
     SalesModule,
     BlockedNumbersModule,
+    ResultsModule,
     HealthModule,
   ],
   controllers: [AppController],
