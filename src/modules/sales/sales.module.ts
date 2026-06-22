@@ -3,7 +3,9 @@ import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
   CreateSaleUseCase,
   GetSaleUseCase,
+  GetSalesVoidPolicyUseCase,
   ListSalesUseCase,
+  UpdateSalesVoidPolicyUseCase,
   VoidSaleUseCase,
 } from './application';
 import { SALES_REPOSITORY } from './domain';
@@ -17,7 +19,9 @@ import { SalesController } from './presentation';
     PrismaSalesRepository,
     CreateSaleUseCase,
     GetSaleUseCase,
+    GetSalesVoidPolicyUseCase,
     ListSalesUseCase,
+    UpdateSalesVoidPolicyUseCase,
     VoidSaleUseCase,
     {
       provide: SALES_REPOSITORY,
@@ -27,7 +31,9 @@ import { SalesController } from './presentation';
   exports: [
     CreateSaleUseCase,
     GetSaleUseCase,
+    GetSalesVoidPolicyUseCase,
     ListSalesUseCase,
+    UpdateSalesVoidPolicyUseCase,
     VoidSaleUseCase,
   ],
 })

@@ -14,6 +14,7 @@ export type VoidSaleCommand = {
   reason: string;
   currentSellerId?: string;
   actorRoleName?: string;
+  now?: Date;
 };
 
 @Injectable()
@@ -53,6 +54,24 @@ export class VoidSaleUseCase extends UseCase<VoidSaleCommand, Sale, AppError> {
         );
       }
 
+      if (!this.isSaleShiftOpen(sale)) {
+        return ErrorFactory.useCase(
+          'Sale can only be voided while its draw shift is open',
+          undefined,
+          422,
+        );
+      }
+
+      const policy = await this.salesRepository.getVoidPolicy();
+
+      if (!this.isWithinVoidWindow(sale, policy.windowMinutes, input.now)) {
+        return ErrorFactory.useCase(
+          `Sale can only be voided within ${policy.windowMinutes} minutes`,
+          undefined,
+          422,
+        );
+      }
+
       const voidedSale = await this.salesRepository.void({
         saleId: input.saleId,
         voidedByUserId: input.voidedByUserId,
@@ -77,6 +96,21 @@ export class VoidSaleUseCase extends UseCase<VoidSaleCommand, Sale, AppError> {
       this.isAdmin(input.actorRoleName) ||
       Boolean(input.currentSellerId && sale.seller.id === input.currentSellerId)
     );
+  }
+
+  private isSaleShiftOpen(sale: Sale): boolean {
+    return sale.shift?.status === 'ABIERTO';
+  }
+
+  private isWithinVoidWindow(
+    sale: Sale,
+    windowMinutes: number,
+    now = new Date(),
+  ): boolean {
+    const expiresAt = new Date(sale.createdAt);
+    expiresAt.setMinutes(expiresAt.getMinutes() + windowMinutes);
+
+    return now <= expiresAt;
   }
 
   private isAdmin(roleName?: string): boolean {

@@ -23,6 +23,14 @@ export type VoidSaleInput = {
   reason: string;
 };
 
+export type SalesVoidPolicy = {
+  windowMinutes: number;
+};
+
+export type UpdateSalesVoidPolicyInput = {
+  windowMinutes: number;
+};
+
 export type ListSalesQuery = OffsetPaginationQuery & {
   sellerId?: string;
   shiftId?: string;
@@ -37,4 +45,6 @@ export interface SalesRepository {
   findById(saleId: string): Promise<Sale | null>;
   list(query: ListSalesQuery): Promise<PaginatedResult<Sale>>;
   void(input: VoidSaleInput): Promise<Sale | null>;
+  getVoidPolicy(): Promise<SalesVoidPolicy>;
+  updateVoidPolicy(input: UpdateSalesVoidPolicyInput): Promise<SalesVoidPolicy>;
 }

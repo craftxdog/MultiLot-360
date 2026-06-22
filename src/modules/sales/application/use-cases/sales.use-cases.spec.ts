@@ -3,7 +3,9 @@ import { Sale } from '../../domain/entities';
 import { SalesRepository } from '../../domain/ports';
 import { CreateSaleUseCase } from './create-sale.use-case';
 import { GetSaleUseCase } from './get-sale.use-case';
+import { GetSalesVoidPolicyUseCase } from './get-sales-void-policy.use-case';
 import { ListSalesUseCase } from './list-sales.use-case';
+import { UpdateSalesVoidPolicyUseCase } from './update-sales-void-policy.use-case';
 import { VoidSaleUseCase } from './void-sale.use-case';
 
 const createSale = (overrides: Partial<Sale> = {}): Sale => ({
@@ -42,7 +44,9 @@ const createSale = (overrides: Partial<Sale> = {}): Sale => ({
 const createRepository = (): jest.Mocked<SalesRepository> => ({
   create: jest.fn(),
   findById: jest.fn(),
+  getVoidPolicy: jest.fn(),
   list: jest.fn(),
+  updateVoidPolicy: jest.fn(),
   void: jest.fn(),
 });
 
@@ -51,6 +55,7 @@ describe('Sales use cases', () => {
 
   beforeEach(() => {
     repository = createRepository();
+    repository.getVoidPolicy.mockResolvedValue({ windowMinutes: 10 });
   });
 
   it('creates a seller sale and aggregates duplicated numbers', async () => {
@@ -164,7 +169,11 @@ describe('Sales use cases', () => {
   });
 
   it('voids an active sale', async () => {
-    repository.findById.mockResolvedValue(createSale());
+    repository.findById.mockResolvedValue(
+      createSale({
+        createdAt: new Date('2026-06-22T08:00:00.000Z'),
+      }),
+    );
     repository.void.mockResolvedValue(
       createSale({
         status: 'ANULADA',
@@ -180,9 +189,11 @@ describe('Sales use cases', () => {
       reason: 'Cliente solicito anulacion',
       currentSellerId: 'seller-id',
       actorRoleName: 'VENDEDOR',
+      now: new Date('2026-06-22T08:05:00.000Z'),
     });
 
     expect(result.isSuccess).toBe(true);
+    expect(repository.getVoidPolicy.mock.calls).toHaveLength(1);
     expect(repository.void.mock.calls[0][0]).toEqual({
       saleId: 'sale-id',
       voidedByUserId: 'user-id',
@@ -204,5 +215,86 @@ describe('Sales use cases', () => {
 
     expect(result.isFailure).toBe(true);
     expect(repository.void.mock.calls).toHaveLength(0);
+  });
+
+  it('does not void a sale when the draw shift is no longer open', async () => {
+    repository.findById.mockResolvedValue(
+      createSale({
+        shift: {
+          id: 'shift-id',
+          date: '2026-06-22',
+          status: 'CERRADO',
+          configuration: {
+            id: 'configuration-id',
+            code: 'nacional-11am',
+            time: '11:00:00',
+          },
+        },
+      }),
+    );
+    const useCase = new VoidSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      saleId: 'sale-id',
+      voidedByUserId: 'user-id',
+      reason: 'Fuera de sorteo',
+      currentSellerId: 'seller-id',
+      actorRoleName: 'VENDEDOR',
+      now: new Date('2026-06-22T08:05:00.000Z'),
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(repository.void.mock.calls).toHaveLength(0);
+  });
+
+  it('does not void a sale after the configured window expires', async () => {
+    repository.findById.mockResolvedValue(
+      createSale({
+        createdAt: new Date('2026-06-22T08:00:00.000Z'),
+      }),
+    );
+    const useCase = new VoidSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      saleId: 'sale-id',
+      voidedByUserId: 'user-id',
+      reason: 'Fuera de tiempo',
+      currentSellerId: 'seller-id',
+      actorRoleName: 'VENDEDOR',
+      now: new Date('2026-06-22T08:11:00.000Z'),
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(repository.void.mock.calls).toHaveLength(0);
+  });
+
+  it('gets the sales void policy', async () => {
+    const useCase = new GetSalesVoidPolicyUseCase(repository);
+
+    const result = await useCase.execute();
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.getVoidPolicy.mock.calls).toHaveLength(1);
+  });
+
+  it('updates the sales void policy', async () => {
+    repository.updateVoidPolicy.mockResolvedValue({ windowMinutes: 15 });
+    const useCase = new UpdateSalesVoidPolicyUseCase(repository);
+
+    const result = await useCase.execute({ windowMinutes: 15 });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.updateVoidPolicy.mock.calls[0][0]).toEqual({
+      windowMinutes: 15,
+    });
+  });
+
+  it('rejects invalid sales void policy values', async () => {
+    const useCase = new UpdateSalesVoidPolicyUseCase(repository);
+
+    const result = await useCase.execute({ windowMinutes: 0 });
+
+    expect(result.isFailure).toBe(true);
+    expect(repository.updateVoidPolicy.mock.calls).toHaveLength(0);
   });
 });

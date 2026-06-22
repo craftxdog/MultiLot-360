@@ -8,8 +8,13 @@ import {
   CreateSaleInput,
   ListSalesQuery,
   SalesRepository,
+  SalesVoidPolicy,
+  UpdateSalesVoidPolicyInput,
   VoidSaleInput,
 } from '../../../domain/ports';
+
+const SALES_VOID_WINDOW_MINUTES_KEY = 'sales.void_window_minutes';
+const DEFAULT_SALES_VOID_WINDOW_MINUTES = 10;
 
 const saleInclude = {
   vendedores: {
@@ -118,6 +123,46 @@ export class PrismaSalesRepository implements SalesRepository {
 
       throw this.toSalesError(error);
     }
+  }
+
+  async getVoidPolicy(): Promise<SalesVoidPolicy> {
+    const parameter = await this.prisma.parametros.findUnique({
+      where: {
+        clave: SALES_VOID_WINDOW_MINUTES_KEY,
+      },
+      select: {
+        valor: true,
+      },
+    });
+
+    return {
+      windowMinutes: this.parseVoidWindowMinutes(parameter?.valor),
+    };
+  }
+
+  async updateVoidPolicy(
+    input: UpdateSalesVoidPolicyInput,
+  ): Promise<SalesVoidPolicy> {
+    const parameter = await this.prisma.parametros.upsert({
+      where: {
+        clave: SALES_VOID_WINDOW_MINUTES_KEY,
+      },
+      create: {
+        clave: SALES_VOID_WINDOW_MINUTES_KEY,
+        valor: String(input.windowMinutes),
+      },
+      update: {
+        valor: String(input.windowMinutes),
+        actualizado_en: new Date(),
+      },
+      select: {
+        valor: true,
+      },
+    });
+
+    return {
+      windowMinutes: this.parseVoidWindowMinutes(parameter.valor),
+    };
   }
 
   private async assertSellerCanSell(sellerId: string): Promise<void> {
@@ -266,6 +311,14 @@ export class PrismaSalesRepository implements SalesRepository {
 
   private normalizeNumber(number: string): string {
     return number.replace(/\D/g, '').padStart(2, '0');
+  }
+
+  private parseVoidWindowMinutes(value?: string): number {
+    const parsedValue = Number(value);
+
+    return Number.isInteger(parsedValue) && parsedValue > 0
+      ? parsedValue
+      : DEFAULT_SALES_VOID_WINDOW_MINUTES;
   }
 
   private toDateOnly(date: string): Date {

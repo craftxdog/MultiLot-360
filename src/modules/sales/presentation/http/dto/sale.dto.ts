@@ -91,6 +91,25 @@ export class VoidSaleDto {
   reason: string;
 }
 
+export class UpdateSalesVoidPolicyDto {
+  @ApiProperty({
+    example: 10,
+    minimum: 1,
+    maximum: 1440,
+    description: 'Minutes after sale creation during which voiding is allowed.',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  windowMinutes: number;
+}
+
+export class SalesVoidPolicyResponseDto {
+  @ApiProperty({ example: 10 })
+  windowMinutes: number;
+}
+
 export class ListSalesQueryDto extends OffsetPaginationQueryDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

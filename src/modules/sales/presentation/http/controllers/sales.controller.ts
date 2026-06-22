@@ -22,18 +22,23 @@ import {
   CurrentUser,
   Permissions,
   RequireModules,
+  Roles,
   SYSTEM_MODULES,
 } from '../../../../../common';
 import {
   CreateSaleUseCase,
   GetSaleUseCase,
+  GetSalesVoidPolicyUseCase,
   ListSalesUseCase,
+  UpdateSalesVoidPolicyUseCase,
   VoidSaleUseCase,
 } from '../../../application';
 import {
   CreateSaleDto,
   ListSalesQueryDto,
   SaleResponseDto,
+  SalesVoidPolicyResponseDto,
+  UpdateSalesVoidPolicyDto,
   VoidSaleDto,
 } from '../dto';
 import { SalesHttpMapper } from '../mappers';
@@ -48,6 +53,8 @@ export class SalesController {
     private readonly listSales: ListSalesUseCase,
     private readonly getSale: GetSaleUseCase,
     private readonly voidSale: VoidSaleUseCase,
+    private readonly getVoidPolicy: GetSalesVoidPolicyUseCase,
+    private readonly updateVoidPolicy: UpdateSalesVoidPolicyUseCase,
   ) {}
 
   @Get()
@@ -73,6 +80,25 @@ export class SalesController {
   ) {
     return this.createSale.execute(
       SalesHttpMapper.toCreateCommand(body, currentSellerId, actorRoleName),
+    );
+  }
+
+  @Get('settings/void-policy')
+  @Roles('ADMIN')
+  @Permissions('ventas.read')
+  @ApiOkResponse({ type: SalesVoidPolicyResponseDto })
+  getVoidPolicySettings() {
+    return this.getVoidPolicy.execute();
+  }
+
+  @Patch('settings/void-policy')
+  @HttpCode(HttpStatus.OK)
+  @Roles('ADMIN')
+  @Permissions('ventas.update')
+  @ApiOkResponse({ type: SalesVoidPolicyResponseDto })
+  updateVoidPolicySettings(@Body() body: UpdateSalesVoidPolicyDto) {
+    return this.updateVoidPolicy.execute(
+      SalesHttpMapper.toUpdateVoidPolicyCommand(body),
     );
   }
 

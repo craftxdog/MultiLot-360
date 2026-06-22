@@ -69,4 +69,14 @@ describe('SalesHttpMapper', () => {
       actorRoleName: 'VENDEDOR',
     });
   });
+
+  it('maps update void policy dto into an application command', () => {
+    expect(
+      SalesHttpMapper.toUpdateVoidPolicyCommand({
+        windowMinutes: 15,
+      }),
+    ).toEqual({
+      windowMinutes: 15,
+    });
+  });
 });

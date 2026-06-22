@@ -1,9 +1,15 @@
 import {
   CreateSaleCommand,
   ListSalesUseCaseQuery,
+  UpdateSalesVoidPolicyCommand,
   VoidSaleCommand,
 } from '../../../application';
-import { CreateSaleDto, ListSalesQueryDto, VoidSaleDto } from '../dto';
+import {
+  CreateSaleDto,
+  ListSalesQueryDto,
+  UpdateSalesVoidPolicyDto,
+  VoidSaleDto,
+} from '../dto';
 
 export class SalesHttpMapper {
   static toCreateCommand(
@@ -54,6 +60,14 @@ export class SalesHttpMapper {
       voidedByUserId,
       currentSellerId,
       actorRoleName,
+    };
+  }
+
+  static toUpdateVoidPolicyCommand(
+    dto: UpdateSalesVoidPolicyDto,
+  ): UpdateSalesVoidPolicyCommand {
+    return {
+      windowMinutes: dto.windowMinutes,
     };
   }
 }
