@@ -5,9 +5,11 @@ import { DrawConfiguration, DrawShift } from '../../../domain/entities';
 import {
   CreateDrawConfigurationInput,
   DrawsRepository,
+  ListActiveDrawShiftsQuery,
   ListDrawConfigurationsQuery,
   ListDrawShiftsQuery,
   OpenDrawShiftInput,
+  UpdateDrawConfigurationInput,
 } from '../../../domain/ports';
 
 const shiftInclude = {
@@ -56,6 +58,60 @@ export class PrismaDrawsRepository implements DrawsRepository {
     return configurations.map((configuration) =>
       this.mapConfiguration(configuration),
     );
+  }
+
+  async findConfigurationById(
+    configurationId: string,
+  ): Promise<DrawConfiguration | null> {
+    const configuration = await this.prisma.sorteos_config.findUnique({
+      where: {
+        id: configurationId,
+      },
+    });
+
+    return configuration ? this.mapConfiguration(configuration) : null;
+  }
+
+  async updateConfiguration(
+    input: UpdateDrawConfigurationInput,
+  ): Promise<DrawConfiguration | null> {
+    const configuration = await this.prisma.sorteos_config.findUnique({
+      where: {
+        id: input.configurationId,
+      },
+    });
+
+    if (!configuration) {
+      return null;
+    }
+
+    try {
+      const updatedConfiguration = await this.prisma.sorteos_config.update({
+        where: {
+          id: input.configurationId,
+        },
+        data: {
+          ...(input.code !== undefined && { codigo: input.code }),
+          ...(input.time !== undefined && {
+            hora: this.toTimeDate(input.time),
+          }),
+          ...(input.tuesdayOnly !== undefined && {
+            solo_martes: input.tuesdayOnly,
+          }),
+          ...(input.lockSecondsBefore !== undefined && {
+            lock_segundos_antes: input.lockSecondsBefore,
+          }),
+          ...(input.reopenSecondsAfter !== undefined && {
+            reopen_segundos_despues: input.reopenSecondsAfter,
+          }),
+          ...(input.active !== undefined && { activo: input.active }),
+        },
+      });
+
+      return this.mapConfiguration(updatedConfiguration);
+    } catch (error) {
+      throw this.toDrawsError(error);
+    }
   }
 
   async openShift(input: OpenDrawShiftInput): Promise<DrawShift> {
@@ -123,6 +179,28 @@ export class PrismaDrawsRepository implements DrawsRepository {
     }
   }
 
+  async blockShift(shiftId: string): Promise<DrawShift | null> {
+    try {
+      return this.transitionShift(shiftId, turno_estado.BLOQUEO, [
+        turno_estado.ABIERTO,
+        turno_estado.BLOQUEO,
+      ]);
+    } catch (error) {
+      throw this.toDrawsError(error);
+    }
+  }
+
+  async reopenShift(shiftId: string): Promise<DrawShift | null> {
+    try {
+      return this.transitionShift(shiftId, turno_estado.ABIERTO, [
+        turno_estado.ABIERTO,
+        turno_estado.BLOQUEO,
+      ]);
+    } catch (error) {
+      throw this.toDrawsError(error);
+    }
+  }
+
   async listShifts(query: ListDrawShiftsQuery): Promise<DrawShift[]> {
     const shifts = await this.prisma.turnos.findMany({
       where: {
@@ -134,6 +212,62 @@ export class PrismaDrawsRepository implements DrawsRepository {
     });
 
     return shifts.map((shift) => this.mapShift(shift));
+  }
+
+  async listActiveShifts(
+    query: ListActiveDrawShiftsQuery,
+  ): Promise<DrawShift[]> {
+    const shifts = await this.prisma.turnos.findMany({
+      where: {
+        ...(query.date && { fecha: this.toDateOnly(query.date) }),
+        estado: {
+          in: [turno_estado.ABIERTO, turno_estado.BLOQUEO],
+        },
+      },
+      include: shiftInclude,
+      orderBy: [{ fecha: 'desc' }, { sorteos_config: { hora: 'asc' } }],
+    });
+
+    return shifts.map((shift) => this.mapShift(shift));
+  }
+
+  private async transitionShift(
+    shiftId: string,
+    nextStatus: turno_estado,
+    allowedStatuses: turno_estado[],
+  ): Promise<DrawShift | null> {
+    const existingShift = await this.prisma.turnos.findUnique({
+      where: {
+        id: shiftId,
+      },
+      include: shiftInclude,
+    });
+
+    if (!existingShift) {
+      return null;
+    }
+
+    if (!allowedStatuses.includes(existingShift.estado)) {
+      throw new Error(
+        `Cannot transition draw shift from ${existingShift.estado} to ${nextStatus}`,
+      );
+    }
+
+    if (existingShift.estado === nextStatus) {
+      return this.mapShift(existingShift);
+    }
+
+    const shift = await this.prisma.turnos.update({
+      where: {
+        id: shiftId,
+      },
+      data: {
+        estado: nextStatus,
+      },
+      include: shiftInclude,
+    });
+
+    return this.mapShift(shift);
   }
 
   private mapShift(shift: DrawShiftRecord): DrawShift {

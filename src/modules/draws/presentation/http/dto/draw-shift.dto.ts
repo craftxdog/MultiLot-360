@@ -43,6 +43,17 @@ export class ListDrawShiftsQueryDto {
   status?: DrawShiftStatus;
 }
 
+export class ListActiveDrawShiftsQueryDto {
+  @ApiPropertyOptional({ example: '2026-06-21' })
+  @IsOptional()
+  @Transform(({ value }) => trimString(value))
+  @IsString()
+  @Matches(DATE_PATTERN, {
+    message: 'La fecha debe tener formato YYYY-MM-DD.',
+  })
+  date?: string;
+}
+
 export class DrawShiftResponseDto {
   @ApiProperty()
   id: string;

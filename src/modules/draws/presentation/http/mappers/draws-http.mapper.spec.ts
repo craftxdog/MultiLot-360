@@ -29,4 +29,31 @@ describe('DrawsHttpMapper', () => {
       status: 'ABIERTO',
     });
   });
+
+  it('maps update configuration dto into an application command', () => {
+    expect(
+      DrawsHttpMapper.toUpdateConfigurationCommand('configuration-id', {
+        code: 'nacional-12pm',
+        active: false,
+      }),
+    ).toEqual({
+      configurationId: 'configuration-id',
+      code: 'nacional-12pm',
+      time: undefined,
+      tuesdayOnly: undefined,
+      lockSecondsBefore: undefined,
+      reopenSecondsAfter: undefined,
+      active: false,
+    });
+  });
+
+  it('maps active shift filters into an application query', () => {
+    expect(
+      DrawsHttpMapper.toListActiveShiftsQuery({
+        date: '2026-06-21',
+      }),
+    ).toEqual({
+      date: '2026-06-21',
+    });
+  });
 });

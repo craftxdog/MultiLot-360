@@ -1,7 +1,7 @@
 import { DrawsRepository } from '../../domain';
-import { CreateDrawConfigurationUseCase } from './create-draw-configuration.use-case';
+import { GetDrawConfigurationUseCase } from './get-draw-configuration.use-case';
 
-describe('CreateDrawConfigurationUseCase', () => {
+describe('GetDrawConfigurationUseCase', () => {
   const repository: jest.Mocked<DrawsRepository> = {
     createConfiguration: jest.fn(),
     findConfigurationById: jest.fn(),
@@ -15,11 +15,11 @@ describe('CreateDrawConfigurationUseCase', () => {
     listActiveShifts: jest.fn(),
   };
 
-  let useCase: CreateDrawConfigurationUseCase;
+  let useCase: GetDrawConfigurationUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repository.createConfiguration.mockResolvedValue({
+    repository.findConfigurationById.mockResolvedValue({
       id: 'configuration-id',
       code: 'nacional-11am',
       time: '11:00:00',
@@ -30,19 +30,25 @@ describe('CreateDrawConfigurationUseCase', () => {
       createdAt: new Date('2026-06-21T08:00:00.000Z'),
       updatedAt: new Date('2026-06-21T08:00:00.000Z'),
     });
-    useCase = new CreateDrawConfigurationUseCase(repository);
+    useCase = new GetDrawConfigurationUseCase(repository);
   });
 
-  it('normalizes the code before persisting the configuration', async () => {
+  it('returns an existing draw configuration', async () => {
     const result = await useCase.execute({
-      code: ' Nacional-11AM ',
-      time: '11:00:00',
+      configurationId: 'configuration-id',
     });
 
     expect(result.isSuccess).toBe(true);
-    expect(repository.createConfiguration.mock.calls[0][0]).toMatchObject({
-      code: 'nacional-11am',
-      time: '11:00:00',
-    });
+    expect(repository.findConfigurationById.mock.calls[0][0]).toBe(
+      'configuration-id',
+    );
+  });
+
+  it('fails when the configuration does not exist', async () => {
+    repository.findConfigurationById.mockResolvedValue(null);
+
+    const result = await useCase.execute({ configurationId: 'missing-id' });
+
+    expect(result.isFailure).toBe(true);
   });
 });

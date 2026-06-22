@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -64,6 +64,10 @@ export class CreateDrawConfigurationDto {
   @IsBoolean()
   active?: boolean;
 }
+
+export class UpdateDrawConfigurationDto extends PartialType(
+  CreateDrawConfigurationDto,
+) {}
 
 export class ListDrawConfigurationsQueryDto {
   @ApiPropertyOptional()

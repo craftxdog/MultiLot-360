@@ -1,7 +1,7 @@
 import { DrawsRepository } from '../../domain';
-import { ListDrawShiftsUseCase } from './list-draw-shifts.use-case';
+import { ListActiveDrawShiftsUseCase } from './list-active-draw-shifts.use-case';
 
-describe('ListDrawShiftsUseCase', () => {
+describe('ListActiveDrawShiftsUseCase', () => {
   const repository: jest.Mocked<DrawsRepository> = {
     createConfiguration: jest.fn(),
     findConfigurationById: jest.fn(),
@@ -15,24 +15,20 @@ describe('ListDrawShiftsUseCase', () => {
     listActiveShifts: jest.fn(),
   };
 
-  let useCase: ListDrawShiftsUseCase;
+  let useCase: ListActiveDrawShiftsUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repository.listShifts.mockResolvedValue([]);
-    useCase = new ListDrawShiftsUseCase(repository);
+    repository.listActiveShifts.mockResolvedValue([]);
+    useCase = new ListActiveDrawShiftsUseCase(repository);
   });
 
-  it('delegates filters to the repository', async () => {
-    const result = await useCase.execute({
-      date: '2026-06-21',
-      status: 'ABIERTO',
-    });
+  it('delegates date filters to the repository', async () => {
+    const result = await useCase.execute({ date: '2026-06-21' });
 
     expect(result.isSuccess).toBe(true);
-    expect(repository.listShifts.mock.calls[0][0]).toEqual({
+    expect(repository.listActiveShifts.mock.calls[0][0]).toEqual({
       date: '2026-06-21',
-      status: 'ABIERTO',
     });
   });
 });

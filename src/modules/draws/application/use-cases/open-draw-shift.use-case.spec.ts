@@ -4,10 +4,15 @@ import { OpenDrawShiftUseCase } from './open-draw-shift.use-case';
 describe('OpenDrawShiftUseCase', () => {
   const repository: jest.Mocked<DrawsRepository> = {
     createConfiguration: jest.fn(),
+    findConfigurationById: jest.fn(),
+    updateConfiguration: jest.fn(),
     listConfigurations: jest.fn(),
     openShift: jest.fn(),
+    blockShift: jest.fn(),
+    reopenShift: jest.fn(),
     closeShift: jest.fn(),
     listShifts: jest.fn(),
+    listActiveShifts: jest.fn(),
   };
 
   let useCase: OpenDrawShiftUseCase;

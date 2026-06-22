@@ -4,10 +4,15 @@ import { ListDrawConfigurationsUseCase } from './list-draw-configurations.use-ca
 describe('ListDrawConfigurationsUseCase', () => {
   const repository: jest.Mocked<DrawsRepository> = {
     createConfiguration: jest.fn(),
+    findConfigurationById: jest.fn(),
+    updateConfiguration: jest.fn(),
     listConfigurations: jest.fn(),
     openShift: jest.fn(),
+    blockShift: jest.fn(),
+    reopenShift: jest.fn(),
     closeShift: jest.fn(),
     listShifts: jest.fn(),
+    listActiveShifts: jest.fn(),
   };
 
   let useCase: ListDrawConfigurationsUseCase;

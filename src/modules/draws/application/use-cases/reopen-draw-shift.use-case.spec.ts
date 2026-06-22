@@ -1,7 +1,7 @@
 import { DrawsRepository } from '../../domain';
-import { CloseDrawShiftUseCase } from './close-draw-shift.use-case';
+import { ReopenDrawShiftUseCase } from './reopen-draw-shift.use-case';
 
-describe('CloseDrawShiftUseCase', () => {
+describe('ReopenDrawShiftUseCase', () => {
   const repository: jest.Mocked<DrawsRepository> = {
     createConfiguration: jest.fn(),
     findConfigurationById: jest.fn(),
@@ -15,14 +15,14 @@ describe('CloseDrawShiftUseCase', () => {
     listActiveShifts: jest.fn(),
   };
 
-  let useCase: CloseDrawShiftUseCase;
+  let useCase: ReopenDrawShiftUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repository.closeShift.mockResolvedValue({
+    repository.reopenShift.mockResolvedValue({
       id: 'shift-id',
       date: '2026-06-21',
-      status: 'CERRADO',
+      status: 'ABIERTO',
       createdAt: new Date('2026-06-21T08:00:00.000Z'),
       updatedAt: new Date('2026-06-21T09:00:00.000Z'),
       configuration: {
@@ -37,21 +37,13 @@ describe('CloseDrawShiftUseCase', () => {
         updatedAt: new Date('2026-06-21T08:00:00.000Z'),
       },
     });
-    useCase = new CloseDrawShiftUseCase(repository);
+    useCase = new ReopenDrawShiftUseCase(repository);
   });
 
-  it('closes an existing draw shift', async () => {
+  it('reopens an existing draw shift', async () => {
     const result = await useCase.execute({ shiftId: 'shift-id' });
 
     expect(result.isSuccess).toBe(true);
-    expect(repository.closeShift.mock.calls[0][0]).toBe('shift-id');
-  });
-
-  it('fails when the shift does not exist', async () => {
-    repository.closeShift.mockResolvedValue(null);
-
-    const result = await useCase.execute({ shiftId: 'missing-id' });
-
-    expect(result.isFailure).toBe(true);
+    expect(repository.reopenShift.mock.calls[0][0]).toBe('shift-id');
   });
 });
