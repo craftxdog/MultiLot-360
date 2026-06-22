@@ -9,6 +9,7 @@ import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 import { NumberLimitsModule } from './modules/number-limits';
+import { PrizePaymentsModule } from './modules/prize-payments';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
 
@@ -23,6 +24,7 @@ import { SalesModule } from './modules/sales';
     SalesModule,
     BlockedNumbersModule,
     ResultsModule,
+    PrizePaymentsModule,
     HealthModule,
   ],
   controllers: [AppController],
