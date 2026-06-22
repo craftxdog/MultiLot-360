@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { BlockedNumbersModule } from './modules/blocked-numbers';
 import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
@@ -19,6 +20,7 @@ import { SalesModule } from './modules/sales';
     DrawsModule,
     NumberLimitsModule,
     SalesModule,
+    BlockedNumbersModule,
     HealthModule,
   ],
   controllers: [AppController],
