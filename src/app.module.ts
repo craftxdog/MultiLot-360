@@ -7,6 +7,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
+import { NumberLimitsModule } from './modules/number-limits';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { IdentityAccessModule } from './modules/identity-access';
     CommonModule,
     IdentityAccessModule,
     DrawsModule,
+    NumberLimitsModule,
     HealthModule,
   ],
   controllers: [AppController],
