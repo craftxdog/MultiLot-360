@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { AuditLogsModule } from './modules/audit-logs';
 import { BlockedNumbersModule } from './modules/blocked-numbers';
 import { CashCutsModule } from './modules/cash-cuts';
 import { DrawsModule } from './modules/draws';
@@ -19,6 +20,7 @@ import { SalesModule } from './modules/sales';
     EnvConfigModule,
     InfrastructureModule,
     CommonModule,
+    AuditLogsModule,
     IdentityAccessModule,
     DrawsModule,
     NumberLimitsModule,
