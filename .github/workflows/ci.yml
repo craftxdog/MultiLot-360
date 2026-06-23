@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - develop
@@ -9,6 +10,13 @@ on:
     branches:
       - develop
       - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -39,15 +47,19 @@ jobs:
         with:
           node-version: 22
           cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Validate Prisma schema
+        run: yarn prisma:validate
+
       - name: Generate Prisma client
         run: yarn prisma:generate
 
-      - name: Validate Prisma schema
-        run: yarn prisma:validate
+      - name: Check formatting
+        run: yarn format:check
 
       - name: Lint
         run: yarn lint:check
