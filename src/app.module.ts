@@ -12,6 +12,7 @@ import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 import { NumberLimitsModule } from './modules/number-limits';
 import { PrizePaymentsModule } from './modules/prize-payments';
+import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
 
@@ -29,6 +30,7 @@ import { SalesModule } from './modules/sales';
     ResultsModule,
     PrizePaymentsModule,
     CashCutsModule,
+    ReportsModule,
     HealthModule,
   ],
   controllers: [AppController],
