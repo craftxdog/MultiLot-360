@@ -5,6 +5,7 @@ import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { BlockedNumbersModule } from './modules/blocked-numbers';
+import { CashCutsModule } from './modules/cash-cuts';
 import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
@@ -25,6 +26,7 @@ import { SalesModule } from './modules/sales';
     BlockedNumbersModule,
     ResultsModule,
     PrizePaymentsModule,
+    CashCutsModule,
     HealthModule,
   ],
   controllers: [AppController],
