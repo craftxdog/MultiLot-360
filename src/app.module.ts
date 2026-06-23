@@ -15,6 +15,7 @@ import { PrizePaymentsModule } from './modules/prize-payments';
 import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
+import { SystemParametersModule } from './modules/system-parameters';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SalesModule } from './modules/sales';
     PrizePaymentsModule,
     CashCutsModule,
     ReportsModule,
+    SystemParametersModule,
     HealthModule,
   ],
   controllers: [AppController],
