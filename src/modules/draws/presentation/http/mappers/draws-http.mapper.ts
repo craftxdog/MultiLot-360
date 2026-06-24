@@ -36,6 +36,10 @@ export class DrawsHttpMapper {
   ): ListDrawConfigurationsQuery {
     return {
       active: dto.active,
+      page: dto.page,
+      limit: dto.limit,
+      sortBy: dto.sortBy,
+      sortDirection: dto.sortDirection,
     };
   }
 
@@ -65,6 +69,10 @@ export class DrawsHttpMapper {
     return {
       date: dto.date,
       status: dto.status,
+      page: dto.page,
+      limit: dto.limit,
+      sortBy: dto.sortBy,
+      sortDirection: dto.sortDirection,
     };
   }
 
@@ -73,6 +81,10 @@ export class DrawsHttpMapper {
   ): ListActiveDrawShiftsQuery {
     return {
       date: dto.date,
+      page: dto.page,
+      limit: dto.limit,
+      sortBy: dto.sortBy,
+      sortDirection: dto.sortDirection,
     };
   }
 }

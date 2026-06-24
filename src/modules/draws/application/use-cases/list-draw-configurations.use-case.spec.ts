@@ -19,16 +19,40 @@ describe('ListDrawConfigurationsUseCase', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repository.listConfigurations.mockResolvedValue([]);
+    repository.listConfigurations.mockResolvedValue({
+      items: [],
+      pagination: {
+        strategy: 'offset',
+        page: 1,
+        limit: 25,
+        count: 0,
+        total: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        sortBy: 'time',
+        sortDirection: 'asc',
+      },
+    });
     useCase = new ListDrawConfigurationsUseCase(repository);
   });
 
   it('delegates filters to the repository', async () => {
-    const result = await useCase.execute({ active: true });
+    const result = await useCase.execute({
+      active: true,
+      page: 1,
+      limit: 25,
+      sortBy: 'time',
+      sortDirection: 'asc',
+    });
 
     expect(result.isSuccess).toBe(true);
     expect(repository.listConfigurations.mock.calls[0][0]).toEqual({
       active: true,
+      page: 1,
+      limit: 25,
+      sortBy: 'time',
+      sortDirection: 'asc',
     });
   });
 });

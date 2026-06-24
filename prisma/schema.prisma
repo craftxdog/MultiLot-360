@@ -73,7 +73,7 @@ model vendedores {
   creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
   actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
   codigos_acceso_vendedor codigos_acceso_vendedor[]
-  limites_numero_vendedor limites_numero_vendedor[]
+  limites_numero          limites_numero[]
   usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   ventas                  ventas[]
 
@@ -102,15 +102,16 @@ model codigos_acceso_vendedor {
 }
 
 model sorteos_config {
-  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  codigo                  String   @unique
-  hora                    DateTime @db.Time(6)
-  solo_martes             Boolean  @default(false)
-  lock_segundos_antes     Int      @default(60)
-  reopen_segundos_despues Int      @default(600)
-  activo                  Boolean  @default(true)
-  creado_en               DateTime @default(now()) @db.Timestamptz(6)
-  actualizado_en          DateTime @default(now()) @db.Timestamptz(6)
+  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                  String           @unique
+  hora                    DateTime         @db.Time(6)
+  solo_martes             Boolean          @default(false)
+  lock_segundos_antes     Int              @default(60)
+  reopen_segundos_despues Int              @default(600)
+  activo                  Boolean          @default(true)
+  creado_en               DateTime         @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime         @default(now()) @db.Timestamptz(6)
+  limites_numero          limites_numero[]
   turnos                  turnos[]
 
   @@index([activo, hora], map: "ix_sorteos_activo_hora")
@@ -165,20 +166,6 @@ model venta_detalle {
 
   @@index([numero], map: "ix_venta_detalle_numero")
   @@index([venta_id], map: "ix_venta_detalle_venta")
-}
-
-model limites_numero_vendedor {
-  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  vendedor_id   String     @db.Uuid
-  numero        String     @db.Char(2)
-  limite_miles  Int
-  vigente_desde DateTime   @default(dbgenerated("CURRENT_DATE")) @db.Date
-  vigente_hasta DateTime?  @db.Date
-  creado_en     DateTime   @default(now()) @db.Timestamptz(6)
-  vendedores    vendedores @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([vendedor_id, numero], map: "uq_limites_vendedor_numero_activo", where: raw("(vigente_hasta IS NULL)"))
-  @@index([vendedor_id, numero], map: "ix_limites_vendedor_numero")
 }
 
 model numeros_bloqueados {
@@ -259,6 +246,28 @@ model auditoria_eventos {
 
   @@index([creado_en(sort: Desc)], map: "ix_auditoria_eventos_creado_en")
   @@index([usuario_id], map: "ix_auditoria_eventos_usuario_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model limites_numero {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vendedor_id    String?         @db.Uuid
+  numero         String          @db.Char(2)
+  limite_miles   Int
+  vigente_desde  DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  vigente_hasta  DateTime?       @db.Date
+  creado_en      DateTime        @default(now()) @db.Timestamptz(6)
+  config_id      String?         @db.Uuid
+  sorteos_config sorteos_config? @relation(fields: [config_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vendedores     vendedores?     @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([config_id, numero], map: "ix_limites_numero_config", where: raw("(config_id IS NOT NULL)"))
+  @@index([vendedor_id, numero], map: "ix_limites_numero_vendedor", where: raw("(vendedor_id IS NOT NULL)"))
+  @@index([numero, vigente_desde, vigente_hasta], map: "ix_limites_numero_vigencia")
 }
 
 enum turno_estado {

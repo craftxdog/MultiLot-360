@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, turno_estado } from '@prisma/client';
+import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
+import { PaginatedResult } from '../../../../../shared-kernel';
 import { DrawConfiguration, DrawShift } from '../../../domain/entities';
 import {
   CreateDrawConfigurationInput,
@@ -47,16 +49,27 @@ export class PrismaDrawsRepository implements DrawsRepository {
 
   async listConfigurations(
     query: ListDrawConfigurationsQuery,
-  ): Promise<DrawConfiguration[]> {
-    const configurations = await this.prisma.sorteos_config.findMany({
-      where: {
-        ...(query.active !== undefined && { activo: query.active }),
-      },
-      orderBy: [{ hora: 'asc' }, { codigo: 'asc' }],
-    });
+  ): Promise<PaginatedResult<DrawConfiguration>> {
+    const where: Prisma.sorteos_configWhereInput = {
+      ...(query.active !== undefined && { activo: query.active }),
+    };
 
-    return configurations.map((configuration) =>
-      this.mapConfiguration(configuration),
+    const [configurations, total] = await this.prisma.$transaction([
+      this.prisma.sorteos_config.findMany({
+        where,
+        orderBy: this.toConfigurationOrderBy(query),
+        skip: getOffsetSkip(query),
+        take: query.limit,
+      }),
+      this.prisma.sorteos_config.count({ where }),
+    ]);
+
+    return buildOffsetPagination(
+      configurations.map((configuration) =>
+        this.mapConfiguration(configuration),
+      ),
+      total,
+      query,
     );
   }
 
@@ -201,34 +214,58 @@ export class PrismaDrawsRepository implements DrawsRepository {
     }
   }
 
-  async listShifts(query: ListDrawShiftsQuery): Promise<DrawShift[]> {
-    const shifts = await this.prisma.turnos.findMany({
-      where: {
-        ...(query.date && { fecha: this.toDateOnly(query.date) }),
-        ...(query.status && { estado: query.status }),
-      },
-      include: shiftInclude,
-      orderBy: [{ fecha: 'desc' }, { sorteos_config: { hora: 'asc' } }],
-    });
+  async listShifts(
+    query: ListDrawShiftsQuery,
+  ): Promise<PaginatedResult<DrawShift>> {
+    const where: Prisma.turnosWhereInput = {
+      ...(query.date && { fecha: this.toDateOnly(query.date) }),
+      ...(query.status && { estado: query.status }),
+    };
 
-    return shifts.map((shift) => this.mapShift(shift));
+    const [shifts, total] = await this.prisma.$transaction([
+      this.prisma.turnos.findMany({
+        where,
+        include: shiftInclude,
+        orderBy: this.toShiftOrderBy(query),
+        skip: getOffsetSkip(query),
+        take: query.limit,
+      }),
+      this.prisma.turnos.count({ where }),
+    ]);
+
+    return buildOffsetPagination(
+      shifts.map((shift) => this.mapShift(shift)),
+      total,
+      query,
+    );
   }
 
   async listActiveShifts(
     query: ListActiveDrawShiftsQuery,
-  ): Promise<DrawShift[]> {
-    const shifts = await this.prisma.turnos.findMany({
-      where: {
-        ...(query.date && { fecha: this.toDateOnly(query.date) }),
-        estado: {
-          in: [turno_estado.ABIERTO, turno_estado.BLOQUEO],
-        },
+  ): Promise<PaginatedResult<DrawShift>> {
+    const where: Prisma.turnosWhereInput = {
+      ...(query.date && { fecha: this.toDateOnly(query.date) }),
+      estado: {
+        in: [turno_estado.ABIERTO, turno_estado.BLOQUEO],
       },
-      include: shiftInclude,
-      orderBy: [{ fecha: 'desc' }, { sorteos_config: { hora: 'asc' } }],
-    });
+    };
 
-    return shifts.map((shift) => this.mapShift(shift));
+    const [shifts, total] = await this.prisma.$transaction([
+      this.prisma.turnos.findMany({
+        where,
+        include: shiftInclude,
+        orderBy: this.toShiftOrderBy(query),
+        skip: getOffsetSkip(query),
+        take: query.limit,
+      }),
+      this.prisma.turnos.count({ where }),
+    ]);
+
+    return buildOffsetPagination(
+      shifts.map((shift) => this.mapShift(shift)),
+      total,
+      query,
+    );
   }
 
   private async transitionShift(
@@ -279,6 +316,52 @@ export class PrismaDrawsRepository implements DrawsRepository {
       updatedAt: shift.actualizado_en,
       configuration: this.mapConfiguration(shift.sorteos_config),
     };
+  }
+
+  private toConfigurationOrderBy(
+    query: ListDrawConfigurationsQuery,
+  ): Prisma.sorteos_configOrderByWithRelationInput[] {
+    const direction = query.sortDirection;
+
+    switch (query.sortBy) {
+      case 'code':
+        return [{ codigo: direction }, { hora: 'asc' }, { id: 'asc' }];
+      case 'active':
+        return [{ activo: direction }, { hora: 'asc' }, { id: 'asc' }];
+      case 'createdAt':
+        return [{ creado_en: direction }, { id: 'asc' }];
+      case 'updatedAt':
+        return [{ actualizado_en: direction }, { id: 'asc' }];
+      case 'time':
+      default:
+        return [{ hora: direction }, { codigo: 'asc' }, { id: 'asc' }];
+    }
+  }
+
+  private toShiftOrderBy(
+    query: ListDrawShiftsQuery | ListActiveDrawShiftsQuery,
+  ): Prisma.turnosOrderByWithRelationInput[] {
+    const direction = query.sortDirection;
+
+    switch (query.sortBy) {
+      case 'status':
+        return [{ estado: direction }, { fecha: 'desc' }, { id: 'asc' }];
+      case 'createdAt':
+        return [{ creado_en: direction }, { id: 'asc' }];
+      case 'updatedAt':
+        return [{ actualizado_en: direction }, { id: 'asc' }];
+      case 'configurationTime':
+        return [{ sorteos_config: { hora: direction } }, { fecha: 'desc' }];
+      case 'configurationCode':
+        return [{ sorteos_config: { codigo: direction } }, { fecha: 'desc' }];
+      case 'date':
+      default:
+        return [
+          { fecha: direction },
+          { sorteos_config: { hora: 'asc' } },
+          { id: 'asc' },
+        ];
+    }
   }
 
   private mapConfiguration(

@@ -1,3 +1,7 @@
+import {
+  OffsetPaginationQuery,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { DrawConfiguration, DrawShift } from '../entities';
 
 export const DRAWS_REPOSITORY = Symbol('DRAWS_REPOSITORY');
@@ -21,7 +25,7 @@ export type UpdateDrawConfigurationInput = {
   active?: boolean;
 };
 
-export type ListDrawConfigurationsQuery = {
+export type ListDrawConfigurationsQuery = OffsetPaginationQuery & {
   active?: boolean;
 };
 
@@ -30,12 +34,12 @@ export type OpenDrawShiftInput = {
   date: string;
 };
 
-export type ListDrawShiftsQuery = {
+export type ListDrawShiftsQuery = OffsetPaginationQuery & {
   date?: string;
   status?: DrawShift['status'];
 };
 
-export type ListActiveDrawShiftsQuery = {
+export type ListActiveDrawShiftsQuery = OffsetPaginationQuery & {
   date?: string;
 };
 
@@ -51,11 +55,13 @@ export interface DrawsRepository {
   ): Promise<DrawConfiguration | null>;
   listConfigurations(
     query: ListDrawConfigurationsQuery,
-  ): Promise<DrawConfiguration[]>;
+  ): Promise<PaginatedResult<DrawConfiguration>>;
   openShift(input: OpenDrawShiftInput): Promise<DrawShift>;
   blockShift(shiftId: string): Promise<DrawShift | null>;
   reopenShift(shiftId: string): Promise<DrawShift | null>;
   closeShift(shiftId: string): Promise<DrawShift | null>;
-  listShifts(query: ListDrawShiftsQuery): Promise<DrawShift[]>;
-  listActiveShifts(query: ListActiveDrawShiftsQuery): Promise<DrawShift[]>;
+  listShifts(query: ListDrawShiftsQuery): Promise<PaginatedResult<DrawShift>>;
+  listActiveShifts(
+    query: ListActiveDrawShiftsQuery,
+  ): Promise<PaginatedResult<DrawShift>>;
 }

@@ -14,7 +14,7 @@ export const SYSTEM_MODULES = {
   resultados: 'resultados',
   pagosPremios: 'pagos_premios',
   numerosBloqueados: 'numeros_bloqueados',
-  limitesVendedor: 'limites_vendedor',
+  limitesNumero: 'limites_numero',
   cortes: 'cortes',
   parametros: 'parametros',
   auditoria: 'auditoria',
