@@ -93,6 +93,7 @@ POST /api/v1/identity-access/sellers/invitations
   -> revokes previous pending codes for the same seller/email
   -> stores a new hashed access code with expiration
   -> sends the code by email
+  -> includes an activation button with email and code preloaded
 ```
 
 ```json
@@ -147,6 +148,11 @@ POST /api/v1/identity-access/sellers/access-code/confirm
   -> links usuarios.auth_user_id to the Supabase user id
   -> activates usuarios and vendedores
 ```
+
+The activation email points to `SELLER_ACTIVATION_URL` and adds `email` and
+`code` query parameters. The frontend reads those values and submits them,
+together with the password chosen by the seller, to the public confirmation
+endpoint. The link does not activate the account automatically.
 
 Seller signs in normally:
 

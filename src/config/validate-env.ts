@@ -1,4 +1,4 @@
-import { bool, cleanEnv, makeValidator, num, port, str } from 'envalid';
+import { bool, cleanEnv, makeValidator, num, port, str, url } from 'envalid';
 
 const csv = makeValidator<string[]>((input) =>
   input
@@ -7,9 +7,20 @@ const csv = makeValidator<string[]>((input) =>
     .filter(Boolean),
 );
 
+const absolutePath = makeValidator<string>((input) => {
+  const value = input.trim();
+
+  if (!/^\/[a-zA-Z0-9/_.-]*$/.test(value) || value.includes('//')) {
+    throw new Error('Expected an absolute URL path');
+  }
+
+  return value.length > 1 ? value.replace(/\/$/, '') : value;
+});
+
 export function validateEnv(env: NodeJS.ProcessEnv) {
   return cleanEnv(env, {
     APP_NAME: str({ default: 'MultiLot 360 API' }),
+    APP_WEB_URL: url({ default: 'http://localhost:8080' }),
     NODE_ENV: str({
       choices: ['development', 'production', 'test', 'staging'],
       default: 'development',
@@ -51,6 +62,14 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     REDIS_DB: num({ default: 0 }),
     REDIS_KEY_PREFIX: str({ default: 'multilot360:development:' }),
 
+    REALTIME_ENABLED: bool({ default: true }),
+    REALTIME_PATH: absolutePath({ default: '/socket.io' }),
+    REALTIME_MAX_PAYLOAD_BYTES: num({ default: 16384 }),
+    REALTIME_CONNECT_TIMEOUT_MS: num({ default: 10000 }),
+    REALTIME_RECOVERY_WINDOW_MS: num({ default: 120000 }),
+    REALTIME_REDIS_ENABLED: bool({ default: false }),
+    REALTIME_REDIS_KEY: str({ default: 'multilot360:socket.io' }),
+
     MAILERSEND_ENABLED: bool({ default: false }),
     MAILERSEND_API_TOKEN: str({ default: '' }),
     MAILERSEND_SMTP_HOST: str({ default: 'smtp.mailersend.net' }),
@@ -63,8 +82,10 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
 
     SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES: num({ default: 15 }),
     SELLER_ACCESS_CODE_SECRET: str({ default: '' }),
+    SELLER_ACTIVATION_URL: url({ default: '' }),
 
     AUTH_SIGNUP_ENABLED: bool({ default: true }),
     AUTH_ADMIN_ROLE_NAME: str({ default: 'admin' }),
+    ACCOUNT_CONFIRMATION_URL: url({ default: '' }),
   });
 }

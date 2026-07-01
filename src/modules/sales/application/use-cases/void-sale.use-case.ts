@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { Sale } from '../../domain/entities';
 import { SALES_REPOSITORY, SalesRepository } from '../../domain/ports';
@@ -22,6 +26,8 @@ export class VoidSaleUseCase extends UseCase<VoidSaleCommand, Sale, AppError> {
   constructor(
     @Inject(SALES_REPOSITORY)
     private readonly salesRepository: SalesRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -81,6 +87,19 @@ export class VoidSaleUseCase extends UseCase<VoidSaleCommand, Sale, AppError> {
       if (!voidedSale) {
         return ErrorFactory.useCase('Sale not found', undefined, 404);
       }
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.saleVoided,
+        aggregateId: voidedSale.id,
+        audience: operationalAudience.sales(voidedSale.seller.id),
+        payload: {
+          saleId: voidedSale.id,
+          sellerId: voidedSale.seller.id,
+          shiftId: voidedSale.shift?.id ?? null,
+          status: voidedSale.status,
+          numbers: voidedSale.details.map((detail) => detail.number),
+        },
+      });
 
       return Result.success(voidedSale);
     } catch (error) {

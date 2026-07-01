@@ -9,13 +9,21 @@ export type RenderedEmailTemplate = {
 
 @Injectable()
 export class TemplateRendererService {
-  private readonly environment: Environment;
+  private readonly htmlEnvironment: Environment;
+  private readonly textEnvironment: Environment;
 
   constructor() {
     const templatesPath = join(__dirname, 'templates');
-    this.environment = new Environment(new FileSystemLoader(templatesPath), {
+    const loader = new FileSystemLoader(templatesPath);
+    const noCache = process.env.NODE_ENV !== 'production';
+
+    this.htmlEnvironment = new Environment(loader, {
       autoescape: true,
-      noCache: process.env.NODE_ENV !== 'production',
+      noCache,
+    });
+    this.textEnvironment = new Environment(loader, {
+      autoescape: false,
+      noCache,
     });
   }
 
@@ -24,8 +32,8 @@ export class TemplateRendererService {
     context: Record<string, unknown>,
   ): RenderedEmailTemplate {
     return {
-      html: this.environment.render(`${templateName}/html.njk`, context),
-      text: this.environment.render(`${templateName}/text.njk`, context),
+      html: this.htmlEnvironment.render(`${templateName}/html.njk`, context),
+      text: this.textEnvironment.render(`${templateName}/text.njk`, context),
     };
   }
 }

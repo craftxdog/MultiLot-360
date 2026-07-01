@@ -12,6 +12,7 @@ import {
 } from './common';
 import { AppLoggerService } from './config/app-logger.service';
 import { EnvConfigService } from './config/env-config.service';
+import { RedisSocketIoAdapter } from './infrastructure/realtime';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -45,6 +46,10 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
+
+  const socketAdapter = new RedisSocketIoAdapter(app, env);
+  await socketAdapter.connectToRedis();
+  app.useWebSocketAdapter(socketAdapter);
 
   if (env.swagger.enabled) {
     const document = SwaggerModule.createDocument(

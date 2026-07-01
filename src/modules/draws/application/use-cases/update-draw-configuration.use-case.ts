@@ -2,9 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
+import { publishDrawConfigurationEvent } from '../events';
 import { DrawConfiguration } from '../../domain/entities';
 import {
   DRAWS_REPOSITORY,
@@ -23,6 +27,8 @@ export class UpdateDrawConfigurationUseCase extends UseCase<
   constructor(
     @Inject(DRAWS_REPOSITORY)
     private readonly drawsRepository: DrawsRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -43,6 +49,12 @@ export class UpdateDrawConfigurationUseCase extends UseCase<
           404,
         );
       }
+
+      publishDrawConfigurationEvent(
+        this.eventPublisher,
+        OPERATIONAL_EVENTS.drawConfigurationUpdated,
+        configuration,
+      );
 
       return Result.success(configuration);
     } catch (error) {

@@ -3,6 +3,7 @@ import { validateEnv } from './validate-env';
 export interface AppConfig {
   app: {
     name: string;
+    webUrl: string;
     env: string;
     port: number;
     apiPrefix: string;
@@ -42,6 +43,16 @@ export interface AppConfig {
     keyPrefix: string;
   };
 
+  realtime: {
+    enabled: boolean;
+    path: string;
+    maxPayloadBytes: number;
+    connectTimeoutMs: number;
+    recoveryWindowMs: number;
+    redisEnabled: boolean;
+    redisKey: string;
+  };
+
   mailer: {
     enabled: boolean;
     apiToken: string;
@@ -57,11 +68,13 @@ export interface AppConfig {
   sellerAccess: {
     codeExpiresInMinutes: number;
     codeSecret: string;
+    activationUrl: string;
   };
 
   auth: {
     signupEnabled: boolean;
     adminRoleName: string;
+    confirmationUrl: string;
   };
 }
 
@@ -70,6 +83,7 @@ export default (): AppConfig => {
   return {
     app: {
       name: env.APP_NAME,
+      webUrl: env.APP_WEB_URL,
       env: env.NODE_ENV,
       port: env.PORT,
       apiPrefix: env.API_PREFIX,
@@ -104,6 +118,15 @@ export default (): AppConfig => {
       db: env.REDIS_DB,
       keyPrefix: env.REDIS_KEY_PREFIX,
     },
+    realtime: {
+      enabled: env.REALTIME_ENABLED,
+      path: env.REALTIME_PATH,
+      maxPayloadBytes: env.REALTIME_MAX_PAYLOAD_BYTES,
+      connectTimeoutMs: env.REALTIME_CONNECT_TIMEOUT_MS,
+      recoveryWindowMs: env.REALTIME_RECOVERY_WINDOW_MS,
+      redisEnabled: env.REALTIME_REDIS_ENABLED,
+      redisKey: env.REALTIME_REDIS_KEY,
+    },
     mailer: {
       enabled: env.MAILERSEND_ENABLED,
       apiToken: env.MAILERSEND_API_TOKEN,
@@ -118,10 +141,16 @@ export default (): AppConfig => {
     sellerAccess: {
       codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
       codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
+      activationUrl:
+        env.SELLER_ACTIVATION_URL ||
+        new URL('/activar-vendedor', env.APP_WEB_URL).toString(),
     },
     auth: {
       signupEnabled: env.AUTH_SIGNUP_ENABLED,
       adminRoleName: env.AUTH_ADMIN_ROLE_NAME,
+      confirmationUrl:
+        env.ACCOUNT_CONFIRMATION_URL ||
+        new URL('/confirmar-cuenta', env.APP_WEB_URL).toString(),
     },
   };
 };

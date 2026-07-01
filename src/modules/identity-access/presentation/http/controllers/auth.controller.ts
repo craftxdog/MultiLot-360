@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Headers,
+  HttpCode,
+  HttpStatus,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -50,6 +52,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: AuthSessionResponseDto })
   signIn(@Body() body: LoginDto) {
     return this.login.execute({
@@ -60,6 +63,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: AuthSessionResponseDto })
   refresh(@Body() body: RefreshSessionDto) {
     return this.refreshSession.execute({
@@ -68,6 +72,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOkResponse({ type: LogoutResponseDto })
   signOut(@Headers('authorization') authorization: string | undefined) {

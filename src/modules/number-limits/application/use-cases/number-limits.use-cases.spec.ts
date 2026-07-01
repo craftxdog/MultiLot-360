@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventPublisher,
+  IntegrationEventInput,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { NumberLimit } from '../../domain/entities';
 import { NumberLimitsRepository } from '../../domain/ports';
 import { CreateNumberLimitsUseCase } from './create-number-limits.use-case';
@@ -31,6 +36,14 @@ const createRepository = (): jest.Mocked<NumberLimitsRepository> => ({
   list: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Number limits use cases', () => {
   let repository: jest.Mocked<NumberLimitsRepository>;
 
@@ -39,11 +52,12 @@ describe('Number limits use cases', () => {
   });
 
   it('creates unique normalized number limits', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.createMany.mockResolvedValue([
       createNumberLimit({ number: '02' }),
       createNumberLimit({ id: 'limit-id-2', number: '15' }),
     ]);
-    const useCase = new CreateNumberLimitsUseCase(repository);
+    const useCase = new CreateNumberLimitsUseCase(repository, publisher);
 
     const result = await useCase.execute({
       numbers: ['2', '02', '15'],
@@ -60,6 +74,14 @@ describe('Number limits use cases', () => {
       validFrom: '2026-06-22',
       sellerId: 'seller-id',
       drawCode: 'nacional-11am',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.numberLimitsCreated,
+      aggregateId: 'limit-id',
+      payload: {
+        limitIds: ['limit-id', 'limit-id-2'],
+        numbers: ['02', '15'],
+      },
     });
   });
 
@@ -130,8 +152,9 @@ describe('Number limits use cases', () => {
   });
 
   it('updates one limit', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.update.mockResolvedValue(createNumberLimit({ limitMiles: 75 }));
-    const useCase = new UpdateNumberLimitUseCase(repository);
+    const useCase = new UpdateNumberLimitUseCase(repository, publisher);
 
     const result = await useCase.execute({
       limitId: 'limit-id',
@@ -146,6 +169,10 @@ describe('Number limits use cases', () => {
       limitMiles: 75,
       validFrom: '2026-06-22',
       validUntil: '2026-06-30',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.numberLimitUpdated,
+      aggregateId: 'limit-id',
     });
   });
 
@@ -163,10 +190,11 @@ describe('Number limits use cases', () => {
   });
 
   it('expires one limit without deleting it', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.expire.mockResolvedValue(
       createNumberLimit({ validUntil: '2026-06-22' }),
     );
-    const useCase = new ExpireNumberLimitUseCase(repository);
+    const useCase = new ExpireNumberLimitUseCase(repository, publisher);
 
     const result = await useCase.execute({
       limitId: 'limit-id',
@@ -177,6 +205,10 @@ describe('Number limits use cases', () => {
     expect(repository.expire.mock.calls[0][0]).toEqual({
       limitId: 'limit-id',
       expiresOn: '2026-06-22',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.numberLimitExpired,
+      aggregateId: 'limit-id',
     });
   });
 });

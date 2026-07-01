@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventPublisher,
+  IntegrationEventInput,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { Sale } from '../../domain/entities';
 import { SalesRepository } from '../../domain/ports';
 import { CreateSaleUseCase } from './create-sale.use-case';
@@ -50,6 +55,14 @@ const createRepository = (): jest.Mocked<SalesRepository> => ({
   void: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Sales use cases', () => {
   let repository: jest.Mocked<SalesRepository>;
 
@@ -59,8 +72,9 @@ describe('Sales use cases', () => {
   });
 
   it('creates a seller sale and aggregates duplicated numbers', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.create.mockResolvedValue(createSale());
-    const useCase = new CreateSaleUseCase(repository);
+    const useCase = new CreateSaleUseCase(repository, publisher);
 
     const result = await useCase.execute({
       currentSellerId: 'seller-id',
@@ -81,6 +95,16 @@ describe('Sales use cases', () => {
         { number: '02', prizeMiles: 40 },
         { number: '15', prizeMiles: 10 },
       ],
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.saleCreated,
+      aggregateId: 'sale-id',
+      audience: { sellerIds: ['seller-id'] },
+      payload: {
+        saleId: 'sale-id',
+        sellerId: 'seller-id',
+        numbers: ['02'],
+      },
     });
   });
 
@@ -228,6 +252,7 @@ describe('Sales use cases', () => {
   });
 
   it('voids an active sale', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.findById.mockResolvedValue(
       createSale({
         createdAt: new Date('2026-06-22T08:00:00.000Z'),
@@ -240,7 +265,7 @@ describe('Sales use cases', () => {
         voidReason: 'Cliente solicito anulacion',
       }),
     );
-    const useCase = new VoidSaleUseCase(repository);
+    const useCase = new VoidSaleUseCase(repository, publisher);
 
     const result = await useCase.execute({
       saleId: 'sale-id',
@@ -257,6 +282,11 @@ describe('Sales use cases', () => {
       saleId: 'sale-id',
       voidedByUserId: 'user-id',
       reason: 'Cliente solicito anulacion',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.saleVoided,
+      aggregateId: 'sale-id',
+      audience: { sellerIds: ['seller-id'] },
     });
   });
 
@@ -337,14 +367,19 @@ describe('Sales use cases', () => {
   });
 
   it('updates the sales void policy', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.updateVoidPolicy.mockResolvedValue({ windowMinutes: 15 });
-    const useCase = new UpdateSalesVoidPolicyUseCase(repository);
+    const useCase = new UpdateSalesVoidPolicyUseCase(repository, publisher);
 
     const result = await useCase.execute({ windowMinutes: 15 });
 
     expect(result.isSuccess).toBe(true);
     expect(repository.updateVoidPolicy.mock.calls[0][0]).toEqual({
       windowMinutes: 15,
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.salesVoidPolicyUpdated,
+      aggregateId: 'sales.void_window_minutes',
     });
   });
 

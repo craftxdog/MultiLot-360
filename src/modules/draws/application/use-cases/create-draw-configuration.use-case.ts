@@ -2,9 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
+import { publishDrawConfigurationEvent } from '../events';
 import { DrawConfiguration } from '../../domain/entities';
 import { DRAWS_REPOSITORY, DrawsRepository } from '../../domain/ports';
 
@@ -26,6 +30,8 @@ export class CreateDrawConfigurationUseCase extends UseCase<
   constructor(
     @Inject(DRAWS_REPOSITORY)
     private readonly drawsRepository: DrawsRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -34,12 +40,18 @@ export class CreateDrawConfigurationUseCase extends UseCase<
     input: CreateDrawConfigurationCommand,
   ): Promise<Result<DrawConfiguration, AppError>> {
     try {
-      return Result.success(
-        await this.drawsRepository.createConfiguration({
-          ...input,
-          code: input.code.trim().toLowerCase(),
-        }),
+      const configuration = await this.drawsRepository.createConfiguration({
+        ...input,
+        code: input.code.trim().toLowerCase(),
+      });
+
+      publishDrawConfigurationEvent(
+        this.eventPublisher,
+        OPERATIONAL_EVENTS.drawConfigurationCreated,
+        configuration,
       );
+
+      return Result.success(configuration);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error

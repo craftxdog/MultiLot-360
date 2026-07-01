@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import {
   SALES_REPOSITORY,
@@ -23,6 +27,8 @@ export class UpdateSalesVoidPolicyUseCase extends UseCase<
   constructor(
     @Inject(SALES_REPOSITORY)
     private readonly salesRepository: SalesRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -39,7 +45,18 @@ export class UpdateSalesVoidPolicyUseCase extends UseCase<
         );
       }
 
-      return Result.success(await this.salesRepository.updateVoidPolicy(input));
+      const policy = await this.salesRepository.updateVoidPolicy(input);
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.salesVoidPolicyUpdated,
+        aggregateId: 'sales.void_window_minutes',
+        audience: operationalAudience.salesPolicy(),
+        payload: {
+          key: 'sales.void_window_minutes',
+        },
+      });
+
+      return Result.success(policy);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error

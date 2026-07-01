@@ -31,6 +31,9 @@ export class EnvConfigService {
   get redis() {
     return this.get('redis');
   }
+  get realtime() {
+    return this.get('realtime');
+  }
   get mailer() {
     return this.get('mailer');
   }

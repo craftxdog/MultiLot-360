@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { Sale } from '../../domain/entities';
 import {
@@ -29,6 +33,8 @@ export class CreateSaleUseCase extends UseCase<
   constructor(
     @Inject(SALES_REPOSITORY)
     private readonly salesRepository: SalesRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -51,13 +57,26 @@ export class CreateSaleUseCase extends UseCase<
         );
       }
 
-      return Result.success(
-        await this.salesRepository.create({
-          sellerId: sellerResult.value,
-          shiftId: input.shiftId,
-          items,
-        }),
-      );
+      const sale = await this.salesRepository.create({
+        sellerId: sellerResult.value,
+        shiftId: input.shiftId,
+        items,
+      });
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.saleCreated,
+        aggregateId: sale.id,
+        audience: operationalAudience.sales(sale.seller.id),
+        payload: {
+          saleId: sale.id,
+          sellerId: sale.seller.id,
+          shiftId: sale.shift?.id ?? null,
+          status: sale.status,
+          numbers: sale.details.map((detail) => detail.number),
+        },
+      });
+
+      return Result.success(sale);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error ? error.message : 'Could not create sale',

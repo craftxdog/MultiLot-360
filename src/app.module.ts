@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { RealtimeModule } from './infrastructure/realtime';
 import { AuditLogsModule } from './modules/audit-logs';
 import { BlockedNumbersModule } from './modules/blocked-numbers';
 import { CashCutsModule } from './modules/cash-cuts';
@@ -24,6 +25,7 @@ import { SystemParametersModule } from './modules/system-parameters';
     CommonModule,
     AuditLogsModule,
     IdentityAccessModule,
+    RealtimeModule,
     DrawsModule,
     NumberLimitsModule,
     SalesModule,

@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { BlockedNumber } from '../../domain/entities';
 import {
@@ -24,6 +28,8 @@ export class DeleteBlockedNumberUseCase extends UseCase<
   constructor(
     @Inject(BLOCKED_NUMBERS_REPOSITORY)
     private readonly blockedNumbersRepository: BlockedNumbersRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -37,6 +43,18 @@ export class DeleteBlockedNumberUseCase extends UseCase<
       if (!block) {
         return ErrorFactory.useCase('Blocked number not found', undefined, 404);
       }
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.blockedNumberDeleted,
+        aggregateId: block.id,
+        audience: operationalAudience.blockedNumbers(),
+        payload: {
+          blockId: block.id,
+          number: block.number,
+          shiftId: block.shift?.id ?? null,
+          date: block.date ?? block.shift?.date ?? null,
+        },
+      });
 
       return Result.success(block);
     } catch (error) {

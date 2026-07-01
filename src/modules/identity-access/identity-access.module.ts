@@ -92,6 +92,7 @@ import {
     },
   ],
   exports: [
+    AccessTokenVerifierService,
     ConfirmSellerAccessCodeUseCase,
     CreateSellerInvitationUseCase,
     ListSellerInvitationsUseCase,

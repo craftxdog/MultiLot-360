@@ -1,7 +1,16 @@
+{{ brandName }} - Invitación de vendedor
+
 Hola {{ sellerName }},
 
-{{ adminName }} creo una cuenta de vendedor para ti en {{ appName }}.
+{{ adminName }} creó una cuenta de vendedor para ti en {{ brandName }}.
 
-Usa este codigo para activar tu acceso: {{ accessCode }}
+Código de activación: {{ accessCode }}
 
-Este codigo vence en {{ expiresInMinutes }} minutos.
+Activa tu cuenta aquí. El correo y el código ya estarán cargados:
+{{ activationUrl }}
+
+El código vence en {{ expiresInMinutes }} minutos y solo puede utilizarse una vez.
+Si no esperabas esta invitación, ignora este mensaje y no compartas el código.
+
+Ayuda: {{ supportEmail }}
+© {{ currentYear }} {{ brandName }}

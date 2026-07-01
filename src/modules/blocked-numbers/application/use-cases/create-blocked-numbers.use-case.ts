@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { BlockedNumber } from '../../domain/entities';
 import {
@@ -23,6 +27,8 @@ export class CreateBlockedNumbersUseCase extends UseCase<
   constructor(
     @Inject(BLOCKED_NUMBERS_REPOSITORY)
     private readonly blockedNumbersRepository: BlockedNumbersRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -47,12 +53,25 @@ export class CreateBlockedNumbersUseCase extends UseCase<
         );
       }
 
-      return Result.success(
-        await this.blockedNumbersRepository.createMany({
-          ...input,
-          numbers,
-        }),
-      );
+      const blocks = await this.blockedNumbersRepository.createMany({
+        ...input,
+        numbers,
+      });
+      const firstBlock = blocks[0];
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.blockedNumbersCreated,
+        aggregateId: firstBlock?.id,
+        audience: operationalAudience.blockedNumbers(),
+        payload: {
+          blockIds: blocks.map((block) => block.id),
+          numbers: blocks.map((block) => block.number),
+          shiftId: firstBlock?.shift?.id ?? null,
+          date: firstBlock?.date ?? firstBlock?.shift?.date ?? null,
+        },
+      });
+
+      return Result.success(blocks);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error
