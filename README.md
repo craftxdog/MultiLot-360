@@ -22,6 +22,14 @@ globales viven en `src/infrastructure`.
 La descripción detallada está en
 `docs/architecture/hexagonal-ddd-structure.md`.
 
+Documentación de referencia:
+
+- `docs/api-reference.md`: catálogo completo de rutas, permisos y contratos.
+- `docs/domain-concepts.md`: conceptos, reglas e invariantes del negocio.
+- `docs/operations-runbook.md`: preparación, seguridad y despliegue.
+- `src/infrastructure/realtime/README.md`: autenticación, salas y eventos.
+- `src/modules/identity-access/README.md`: Auth y onboarding de vendedores.
+
 ## Requisitos
 
 - Node.js 22 o superior.
@@ -47,12 +55,29 @@ Variables web usadas por los correos:
 APP_WEB_URL=http://localhost:8080
 SELLER_ACTIVATION_URL=http://localhost:8080/activar-vendedor
 ACCOUNT_CONFIRMATION_URL=http://localhost:8080/confirmar-cuenta
+PASSWORD_RESET_URL=http://localhost:8080/restablecer-contrasena
+PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES=60
 ```
 
 `SELLER_ACTIVATION_URL` recibe `email` y `code` como query parameters. El
 frontend debe precargarlos y enviar el código, junto con la contraseña elegida,
 a `POST /api/v1/identity-access/sellers/access-code/confirm`. Abrir el enlace no
 consume ni confirma el código automáticamente.
+
+La API genera un OTP de recuperación de Supabase y lo entrega con MailerSend.
+El botón abre `PASSWORD_RESET_URL` con el correo precargado, pero el código no
+se incluye en la URL: el usuario debe escribirlo junto con la nueva contraseña
+en `POST /api/v1/auth/password/reset/confirm`. Un administrador autenticado,
+con rol `ADMIN` y permiso `usuarios.update`, puede usar
+`POST /api/v1/auth/password/reset/admin` sin código.
+
+`PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES` informa el vencimiento mostrado en el
+correo y debe mantenerse igual al valor configurado en Supabase Auth para la
+expiración de OTP por email.
+
+El cierre global revoca los refresh tokens de Supabase. Un access JWT que ya fue
+emitido puede seguir válido hasta su `exp`; por eso la expiración de access
+tokens debe mantenerse corta.
 
 ## Prisma
 
@@ -91,6 +116,17 @@ Los eventos no sustituyen las respuestas REST. El cliente los usa para
 invalidar y refrescar sus consultas, especialmente después de reconectar. El
 contrato completo está en `src/infrastructure/realtime/README.md`.
 
+## Matriz administrativa de ventas
+
+`GET /api/v1/sales-matrix` devuelve una cuadrícula estable de `00` a `99`, la
+suma decimal y cantidad de ventas por número, más el total general. Requiere
+rol `ADMIN`, módulo `MATRIZ_VENTAS` y permiso `matriz_ventas.read`.
+
+Filtros disponibles: `date` (requerido), `shiftId`, `drawCode`, `sellerId` y
+`status=ACTIVA|ANULADA|TODAS`. La respuesta indica que el cliente debe volver a
+consultar el endpoint al recibir `sales.created` o `sales.voided` en
+`/realtime`; la base de datos sigue siendo la fuente contable de verdad.
+
 ## Validación local
 
 ```bash
@@ -109,7 +145,7 @@ Con el flujo operacional habilitado crea datos identificados con
 `codex-smoke-*` y recorre:
 
 ```txt
-sorteo -> turno -> límite -> bloqueo -> venta múltiple -> anulación
+sorteo -> turno -> límite -> bloqueo -> venta decimal -> anulación -> matriz
        -> cierre -> resultado -> venta ganadora -> pago de premio
        -> corte -> reportes -> parámetros -> auditoría
 ```

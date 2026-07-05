@@ -15,6 +15,7 @@
     "start:prod": "node dist/src/main",
     "docker:up": "docker compose up -d redis",
     "docker:down": "docker compose down",
+    "docs:check": "ts-node scripts/check-api-reference.ts",
     "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\"",
     "prisma:pull": "prisma db pull",

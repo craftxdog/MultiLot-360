@@ -59,6 +59,69 @@ Example:
 Domain/application code does not know about JWT, HTTP or Prisma. Those details
 stay in presentation and infrastructure adapters.
 
+## Password recovery
+
+Requesting recovery is public, rate limited and does not disclose whether the
+email exists:
+
+```txt
+POST /api/v1/auth/password/reset/request
+  -> Supabase admin.generateLink(type=recovery) creates a one-time OTP
+  -> MailerSend delivers the code and a link to the reset form
+  -> always returns 202 for an accepted request
+```
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+The email button opens `PASSWORD_RESET_URL` with only the normalized email
+preloaded. The recovery code is deliberately kept out of the URL. The user
+types the code and the new password:
+
+```txt
+POST /api/v1/auth/password/reset/confirm
+  -> verifies email + one-time code with Supabase type=recovery
+  -> updates the password and revokes every Supabase refresh session
+```
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456",
+  "newPassword": "NewSup3rSecret2026!",
+  "confirmPassword": "NewSup3rSecret2026!"
+}
+```
+
+An authenticated administrator can reset an active linked account directly:
+
+```txt
+POST /api/v1/auth/password/reset/admin
+  -> requires role ADMIN, module usuarios and usuarios.update
+  -> generates and consumes a server-side recovery OTP; no email is sent
+  -> updates the target password and revokes all target refresh sessions
+```
+
+```json
+{
+  "targetUserId": "0196fd44-a005-722d-8ca2-a3de51c391a0",
+  "newPassword": "NewSup3rSecret2026!",
+  "confirmPassword": "NewSup3rSecret2026!"
+}
+```
+
+Every request also has the generic HTTP audit event. The recovery use cases add
+semantic events for code dispatch, failures, successful user resets and direct
+admin resets. Passwords and OTP values are always redacted or omitted.
+
+Supabase cannot invalidate an already-issued access JWT immediately. Global
+sign-out removes refresh sessions, while an access token may remain usable until
+its `exp`. Keep JWT lifetime short and treat `sessionsRevoked` as refresh-session
+revocation, not instant access-token revocation.
+
 Presentation mappers translate HTTP DTOs and request context into application
 commands or queries. This keeps controllers thin and avoids leaking controller
 shape into use cases.

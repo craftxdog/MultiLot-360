@@ -35,7 +35,7 @@ socket.on('realtime.ready', (session) => {
 });
 
 socket.on('sales.created', () => {
-  // Invalidar/refrescar las consultas REST afectadas.
+  // Invalidar/refrescar ventas y GET /sales-matrix.
 });
 ```
 
@@ -49,6 +49,8 @@ eventos son señales de invalidación rápidas, no un registro durable.
 - Las salas se asignan únicamente en el servidor.
 - No existen listeners Socket.IO que modifiquen el negocio.
 - Los eventos contienen identificadores y estado mínimo, no secretos.
+- `MATRIZ_VENTAS` recibe eventos de ventas, pero el endpoint además exige rol
+  `ADMIN` y `matriz_ventas.read`.
 - El tamaño de entrada y los orígenes CORS están restringidos por configuración.
 
 ## Eventos

@@ -1,0 +1,167 @@
+# Runbook operacional
+
+## Objetivo
+
+Este documento reúne los controles necesarios para ejecutar y desplegar la API
+sin depender de conocimiento implícito del equipo.
+
+## Dependencias
+
+| Servicio | Uso | Requerido en producción |
+| --- | --- | --- |
+| PostgreSQL/Supabase | Datos de negocio y funciones SQL | Sí |
+| Supabase Auth | Usuarios, JWT, OTP y refresh sessions | Sí |
+| Redis | Adapter distribuido de Socket.IO | Sí para más de una instancia |
+| MailerSend | Invitaciones, códigos y recuperación | Sí para correo real |
+
+## Preparación local
+
+```bash
+yarn install --frozen-lockfile
+cp .env.example .env
+yarn prisma:generate
+yarn docker:up
+yarn start:dev
+```
+
+Comprobaciones:
+
+```bash
+curl http://localhost:3000/api/v1/health
+curl http://localhost:3000/api/v1/health/ready
+```
+
+`health` comprueba el proceso. `health/ready` debe usarse para readiness del
+orquestador porque verifica dependencias.
+
+## Variables sensibles
+
+Nunca versionar:
+
+- `DATABASE_URL` y `DIRECT_URL` con contraseña real;
+- `SUPABASE_SERVICE_ROLE_KEY`;
+- `SUPABASE_JWT_SECRET`;
+- `MAILERSEND_API_TOKEN`;
+- `SELLER_ACCESS_CODE_SECRET`;
+- access tokens, refresh tokens u OTP de pruebas.
+
+Los archivos `.env*` reales permanecen ignorados. `.env.example` solo contiene
+nombres, formatos y valores locales no sensibles.
+
+## Supabase Auth
+
+Configuración recomendada en el dashboard:
+
+1. Email/password habilitado.
+2. Expiración de Email OTP igual a
+   `PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES`.
+3. Access JWT con vida corta; un logout global no invalida inmediatamente un
+   access token ya emitido.
+4. Protección contra contraseñas filtradas habilitada.
+5. Política de longitud/fortaleza compatible con los DTO de la API.
+6. URLs de redirección limitadas a los frontends autorizados.
+
+La service role se usa solo en el backend. La autorización de negocio no toma
+roles desde `user_metadata`; resuelve `usuarios`, roles, módulos y permisos en
+PostgreSQL.
+
+## Postura RLS
+
+Las tablas públicas tienen RLS habilitado y no exponen políticas para `anon` o
+`authenticated`. Es intencional: el frontend consume esta API y no consulta
+las tablas de negocio mediante PostgREST.
+
+Si en el futuro se expone una tabla por Data API:
+
+1. Diseñar políticas por ownership y operación.
+2. Usar `TO authenticated` junto con predicados `USING` y `WITH CHECK`.
+3. No basar autorización en `user_metadata`.
+4. Ejecutar advisors de seguridad antes del despliegue.
+
+## MailerSend
+
+Antes de habilitar `MAILERSEND_ENABLED=true`:
+
+1. Verificar el dominio de `MAILERSEND_FROM_EMAIL`.
+2. Confirmar token API y remitente.
+3. Configurar `PASSWORD_RESET_URL` y `SELLER_ACTIVATION_URL` con HTTPS.
+4. Ejecutar un smoke autorizado con una cuenta de prueba.
+5. Revisar entrega, rebotes y spam en MailerSend.
+
+Los códigos sensibles se renderizan en el cuerpo del correo cuando el flujo lo
+requiere, pero no se registran en logs. El enlace de recuperación incluye solo
+el correo normalizado; el OTP no viaja en la URL.
+
+## Base de datos y Prisma
+
+La base remota es la fuente de verdad del flujo introspectivo:
+
+```bash
+yarn prisma:pull
+git diff -- prisma/schema.prisma
+yarn prisma:generate
+yarn prisma:validate
+```
+
+Los SQL bajo `prisma/migrations/` documentan y permiten reproducir cambios
+aplicados de forma controlada. No ejecutar un archivo nuevamente sin revisar su
+estado en el entorno objetivo.
+
+Las columnas monetarias operacionales deben permanecer en `numeric(14,2)`:
+
+```txt
+ventas.total_miles
+venta_detalle.premio_miles
+pagos_premios.monto_pagado_miles
+limites_numero.limite_miles
+```
+
+## Redis y Socket.IO
+
+- `REALTIME_ENABLED=true` habilita el gateway.
+- `REALTIME_REDIS_ENABLED=true` distribuye eventos entre réplicas.
+- Restringir `CORS_ORIGINS` a orígenes conocidos.
+- Mantener `REALTIME_MAX_PAYLOAD_BYTES` acotado.
+- No usar eventos Socket.IO para ejecutar mutaciones.
+
+El cliente siempre hace refetch REST después de eventos o reconexión.
+
+## Validación previa a publicar
+
+```bash
+yarn prisma:validate
+yarn prisma:generate
+yarn format:check
+yarn docs:check
+yarn lint:check
+yarn test --runInBand --no-watchman
+yarn test:e2e --runInBand --no-watchman
+yarn build
+```
+
+Para una prueba operacional real, levantar API y Redis y ejecutar
+`yarn test:api:smoke` con credenciales temporales autorizadas. Los flujos que
+crean invitaciones o envían correo deben habilitarse explícitamente.
+
+## Estrategia de ramas
+
+- `develop`: integración continua y trabajo diario.
+- `master`: versión estable/promovida.
+- `feature/*` y `fix/*`: temporales; se eliminan después de integrarse.
+
+Nunca forzar `master` o `develop`. Integrar por fast-forward cuando sea posible
+y publicar solo después de pasar la matriz de validación.
+
+## Despliegue y rollback
+
+Orden recomendado:
+
+1. Respaldar y aplicar cambio SQL compatible hacia atrás.
+2. Generar el Prisma Client con el schema versionado.
+3. Desplegar API.
+4. Comprobar `health/ready`.
+5. Ejecutar smoke de lectura y una mutación controlada.
+6. Confirmar eventos realtime y logs sin secretos.
+
+Si falla la API, revertir el despliegue de código primero. No revertir columnas
+monetarias o datos sin un plan SQL probado y respaldo verificado.

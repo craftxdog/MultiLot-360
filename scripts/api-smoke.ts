@@ -8,9 +8,19 @@ type SmokeResponse<T = unknown> = {
 type ApiEnvelope<T = unknown> = {
   success: boolean;
   statusCode: number;
-  message?: string;
+  message: string | string[];
   data?: T;
   error?: string;
+  meta: {
+    request: {
+      requestId?: string;
+      method: string;
+      path: string;
+      timestamp: string;
+    };
+    actor?: Record<string, unknown>;
+    pagination?: Record<string, unknown>;
+  };
 };
 
 type PaginatedData<T> = T[];
@@ -71,6 +81,17 @@ type Sale = {
   totalMiles: number;
 };
 
+type SalesMatrix = {
+  rows: Array<{
+    cells: Array<{ number: string; amountMiles: number }>;
+  }>;
+  summary: {
+    totalMiles: number;
+    salesCount: number;
+    soldNumbersCount: number;
+  };
+};
+
 type Result = {
   id: string;
   winningNumber: string;
@@ -98,6 +119,8 @@ type SystemParameter = {
 type AuditEvent = {
   id: string;
   event: string;
+  payload?: unknown;
+  actor?: { id: string } | null;
 };
 
 const baseUrl = (
@@ -174,6 +197,13 @@ function expectStatus(
   response: SmokeResponse,
   expectedStatuses: number[],
 ): boolean {
+  const contractError = validateEnvelope(response);
+
+  if (contractError) {
+    fail(name, `invalid-envelope=${contractError}`);
+    return false;
+  }
+
   if (expectedStatuses.includes(response.status)) {
     pass(name, `status=${response.status}`);
     return true;
@@ -181,11 +211,80 @@ function expectStatus(
 
   fail(
     name,
-    `expected=${expectedStatuses.join('|')} status=${response.status} body=${JSON.stringify(
-      response.body,
-    )}`,
+    `expected=${expectedStatuses.join('|')} status=${response.status} body=${JSON.stringify(redact(response.body))}`,
   );
   return false;
+}
+
+function validateEnvelope(response: SmokeResponse): string | undefined {
+  if (!isRecord(response.body)) return 'body must be an object';
+
+  const body = response.body;
+  if (typeof body.success !== 'boolean') return 'success must be boolean';
+  if (body.statusCode !== response.status) {
+    return `statusCode=${String(body.statusCode)} differs from HTTP ${response.status}`;
+  }
+  if (
+    typeof body.message !== 'string' &&
+    !(
+      Array.isArray(body.message) &&
+      body.message.every((item) => typeof item === 'string')
+    )
+  ) {
+    return 'message must be a string or string array';
+  }
+
+  if (!isRecord(body.meta) || !isRecord(body.meta.request)) {
+    return 'meta.request is required';
+  }
+
+  const requestMeta = body.meta.request;
+  if (
+    typeof requestMeta.method !== 'string' ||
+    typeof requestMeta.path !== 'string' ||
+    typeof requestMeta.timestamp !== 'string' ||
+    Number.isNaN(Date.parse(requestMeta.timestamp))
+  ) {
+    return 'meta.request method, path and ISO timestamp are required';
+  }
+
+  if (body.success) {
+    if (!('data' in body)) return 'successful response must contain data';
+    if ('error' in body) return 'successful response must not contain error';
+  } else {
+    if (typeof body.error !== 'string' || !body.error) {
+      return 'error response must contain error';
+    }
+    if ('data' in body) return 'error response must not contain data';
+  }
+
+  return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (!isRecord(value)) return value;
+
+  const sensitive = new Set([
+    'password',
+    'newPassword',
+    'confirmPassword',
+    'token',
+    'accessToken',
+    'refreshToken',
+    'authorization',
+  ]);
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      sensitive.has(key) ? '[REDACTED]' : redact(item),
+    ]),
+  );
 }
 
 function expectEnvelope<T>(
@@ -267,6 +366,27 @@ async function runAuthChecks() {
     }),
     [401],
   );
+  expectEnvelope(
+    'password reset request is enumeration-safe',
+    await request('POST', '/auth/password/reset/request', {
+      auth: false,
+      body: { email: `missing.${uniqueSuffix}@example.com` },
+    }),
+    202,
+  );
+  expectStatus(
+    'password reset confirmation rejects invalid recovery code',
+    await request('POST', '/auth/password/reset/confirm', {
+      auth: false,
+      body: {
+        email: `missing.${uniqueSuffix}@example.com`,
+        code: '000000',
+        newPassword: 'NuevaClave2026!',
+        confirmPassword: 'NuevaClave2026!',
+      },
+    }),
+    [401],
+  );
   expectStatus(
     'auth refresh invalid token',
     await request('POST', '/auth/refresh', {
@@ -316,6 +436,50 @@ async function runAuthChecks() {
       'admin role',
       `permissions=${adminIdentity.user.permissions?.length ?? 0}`,
     );
+  }
+
+  expectStatus(
+    'admin password reset is authenticated and validates confirmation',
+    await request('POST', '/auth/password/reset/admin', {
+      body: {
+        targetUserId: adminIdentity.user.id,
+        newPassword: 'NuevaClave2026!',
+        confirmPassword: 'OtraClave2026!',
+      },
+    }),
+    [400],
+  );
+
+  const passwordResetAudits = expectEnvelope<PaginatedData<AuditEvent>>(
+    'password reset semantic audit events',
+    await request(
+      'GET',
+      '/audit-events?event=auth.password_reset&page=1&limit=20',
+    ),
+    200,
+  );
+  const passwordResetEventNames = new Set(
+    passwordResetAudits.map((event) => event.event),
+  );
+  const expectedPasswordResetEvents = [
+    'auth.password_reset.code_dispatch_failed',
+    'auth.password_reset.failed',
+    'auth.password_reset.admin_failed',
+  ];
+
+  if (
+    expectedPasswordResetEvents.some(
+      (event) => !passwordResetEventNames.has(event),
+    ) ||
+    JSON.stringify(passwordResetAudits).includes('NuevaClave2026!') ||
+    JSON.stringify(passwordResetAudits).includes('000000')
+  ) {
+    fail(
+      'password reset semantic audit content',
+      'required events are missing or a secret was persisted',
+    );
+  } else {
+    pass('password reset semantic audit content');
   }
 
   const sellerSession = await loginWithCredentials(
@@ -369,15 +533,14 @@ async function resolveExistingSellerId() {
   if (existingSellerId) return;
 
   const email = process.env.SMOKE_EXISTING_SELLER_EMAIL;
-  if (!email) return;
 
   const invitations = expectEnvelope<PaginatedData<SellerInvitation>>(
     'existing seller invitation lookup',
     await request(
       'GET',
-      `/identity-access/sellers/invitations?email=${encodeURIComponent(
-        email,
-      )}&page=1&limit=10`,
+      `/identity-access/sellers/invitations?${
+        email ? `email=${encodeURIComponent(email)}&` : ''
+      }page=1&limit=10`,
     ),
     200,
   );
@@ -632,8 +795,8 @@ async function runOperationalFlowChecks() {
         sellerId: existingSellerId,
         shiftId: shift.id,
         items: [
-          { number: '20', prizeMiles: 10 },
-          { number: '30', prizeMiles: 5 },
+          { number: '20', prizeMiles: 0.5 },
+          { number: '30', prizeMiles: 1.4 },
         ],
       },
     }),
@@ -645,7 +808,7 @@ async function runOperationalFlowChecks() {
       body: {
         sellerId: existingSellerId,
         shiftId: shift.id,
-        items: [{ number: '40', prizeMiles: 2 }],
+        items: [{ number: '40', prizeMiles: 0.75 }],
       },
     }),
     201,
@@ -671,6 +834,30 @@ async function runOperationalFlowChecks() {
     }),
     200,
   );
+
+  const matrix = expectEnvelope<SalesMatrix>(
+    'administrative sales matrix',
+    await request(
+      'GET',
+      `/sales-matrix?date=${smokeDate}&shiftId=${shift.id}&sellerId=${existingSellerId}&status=ACTIVA`,
+    ),
+    200,
+  );
+  const matrixCells = matrix.rows.flatMap((row) => row.cells);
+  const amountFor = (number: string) =>
+    matrixCells.find((cell) => cell.number === number)?.amountMiles;
+
+  if (
+    winningSale.totalMiles !== 1.9 ||
+    amountFor('20') !== 0.5 ||
+    amountFor('30') !== 1.4 ||
+    amountFor('40') !== 0 ||
+    matrix.summary.totalMiles !== 1.9
+  ) {
+    throw new Error(
+      'Decimal sale or administrative matrix totals are invalid.',
+    );
+  }
 
   const voidPolicy = expectEnvelope<{ windowMinutes: number }>(
     'sales void policy get',
