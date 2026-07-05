@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const SOURCE_ROOT = join(process.cwd(), 'src');
-const REFERENCE_PATH = join(process.cwd(), 'docs', 'api-reference.md');
+const REFERENCE_PATH = join(process.cwd(), 'docs', 'api.md');
+const HTTP_COLLECTION_PATH = join(process.cwd(), 'docs', 'multilot-api.http');
 const HTTP_DECORATOR = /@(Get|Post|Put|Patch|Delete)\((?:'([^']*)')?\)/g;
 
 type HttpRoute = {
@@ -41,9 +42,13 @@ const readRoutes = (controllerPath: string): HttpRoute[] => {
 };
 
 const reference = readFileSync(REFERENCE_PATH, 'utf8');
+const httpCollection = readFileSync(HTTP_COLLECTION_PATH, 'utf8');
 const routes = listControllers(SOURCE_ROOT).flatMap(readRoutes);
 const undocumented = routes.filter(
   ({ method, path }) => !reference.includes(`| ${method} | \`${path}\` |`),
+);
+const missingFromHttpCollection = routes.filter(
+  ({ method, path }) => !httpCollection.includes(`# ROUTE: ${method} ${path}`),
 );
 
 if (undocumented.length > 0) {
@@ -54,4 +59,14 @@ if (undocumented.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(`API reference covers all ${routes.length} controller routes.`);
+}
+
+if (missingFromHttpCollection.length > 0) {
+  console.error('The HTTP collection is missing these controller routes:');
+  for (const route of missingFromHttpCollection) {
+    console.error(`- ${route.method} ${route.path} (${route.controller})`);
+  }
+  process.exitCode = 1;
+} else {
+  console.log(`HTTP collection covers all ${routes.length} controller routes.`);
 }

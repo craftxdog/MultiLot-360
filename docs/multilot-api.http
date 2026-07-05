@@ -1,0 +1,482 @@
+@baseUrl = http://localhost:3000/api/v1
+@adminToken = REPLACE_WITH_SUPABASE_ADMIN_ACCESS_TOKEN
+@sellerToken = REPLACE_WITH_SUPABASE_SELLER_ACCESS_TOKEN
+@refreshToken = REPLACE_WITH_SUPABASE_REFRESH_TOKEN
+@date = 2026-07-05
+@configurationId = 00000000-0000-4000-8000-000000000001
+@shiftId = 00000000-0000-4000-8000-000000000002
+@sellerId = 00000000-0000-4000-8000-000000000003
+@userId = 00000000-0000-4000-8000-000000000004
+@invitationId = 00000000-0000-4000-8000-000000000005
+@limitId = 00000000-0000-4000-8000-000000000006
+@blockId = 00000000-0000-4000-8000-000000000007
+@saleId = 00000000-0000-4000-8000-000000000008
+@resultId = 00000000-0000-4000-8000-000000000009
+@cutId = 00000000-0000-4000-8000-000000000010
+@auditEventId = 1
+
+### Sistema
+
+# ROUTE: GET /
+GET {{baseUrl}}
+
+###
+# ROUTE: GET /health
+GET {{baseUrl}}/health
+
+###
+# ROUTE: GET /health/ready
+GET {{baseUrl}}/health/ready
+
+### Autenticación
+
+# ROUTE: POST /auth/signup
+# Destructivo: úsalo únicamente para crear el administrador inicial.
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "username": "admin",
+  "name": "Administrador Principal",
+  "password": "Sup3rSecret2026!"
+}
+
+###
+# ROUTE: POST /auth/login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "Sup3rSecret2026!"
+}
+
+###
+# ROUTE: POST /auth/refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+# ROUTE: POST /auth/password/reset/request
+POST {{baseUrl}}/auth/password/reset/request
+Content-Type: application/json
+
+{
+  "email": "usuario@example.com"
+}
+
+###
+# ROUTE: POST /auth/password/reset/confirm
+POST {{baseUrl}}/auth/password/reset/confirm
+Content-Type: application/json
+
+{
+  "email": "usuario@example.com",
+  "code": "123456",
+  "newPassword": "NuevaClave2026!",
+  "confirmPassword": "NuevaClave2026!"
+}
+
+###
+# ROUTE: POST /auth/password/reset/admin
+# Destructivo: cambia la contraseña y revoca sesiones del usuario objetivo.
+POST {{baseUrl}}/auth/password/reset/admin
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "targetUserId": "{{userId}}",
+  "newPassword": "NuevaClave2026!",
+  "confirmPassword": "NuevaClave2026!"
+}
+
+###
+# ROUTE: POST /auth/logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /auth/me
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{adminToken}}
+
+### Vendedores e invitaciones
+
+# ROUTE: GET /identity-access/sellers/invitations
+GET {{baseUrl}}/identity-access/sellers/invitations?status=PENDIENTE&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /identity-access/sellers/invitations
+POST {{baseUrl}}/identity-access/sellers/invitations
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email": "vendedor@example.com",
+  "username": "vendedor.01",
+  "sellerName": "Vendedor Uno",
+  "documentId": "001-010190-0001A",
+  "phone": "+50588889999",
+  "address": "Managua, Nicaragua",
+  "roleName": "vendedor"
+}
+
+###
+# ROUTE: POST /identity-access/sellers/access-code/confirm
+POST {{baseUrl}}/identity-access/sellers/access-code/confirm
+Content-Type: application/json
+
+{
+  "email": "vendedor@example.com",
+  "accessCode": "123456",
+  "password": "Sup3rSecret2026!"
+}
+
+###
+# ROUTE: POST /identity-access/sellers/access-code/resend
+POST {{baseUrl}}/identity-access/sellers/access-code/resend
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email": "vendedor@example.com"
+}
+
+###
+# ROUTE: PATCH /identity-access/sellers/invitations/:invitationId/revoke
+PATCH {{baseUrl}}/identity-access/sellers/invitations/{{invitationId}}/revoke
+Authorization: Bearer {{adminToken}}
+
+### Configuraciones y turnos de sorteo
+
+# ROUTE: GET /draws/configurations
+GET {{baseUrl}}/draws/configurations?active=true&page=1&limit=25&sortBy=time&sortDirection=asc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /draws/configurations
+POST {{baseUrl}}/draws/configurations
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "code": "nacional-11am",
+  "time": "11:00:00",
+  "tuesdayOnly": false,
+  "lockSecondsBefore": 60,
+  "reopenSecondsAfter": 600,
+  "active": true
+}
+
+###
+# ROUTE: GET /draws/configurations/:configurationId
+GET {{baseUrl}}/draws/configurations/{{configurationId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /draws/configurations/:configurationId
+PATCH {{baseUrl}}/draws/configurations/{{configurationId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "lockSecondsBefore": 90,
+  "reopenSecondsAfter": 900,
+  "active": true
+}
+
+###
+# ROUTE: GET /draws/shifts/active
+GET {{baseUrl}}/draws/shifts/active?date={{date}}&page=1&limit=25&sortBy=date&sortDirection=asc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /draws/shifts
+GET {{baseUrl}}/draws/shifts?date={{date}}&status=ABIERTO&page=1&limit=25&sortBy=date&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /draws/shifts
+POST {{baseUrl}}/draws/shifts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "configurationId": "{{configurationId}}",
+  "date": "{{date}}"
+}
+
+###
+# ROUTE: PATCH /draws/shifts/:shiftId/block
+PATCH {{baseUrl}}/draws/shifts/{{shiftId}}/block
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /draws/shifts/:shiftId/reopen
+PATCH {{baseUrl}}/draws/shifts/{{shiftId}}/reopen
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /draws/shifts/:shiftId/close
+PATCH {{baseUrl}}/draws/shifts/{{shiftId}}/close
+Authorization: Bearer {{adminToken}}
+
+### Límites por número
+
+# ROUTE: GET /number-limits
+GET {{baseUrl}}/number-limits?sellerId={{sellerId}}&drawCode=nacional-11am&number=20&active=true&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /number-limits
+POST {{baseUrl}}/number-limits
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "sellerId": "{{sellerId}}",
+  "drawConfigurationId": "{{configurationId}}",
+  "numbers": ["20", "30", "45"],
+  "limitMiles": 100.5,
+  "validFrom": "{{date}}",
+  "validUntil": "{{date}}"
+}
+
+###
+# ROUTE: GET /number-limits/:limitId
+GET {{baseUrl}}/number-limits/{{limitId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /number-limits/:limitId
+PATCH {{baseUrl}}/number-limits/{{limitId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "limitMiles": 125.75,
+  "validUntil": null
+}
+
+###
+# ROUTE: PATCH /number-limits/:limitId/expire
+PATCH {{baseUrl}}/number-limits/{{limitId}}/expire
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "expiresOn": "{{date}}"
+}
+
+### Números bloqueados
+
+# ROUTE: GET /blocked-numbers
+GET {{baseUrl}}/blocked-numbers?shiftId={{shiftId}}&number=45&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /blocked-numbers
+POST {{baseUrl}}/blocked-numbers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "numbers": ["45", "99"],
+  "shiftId": "{{shiftId}}",
+  "reason": "Bloqueo operacional"
+}
+
+###
+# ROUTE: GET /blocked-numbers/:blockId
+GET {{baseUrl}}/blocked-numbers/{{blockId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: DELETE /blocked-numbers/:blockId
+DELETE {{baseUrl}}/blocked-numbers/{{blockId}}
+Authorization: Bearer {{adminToken}}
+
+### Ventas
+
+# ROUTE: GET /sales
+GET {{baseUrl}}/sales?sellerId={{sellerId}}&shiftId={{shiftId}}&date={{date}}&status=ACTIVA&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /sales
+POST {{baseUrl}}/sales
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "sellerId": "{{sellerId}}",
+  "shiftId": "{{shiftId}}",
+  "items": [
+    { "number": "20", "prizeMiles": 0.5 },
+    { "number": "45", "prizeMiles": 1.4 },
+    { "number": "99", "prizeMiles": 23.25 }
+  ]
+}
+
+###
+# ROUTE: GET /sales/settings/void-policy
+GET {{baseUrl}}/sales/settings/void-policy
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /sales/settings/void-policy
+PATCH {{baseUrl}}/sales/settings/void-policy
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "windowMinutes": 10
+}
+
+###
+# ROUTE: GET /sales/:saleId
+GET {{baseUrl}}/sales/{{saleId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /sales/:saleId/void
+PATCH {{baseUrl}}/sales/{{saleId}}/void
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Cliente solicitó anulación del ticket"
+}
+
+### Matriz administrativa
+
+# ROUTE: GET /sales-matrix
+GET {{baseUrl}}/sales-matrix?date={{date}}&shiftId={{shiftId}}&sellerId={{sellerId}}&status=ACTIVA
+Authorization: Bearer {{adminToken}}
+
+### Resultados
+
+# ROUTE: GET /results
+GET {{baseUrl}}/results?shiftId={{shiftId}}&date={{date}}&winningNumber=20&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /results
+POST {{baseUrl}}/results
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "shiftId": "{{shiftId}}",
+  "winningNumber": "20"
+}
+
+###
+# ROUTE: GET /results/:resultId
+GET {{baseUrl}}/results/{{resultId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /results/:resultId/winning-sales
+GET {{baseUrl}}/results/{{resultId}}/winning-sales?sellerId={{sellerId}}&paid=false&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+### Pagos de premios
+
+# ROUTE: GET /prize-payments
+GET {{baseUrl}}/prize-payments?resultId={{resultId}}&sellerId={{sellerId}}&date={{date}}&page=1&limit=25&sortBy=paidAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /prize-payments
+POST {{baseUrl}}/prize-payments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "resultId": "{{resultId}}",
+  "saleId": "{{saleId}}"
+}
+
+###
+# ROUTE: GET /prize-payments/:saleId
+GET {{baseUrl}}/prize-payments/{{saleId}}
+Authorization: Bearer {{adminToken}}
+
+### Cortes de caja
+
+# ROUTE: GET /cash-cuts
+GET {{baseUrl}}/cash-cuts?startDate={{date}}&endDate={{date}}&visibleToSellers=true&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /cash-cuts
+POST {{baseUrl}}/cash-cuts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "startDate": "{{date}}",
+  "endDate": "{{date}}",
+  "description": "Corte operacional diario",
+  "visibleToSellers": true
+}
+
+###
+# ROUTE: GET /cash-cuts/:cutId
+GET {{baseUrl}}/cash-cuts/{{cutId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /cash-cuts/:cutId/summary
+GET {{baseUrl}}/cash-cuts/{{cutId}}/summary
+Authorization: Bearer {{adminToken}}
+
+### Reportes
+
+# ROUTE: GET /reports/overview
+GET {{baseUrl}}/reports/overview?dateFrom={{date}}&dateUntil={{date}}&sellerId={{sellerId}}&drawCode=nacional-11am
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /reports/sellers
+GET {{baseUrl}}/reports/sellers?dateFrom={{date}}&dateUntil={{date}}&page=1&limit=25&sortBy=sellerName&sortDirection=asc
+Authorization: Bearer {{adminToken}}
+
+### Parámetros
+
+# ROUTE: GET /parameters
+GET {{baseUrl}}/parameters?key=sales.&page=1&limit=25&sortBy=key&sortDirection=asc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /parameters/:key
+GET {{baseUrl}}/parameters/sales.void_window_minutes
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PUT /parameters/:key
+PUT {{baseUrl}}/parameters/sales.void_window_minutes
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "value": "10"
+}
+
+### Auditoría
+
+# ROUTE: GET /audit-events
+GET {{baseUrl}}/audit-events?userId={{userId}}&event=auth.password_reset&createdFrom={{date}}&createdUntil={{date}}&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /audit-events/:eventId
+GET {{baseUrl}}/audit-events/{{auditEventId}}
+Authorization: Bearer {{adminToken}}

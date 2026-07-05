@@ -24,11 +24,35 @@ La descripción detallada está en
 
 Documentación de referencia:
 
-- `docs/api-reference.md`: catálogo completo de rutas, permisos y contratos.
+- `docs/api.md`: contrato completo de rutas, DTOs, permisos y esquema.
+- `docs/multilot-api.http`: colección HTTP ejecutable de todos los endpoints.
 - `docs/domain-concepts.md`: conceptos, reglas e invariantes del negocio.
 - `docs/operations-runbook.md`: preparación, seguridad y despliegue.
 - `src/infrastructure/realtime/README.md`: autenticación, salas y eventos.
 - `src/modules/identity-access/README.md`: Auth y onboarding de vendedores.
+
+La colección `docs/multilot-api.http` se puede ejecutar desde VS Code REST
+Client, JetBrains HTTP Client o herramientas compatibles. Configura
+`adminToken`, `sellerToken` y los IDs al inicio del archivo; las operaciones
+destructivas están identificadas.
+
+## Capacidades
+
+| Módulo | Responsabilidad |
+| --- | --- |
+| Identity access | Supabase Auth, sesiones, RBAC, invitaciones y recuperación de contraseña. |
+| Draws | Configuraciones recurrentes y ciclo de vida de turnos. |
+| Number limits | Límites globales, por vendedor y por sorteo. |
+| Blocked numbers | Bloqueos por fecha o turno. |
+| Sales | Venta atómica multi-número, montos decimales y anulación. |
+| Sales matrix | Proyección administrativa `00..99` con filtros y totales. |
+| Results | Registro de ganadores y consulta de tickets ganadores. |
+| Prize payments | Pago único y auditado de premios. |
+| Cash cuts | Cortes y saldos contables por período. |
+| Reports | Resumen operacional y desempeño por vendedor. |
+| Parameters | Reglas operacionales administrables. |
+| Audit logs | Trazabilidad técnica y semántica sin persistir secretos. |
+| Realtime | Invalidación/refetch mediante Socket.IO y Redis. |
 
 ## Requisitos
 

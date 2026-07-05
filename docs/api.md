@@ -1,4 +1,4 @@
-# Referencia de API
+# API de MultiLot 360
 
 Esta referencia describe las rutas HTTP registradas por los controladores de
 MultiLot 360. Swagger sigue siendo la fuente ejecutable de los esquemas DTO:
@@ -48,6 +48,103 @@ cliente con logs y auditoría.
 Los listados paginados usan `page`, `limit`, `sortBy` y `sortDirection`. El
 límite máximo común es 100. Cada DTO restringe los campos de orden válidos y
 puede añadir filtros específicos.
+
+## Estructura del código
+
+Cada bounded context conserva el mismo contrato de capas:
+
+```txt
+src/modules/<modulo>/
+├── domain/          entidades, tipos y puertos sin NestJS ni Prisma
+├── application/     casos de uso, comandos, queries y eventos
+├── infrastructure/  repositorios Prisma y adaptadores externos
+└── presentation/    controllers, DTOs, mappers y guards HTTP
+```
+
+`src/shared-kernel` contiene `Result`, errores, paginación y value objects;
+`src/common` contiene pipes, filtros, interceptores, decorators y envelopes;
+`src/infrastructure` integra Prisma, Supabase, MailerSend, Redis y Socket.IO.
+Los controladores nunca escriben directamente en Prisma.
+
+## Contrato de validación y DTOs
+
+La aplicación usa un `ValidationPipe` global con `whitelist`,
+`forbidNonWhitelisted` y transformación implícita. Un campo que no pertenece al
+DTO produce `400`; los UUID se validan como v4, las fechas como `YYYY-MM-DD`,
+los números de lotería como `00..99` y el dinero acepta máximo dos decimales.
+
+DTOs de entrada principales:
+
+| DTO | Campos | Reglas esenciales |
+| --- | --- | --- |
+| `SignupAdminDto` | `email`, `username`, `name`, `password` | Correo válido; username normalizado; nombre 2..120; contraseña 8..72. |
+| `LoginDto` | `email`, `password` | Correo normalizado; contraseña 8..72. |
+| `RefreshSessionDto` | `refreshToken` | Token obligatorio; nunca se audita en claro. |
+| `RequestPasswordResetDto` | `email` | Respuesta anti-enumeración; máximo 3 solicitudes/minuto. |
+| `ConfirmPasswordResetDto` | `email`, `code`, `newPassword`, `confirmPassword` | OTP de 6 dígitos; contraseñas iguales, 8..72; máximo 5 intentos/minuto. |
+| `AdminResetPasswordDto` | `targetUserId`, `newPassword`, `confirmPassword` | Solo ADMIN con `usuarios.update`; usuario activo y enlazado a Supabase. |
+| `CreateSellerInvitationDto` | `email`, `username`, `sellerName`, `documentId`, `phone?`, `address?`, `roleName?` | Cédula y teléfono nicaragüense normalizados; código de acceso de un solo uso. |
+| `ConfirmSellerAccessCodeDto` | `email`, `accessCode`, `password` | Código de 6 dígitos y contraseña 8..72. |
+| `CreateDrawConfigurationDto` | `code`, `time`, `tuesdayOnly?`, `lockSecondsBefore?`, `reopenSecondsAfter?`, `active?` | Código slug; hora `HH:mm[:ss]`; ventanas enteras acotadas. |
+| `OpenDrawShiftDto` | `configurationId`, `date` | UUID de configuración y fecha ISO corta. |
+| `CreateNumberLimitsDto` | `sellerId?`, `drawConfigurationId?` o `drawCode?`, `numbers`, `limitMiles`, `validFrom`, `validUntil?` | 1..100 números; monto 0.01..999999; alcances opcionales. |
+| `UpdateNumberLimitDto` | Campos parciales del límite | `null` elimina alcance de vendedor/sorteo; monto con dos decimales. |
+| `ExpireNumberLimitDto` | `expiresOn` | Fecha efectiva de expiración. |
+| `CreateBlockedNumbersDto` | `numbers`, `shiftId?`, `date?`, `reason?` | Exactamente un alcance operacional: turno o fecha. |
+| `CreateSaleDto` | `sellerId?`, `shiftId`, `items[]` | 1..100 ítems; cada `{number, prizeMiles}` exige dos dígitos y monto positivo con dos decimales. |
+| `VoidSaleDto` | `reason` | Motivo obligatorio, máximo 250. |
+| `UpdateSalesVoidPolicyDto` | `windowMinutes` | Entero entre 1 y 1440. |
+| `GetSalesMatrixQueryDto` | `date`, `shiftId?`, `drawCode?`, `sellerId?`, `status?` | `status=ACTIVA|ANULADA|TODAS`; fecha obligatoria. |
+| `CreateResultDto` | `shiftId`, `winningNumber` | Turno cerrado y número `00..99`. |
+| `PayPrizeDto` | `resultId`, `saleId` | Ambos UUID; pago único por venta ganadora. |
+| `CreateCashCutDto` | `startDate`, `endDate`, `description?`, `visibleToSellers?` | Período inclusivo válido; descripción máxima 500. |
+| `OperationalReportQueryDto` | `dateFrom`, `dateUntil`, `sellerId?`, `drawCode?` | Período obligatorio; filtros opcionales. |
+| `UpsertSystemParameterDto` | `value` | String máximo 2000; la clave viaja en la ruta. |
+
+Todos los DTO de listado extienden `OffsetPaginationQueryDto`:
+
+```txt
+page >= 1                    default 1
+limit 1..100                 default 25
+sortBy                       allow-list específica por recurso
+sortDirection=asc|desc
+```
+
+Los DTO de respuesta usan nombres HTTP en inglés y fechas ISO 8601. Los
+montos terminados en `Miles` son números decimales, los IDs de negocio son UUID
+y `AuditEvent.id` se representa como string porque en PostgreSQL es `bigint`.
+
+## Esquema de datos
+
+Supabase Auth conserva credenciales y sesiones en `auth.users`. El esquema
+`public` conserva el negocio y se enlaza mediante
+`usuarios.auth_user_id -> auth.users.id`.
+
+| Modelo Prisma / tabla | Responsabilidad y relaciones principales |
+| --- | --- |
+| `roles` | Catálogo de roles; padre de usuarios y permisos por rol. |
+| `modulos` | Catálogo de módulos RBAC. |
+| `permisos_por_rol` | Matriz rol/módulo con `read`, `create`, `update`, `delete`. |
+| `usuarios` | Actor interno, rol, estado y vínculo opcional a Supabase Auth. |
+| `vendedores` | Perfil comercial uno-a-uno con usuario. |
+| `codigos_acceso_vendedor` | Invitaciones/códigos hasheados, expiración, uso y creador. |
+| `sorteos_config` | Configuración recurrente: código, hora y ventanas. |
+| `turnos` | Instancia por fecha/configuración; estado `ABIERTO`, `BLOQUEADO` o `CERRADO`. |
+| `ventas` | Ticket, vendedor, turno, estado, total y datos de anulación. |
+| `venta_detalle` | Números y monto decimal de cada ticket. |
+| `limites_numero` | Tope por número, vendedor/sorteo opcional y vigencia. |
+| `numeros_bloqueados` | Bloqueo por fecha o turno con motivo y creador. |
+| `resultados` | Número ganador único por turno y creador. |
+| `pagos_premios` | Pago único por venta ganadora, resultado y usuario pagador. |
+| `cortes` | Período contable, visibilidad y usuario creador. |
+| `parametros` | Claves operacionales permitidas, no secretos. |
+| `auditoria_eventos` | Evento, actor opcional, payload JSON y timestamp. |
+
+La matriz `00..99`, reportes y resúmenes de cortes son proyecciones de lectura;
+no duplican datos en tablas propias. Las columnas monetarias operacionales son
+`numeric(14,2)`. El schema íntegro está en `prisma/schema.prisma` y la migración
+de decimales/RBAC de matriz en
+`prisma/migrations/20260701213000_support_decimal_sales_and_matrix/`.
 
 ## Sistema y salud
 
