@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventInput,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { CashCut, CashCutSummary } from '../../domain/entities';
 import { CashCutsRepository } from '../../domain/ports';
 import { CreateCashCutUseCase } from './create-cash-cut.use-case';
@@ -73,6 +78,14 @@ const createRepository = (): jest.Mocked<CashCutsRepository> => ({
   getSummary: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Cash cut use cases', () => {
   let repository: jest.Mocked<CashCutsRepository>;
 
@@ -81,8 +94,9 @@ describe('Cash cut use cases', () => {
   });
 
   it('creates a cash cut', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.create.mockResolvedValue(createCashCut());
-    const useCase = new CreateCashCutUseCase(repository);
+    const useCase = new CreateCashCutUseCase(repository, publisher);
 
     const result = await useCase.execute({
       startDate: '2026-06-22',
@@ -96,6 +110,11 @@ describe('Cash cut use cases', () => {
       startDate: '2026-06-22',
       endDate: '2026-06-22',
       createdByUserId: 'admin-id',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.cashCutCreated,
+      aggregateId: 'cut-id',
+      audience: { roles: ['VENDEDOR'] },
     });
   });
 

@@ -86,6 +86,15 @@ export class PrismaAuthAccountRepository implements AuthAccountRepository {
     return user ? this.mapUser(user) : null;
   }
 
+  async findById(userId: string): Promise<IdentityUser | null> {
+    const user = await this.prisma.usuarios.findUnique({
+      where: { id: userId },
+      include: identityUserInclude,
+    });
+
+    return user ? this.mapUser(user) : null;
+  }
+
   private mapUser(user: IdentityUserRecord): IdentityUser {
     const permissionRows = user.roles.permisos_por_rol;
     const modules = [

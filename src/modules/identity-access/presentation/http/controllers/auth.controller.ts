@@ -2,27 +2,50 @@ import {
   Body,
   Controller,
   Headers,
+  HttpCode,
+  HttpStatus,
   Post,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiAcceptedResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Public, extractBearerToken } from '../../../../../common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
+  AuthenticatedUserContext,
+  CurrentUser,
+  Permissions,
+  Public,
+  RequireModules,
+  Roles,
+  SYSTEM_MODULES,
+  extractBearerToken,
+} from '../../../../../common';
+import {
+  AdminResetPasswordUseCase,
+  ConfirmPasswordResetUseCase,
   LoginUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
+  RequestPasswordResetUseCase,
   SignupAdminUseCase,
 } from '../../../application';
 import {
+  AdminResetPasswordDto,
+  AdminResetPasswordResponseDto,
   AuthSessionResponseDto,
+  ConfirmPasswordResetDto,
+  ConfirmPasswordResetResponseDto,
   LoginDto,
   LogoutResponseDto,
   RefreshSessionDto,
+  RequestPasswordResetDto,
+  RequestPasswordResetResponseDto,
   SignupAdminDto,
 } from '../dto';
 
@@ -34,6 +57,9 @@ export class AuthController {
     private readonly login: LoginUseCase,
     private readonly refreshSession: RefreshSessionUseCase,
     private readonly logout: LogoutUseCase,
+    private readonly requestPasswordReset: RequestPasswordResetUseCase,
+    private readonly confirmPasswordReset: ConfirmPasswordResetUseCase,
+    private readonly adminResetPassword: AdminResetPasswordUseCase,
   ) {}
 
   @Public()
@@ -50,6 +76,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: AuthSessionResponseDto })
   signIn(@Body() body: LoginDto) {
     return this.login.execute({
@@ -60,6 +87,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: AuthSessionResponseDto })
   refresh(@Body() body: RefreshSessionDto) {
     return this.refreshSession.execute({
@@ -67,7 +95,54 @@ export class AuthController {
     });
   }
 
+  @Public()
+  @Post('password/reset/request')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ passwordReset: { limit: 3, ttl: 60_000 } })
+  @ApiAcceptedResponse({ type: RequestPasswordResetResponseDto })
+  requestPasswordResetEmail(@Body() body: RequestPasswordResetDto) {
+    return this.requestPasswordReset.execute({ email: body.email });
+  }
+
+  @Public()
+  @Post('password/reset/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ passwordReset: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: ConfirmPasswordResetResponseDto })
+  confirmPasswordResetSession(@Body() body: ConfirmPasswordResetDto) {
+    return this.confirmPasswordReset.execute({
+      email: body.email,
+      code: body.code,
+      newPassword: body.newPassword,
+      confirmPassword: body.confirmPassword,
+    });
+  }
+
+  @Post('password/reset/admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @RequireModules(SYSTEM_MODULES.usuarios)
+  @Permissions('usuarios.update')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ passwordReset: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: AdminResetPasswordResponseDto })
+  resetPasswordAsAdmin(
+    @CurrentUser() admin: AuthenticatedUserContext,
+    @Body() body: AdminResetPasswordDto,
+  ) {
+    return this.adminResetPassword.execute({
+      actorUserId: admin.id,
+      targetUserId: body.targetUserId,
+      newPassword: body.newPassword,
+      confirmPassword: body.confirmPassword,
+    });
+  }
+
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOkResponse({ type: LogoutResponseDto })
   signOut(@Headers('authorization') authorization: string | undefined) {

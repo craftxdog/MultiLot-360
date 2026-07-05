@@ -1,98 +1,228 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# MultiLot 360 API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API de lotería construida con NestJS, Prisma, PostgreSQL/Supabase Auth, Redis y
+MailerSend. El código sigue DDD con arquitectura hexagonal por bounded context.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Arquitectura
 
-## Description
+Cada módulo de negocio separa sus responsabilidades en cuatro capas:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ yarn install
+```txt
+src/modules/<context>/
+  domain/          entidades y puertos
+  application/     casos de uso
+  infrastructure/  adaptadores Prisma y proveedores externos
+  presentation/    controladores, DTOs y mappers HTTP
 ```
 
-## Compile and run the project
+Los elementos compartidos de dominio viven en `src/shared-kernel`; los
+componentes HTTP reutilizables viven en `src/common`; los proveedores externos
+globales viven en `src/infrastructure`.
+
+La descripción detallada está en
+`docs/architecture/hexagonal-ddd-structure.md`.
+
+Documentación de referencia:
+
+- `docs/api.md`: contrato completo de rutas, DTOs, permisos y esquema.
+- `docs/multilot-api.http`: colección HTTP ejecutable de todos los endpoints.
+- `docs/domain-concepts.md`: conceptos, reglas e invariantes del negocio.
+- `docs/operations-runbook.md`: preparación, seguridad y despliegue.
+- `src/infrastructure/realtime/README.md`: autenticación, salas y eventos.
+- `src/modules/identity-access/README.md`: Auth y onboarding de vendedores.
+
+La colección `docs/multilot-api.http` se puede ejecutar desde VS Code REST
+Client, JetBrains HTTP Client o herramientas compatibles. Configura
+`adminToken`, `sellerToken` y los IDs al inicio del archivo; las operaciones
+destructivas están identificadas.
+
+## Capacidades
+
+| Módulo | Responsabilidad |
+| --- | --- |
+| Identity access | Supabase Auth, sesiones, RBAC, invitaciones y recuperación de contraseña. |
+| Draws | Configuraciones recurrentes y ciclo de vida de turnos. |
+| Number limits | Límites globales, por vendedor y por sorteo. |
+| Blocked numbers | Bloqueos por fecha o turno. |
+| Sales | Venta atómica multi-número, montos decimales y anulación. |
+| Sales matrix | Proyección administrativa `00..99` con filtros y totales. |
+| Results | Registro de ganadores y consulta de tickets ganadores. |
+| Prize payments | Pago único y auditado de premios. |
+| Cash cuts | Cortes y saldos contables por período. |
+| Reports | Resumen operacional y desempeño por vendedor. |
+| Parameters | Reglas operacionales administrables. |
+| Audit logs | Trazabilidad técnica y semántica sin persistir secretos. |
+| Realtime | Invalidación/refetch mediante Socket.IO y Redis. |
+
+## Requisitos
+
+- Node.js 22 o superior.
+- Yarn 1.x.
+- Proyecto Supabase y base PostgreSQL configurados.
+- Redis local para que `GET /api/v1/health/ready` quede completamente sano.
+- Dominio y token activos de MailerSend para correos reales.
+
+## Configuración
 
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+yarn install --frozen-lockfile
+cp .env.example .env
 ```
 
-## Run tests
+Completa las credenciales privadas solamente en archivos `.env` ignorados por
+Git. Nunca publiques `SUPABASE_SERVICE_ROLE_KEY`, contraseñas, JWT ni
+`MAILERSEND_API_TOKEN`.
+
+Variables web usadas por los correos:
+
+```dotenv
+APP_WEB_URL=http://localhost:8080
+SELLER_ACTIVATION_URL=http://localhost:8080/activar-vendedor
+ACCOUNT_CONFIRMATION_URL=http://localhost:8080/confirmar-cuenta
+PASSWORD_RESET_URL=http://localhost:8080/restablecer-contrasena
+PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES=60
+```
+
+`SELLER_ACTIVATION_URL` recibe `email` y `code` como query parameters. El
+frontend debe precargarlos y enviar el código, junto con la contraseña elegida,
+a `POST /api/v1/identity-access/sellers/access-code/confirm`. Abrir el enlace no
+consume ni confirma el código automáticamente.
+
+La API genera un OTP de recuperación de Supabase y lo entrega con MailerSend.
+El botón abre `PASSWORD_RESET_URL` con el correo precargado, pero el código no
+se incluye en la URL: el usuario debe escribirlo junto con la nueva contraseña
+en `POST /api/v1/auth/password/reset/confirm`. Un administrador autenticado,
+con rol `ADMIN` y permiso `usuarios.update`, puede usar
+`POST /api/v1/auth/password/reset/admin` sin código.
+
+`PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES` informa el vencimiento mostrado en el
+correo y debe mantenerse igual al valor configurado en Supabase Auth para la
+expiración de OTP por email.
+
+El cierre global revoca los refresh tokens de Supabase. Un access JWT que ya fue
+emitido puede seguir válido hasta su `exp`; por eso la expiración de access
+tokens debe mantenerse corta.
+
+## Prisma
+
+La base remota es la fuente de verdad mientras se mantenga el flujo
+introspectivo:
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+yarn prisma:pull
+yarn prisma:generate
+yarn prisma:validate
 ```
 
-## Deployment
+Revisa siempre el diff de `prisma/schema.prisma` después de `db pull`.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Ejecución
 
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+yarn docker:up
+yarn start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- API: `http://localhost:3000/api/v1`
+- Swagger: `http://localhost:3000/docs`
+- Liveness: `http://localhost:3000/api/v1/health`
+- Readiness: `http://localhost:3000/api/v1/health/ready`
+- Socket.IO: `http://localhost:3000/realtime` (path `/socket.io`)
 
-## Resources
+## Tiempo real
 
-Check out a few resources that may come in handy when working with NestJS:
+Socket.IO notifica cambios confirmados en sorteos, turnos, límites, bloqueos,
+ventas, resultados, premios, cortes y parámetros. La conexión usa el access
+token de Supabase en `auth.token`; las salas se calculan en el servidor según
+el usuario, rol, vendedor y módulos autorizados.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Los eventos no sustituyen las respuestas REST. El cliente los usa para
+invalidar y refrescar sus consultas, especialmente después de reconectar. El
+contrato completo está en `src/infrastructure/realtime/README.md`.
 
-## Support
+## Matriz administrativa de ventas
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+`GET /api/v1/sales-matrix` devuelve una cuadrícula estable de `00` a `99`, la
+suma decimal y cantidad de ventas por número, más el total general. Requiere
+rol `ADMIN`, módulo `MATRIZ_VENTAS` y permiso `matriz_ventas.read`.
 
-## Stay in touch
+Filtros disponibles: `date` (requerido), `shiftId`, `drawCode`, `sellerId` y
+`status=ACTIVA|ANULADA|TODAS`. La respuesta indica que el cliente debe volver a
+consultar el endpoint al recibir `sales.created` o `sales.voided` en
+`/realtime`; la base de datos sigue siendo la fuente contable de verdad.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Validación local
 
-## License
+```bash
+yarn format:check
+yarn lint:check
+yarn test --runInBand --no-watchman
+yarn test:e2e --runInBand --no-watchman
+yarn prisma:validate
+yarn build
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Smoke real
+
+El runner `scripts/api-smoke.ts` comprueba los endpoints públicos, Auth y RBAC.
+Con el flujo operacional habilitado crea datos identificados con
+`codex-smoke-*` y recorre:
+
+```txt
+sorteo -> turno -> límite -> bloqueo -> venta decimal -> anulación -> matriz
+       -> cierre -> resultado -> venta ganadora -> pago de premio
+       -> corte -> reportes -> parámetros -> auditoría
+```
+
+Prueba básica con login administrativo:
+
+```bash
+SMOKE_ADMIN_EMAIL=admin@example.com \
+SMOKE_ADMIN_PASSWORD='secret' \
+yarn test:api:smoke
+```
+
+Flujo operacional completo:
+
+```bash
+SMOKE_ADMIN_EMAIL=admin@example.com \
+SMOKE_ADMIN_PASSWORD='secret' \
+SMOKE_EXISTING_SELLER_EMAIL=seller@example.com \
+SMOKE_RUN_OPERATIONAL_FLOW=true \
+yarn test:api:smoke
+```
+
+Flujo destructivo de invitación y correo real:
+
+```bash
+SMOKE_ADMIN_EMAIL=admin@example.com \
+SMOKE_ADMIN_PASSWORD='secret' \
+SMOKE_RUN_INVITATION_FLOW=true \
+SMOKE_INVITATION_EMAIL=recipient@example.com \
+yarn test:api:smoke
+```
+
+Opciones adicionales:
+
+- `SMOKE_ADMIN_JWT` y `SMOKE_SELLER_JWT`: sesiones existentes.
+- `SMOKE_SELLER_EMAIL` y `SMOKE_SELLER_PASSWORD`: login real del vendedor.
+- `SMOKE_SELLER_ID`: vendedor usado por el flujo operacional.
+- `SMOKE_DATE`: fecha `YYYY-MM-DD` del flujo.
+- `SMOKE_REQUIRE_READY_DEPENDENCIES=true`: falla si DB, configuración o Redis
+  no están sanos.
+
+El flujo de invitación envía correos y crea registros reales. Úsalo solamente
+con destinatarios y entornos autorizados.
+
+Smoke de autenticación y entrega Socket.IO con la API levantada:
+
+```bash
+SMOKE_ADMIN_EMAIL=admin@example.com \
+SMOKE_ADMIN_PASSWORD='secret' \
+yarn test:realtime:smoke
+```
+
+## CI
+
+GitHub Actions ejecuta validación de Prisma, generación del cliente, formato,
+lint, pruebas unitarias y build sobre `develop` y `master`.

@@ -5,6 +5,7 @@ import {
   MailRecipient,
   MailerPort,
   SendAccountConfirmationInput,
+  SendPasswordRecoveryCodeInput,
   SendSellerAccessCodeInput,
   SendSellerInvitationInput,
 } from '../../modules/identity-access/domain';
@@ -42,13 +43,17 @@ export class MailerSendMailerService implements MailerPort {
   async sendSellerInvitation(input: SendSellerInvitationInput): Promise<void> {
     await this.sendTemplateEmail({
       to: input.recipient,
-      subject: 'Tu acceso a MultiLot 360',
+      subject: 'Tu invitación para acceder a MultiLot 360',
       templateName: 'seller-invitation',
       context: {
         adminName: input.adminName,
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
+        activationUrl: this.buildSellerActivationUrl(
+          input.recipient.email,
+          input.accessCode,
+        ),
       },
     });
   }
@@ -56,12 +61,16 @@ export class MailerSendMailerService implements MailerPort {
   async sendSellerAccessCode(input: SendSellerAccessCodeInput): Promise<void> {
     await this.sendTemplateEmail({
       to: input.recipient,
-      subject: 'Tu codigo de acceso a MultiLot 360',
+      subject: 'Tu nuevo código de acceso a MultiLot 360',
       templateName: 'seller-access-code',
       context: {
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
+        activationUrl: this.buildSellerActivationUrl(
+          input.recipient.email,
+          input.accessCode,
+        ),
       },
     });
   }
@@ -77,8 +86,50 @@ export class MailerSendMailerService implements MailerPort {
         userName: input.userName,
         confirmationCode: input.confirmationCode,
         expiresInMinutes: input.expiresInMinutes,
+        confirmationUrl: this.buildActionUrl(
+          this.envConfig.auth.confirmationUrl,
+          input.recipient.email,
+          input.confirmationCode,
+        ),
       },
     });
+  }
+
+  async sendPasswordRecoveryCode(
+    input: SendPasswordRecoveryCodeInput,
+  ): Promise<void> {
+    await this.sendTemplateEmail({
+      to: input.recipient,
+      subject: 'Código para restablecer tu contraseña',
+      templateName: 'password-recovery-code',
+      context: {
+        userName: input.userName,
+        recoveryCode: input.recoveryCode,
+        expiresInMinutes: input.expiresInMinutes,
+        passwordResetUrl: this.buildPasswordResetUrl(input.recipient.email),
+      },
+    });
+  }
+
+  private buildSellerActivationUrl(email: string, accessCode: string): string {
+    return this.buildActionUrl(
+      this.envConfig.sellerAccess.activationUrl,
+      email,
+      accessCode,
+    );
+  }
+
+  private buildPasswordResetUrl(email: string): string {
+    const actionUrl = new URL(this.envConfig.auth.passwordResetUrl);
+    actionUrl.searchParams.set('email', email.trim().toLowerCase());
+    return actionUrl.toString();
+  }
+
+  private buildActionUrl(baseUrl: string, email: string, code: string): string {
+    const actionUrl = new URL(baseUrl);
+    actionUrl.searchParams.set('email', email.trim().toLowerCase());
+    actionUrl.searchParams.set('code', code);
+    return actionUrl.toString();
   }
 
   private async sendTemplateEmail(
@@ -106,6 +157,10 @@ export class MailerSendMailerService implements MailerPort {
     const rendered = this.templateRenderer.render(input.templateName, {
       ...input.context,
       appName: this.envConfig.app.name,
+      brandName: this.envConfig.mailer.fromName,
+      supportEmail:
+        this.envConfig.mailer.replyToEmail || this.envConfig.mailer.fromEmail,
+      currentYear: new Date().getFullYear(),
     });
     const sentFrom = new Sender(
       this.envConfig.mailer.fromEmail,

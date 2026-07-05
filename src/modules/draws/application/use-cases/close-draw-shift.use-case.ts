@@ -2,9 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
 } from '../../../../shared-kernel';
+import { publishDrawShiftEvent } from '../events';
 import { DrawShift } from '../../domain/entities';
 import { DRAWS_REPOSITORY, DrawsRepository } from '../../domain/ports';
 
@@ -21,6 +25,8 @@ export class CloseDrawShiftUseCase extends UseCase<
   constructor(
     @Inject(DRAWS_REPOSITORY)
     private readonly drawsRepository: DrawsRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -38,6 +44,12 @@ export class CloseDrawShiftUseCase extends UseCase<
           404,
         );
       }
+
+      publishDrawShiftEvent(
+        this.eventPublisher,
+        OPERATIONAL_EVENTS.drawShiftClosed,
+        shift,
+      );
 
       return Result.success(shift);
     } catch (error) {

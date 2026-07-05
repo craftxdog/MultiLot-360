@@ -13,12 +13,15 @@ const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const SENSITIVE_KEYS = new Set([
   'authorization',
   'password',
+  'newPassword',
+  'confirmPassword',
   'token',
   'accessToken',
   'refreshToken',
   'apiKey',
   'secret',
   'code',
+  'accessCode',
   'codigo',
   'codigoHash',
 ]);

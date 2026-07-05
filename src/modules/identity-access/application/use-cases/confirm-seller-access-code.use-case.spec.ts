@@ -16,7 +16,10 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     deleteUser: jest.fn(),
     signInWithPassword: jest.fn(),
     refreshSession: jest.fn(),
+    generatePasswordRecoveryCode: jest.fn(),
     signOut: jest.fn(),
+    resetPasswordWithRecoveryCode: jest.fn(),
+    adminResetPassword: jest.fn(),
     verifyAccessToken: jest.fn(),
   };
   const accessCodeService = {
@@ -48,6 +51,7 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     });
 
     expect(result.isFailure).toBe(true);
+    expect(result).toMatchObject({ error: { statusCode: 422 } });
     expect(authProvider.createUser.mock.calls).toHaveLength(0);
   });
 

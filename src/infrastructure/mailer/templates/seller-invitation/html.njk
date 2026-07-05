@@ -1,9 +1,86 @@
-<p>Hola {{ sellerName }},</p>
-
-<p>{{ adminName }} creo una cuenta de vendedor para ti en {{ appName }}.</p>
-
-<p>Usa este codigo para activar tu acceso:</p>
-
-<h2>{{ accessCode }}</h2>
-
-<p>Este codigo vence en {{ expiresInMinutes }} minutos.</p>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>Activa tu cuenta en {{ brandName }}</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f4f7f6;color:#17201f;font-family:Arial,Helvetica,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      {{ adminName }} te invitó a {{ brandName }}. Tu código temporal es {{ accessCode }}.
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#f4f7f6;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #dfe8e6;border-radius:8px;">
+            <tr>
+              <td style="padding:24px 32px;background-color:#0f766e;border-radius:8px 8px 0 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td width="48" valign="middle">
+                      <div style="width:40px;height:40px;line-height:40px;text-align:center;background-color:#ffffff;color:#0f766e;border-radius:8px;font-size:15px;font-weight:700;">M360</div>
+                    </td>
+                    <td valign="middle" style="padding-left:12px;color:#ffffff;font-size:18px;font-weight:700;">{{ brandName }}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 12px;">
+                <p style="margin:0 0 10px;color:#0f766e;font-size:13px;font-weight:700;text-transform:uppercase;">Invitación de vendedor</p>
+                <h1 style="margin:0;color:#17201f;font-size:26px;line-height:1.3;font-weight:700;">Tu cuenta está lista para activarse</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 32px 0;">
+                <p style="margin:0 0 14px;color:#344441;font-size:16px;line-height:1.65;">Hola {{ sellerName }},</p>
+                <p style="margin:0;color:#52625f;font-size:15px;line-height:1.65;"><strong style="color:#344441;">{{ adminName }}</strong> creó una cuenta de vendedor para ti en {{ brandName }}. Usa el siguiente código para confirmar tu correo y definir tu contraseña.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef8f6;border:1px solid #c8e8e2;border-radius:8px;">
+                  <tr>
+                    <td align="center" style="padding:20px 16px;">
+                      <p style="margin:0 0 8px;color:#52706b;font-size:12px;font-weight:700;text-transform:uppercase;">Código de activación</p>
+                      <p style="margin:0;color:#0b4f49;font-family:'Courier New',Courier,monospace;font-size:34px;line-height:1.2;font-weight:700;letter-spacing:8px;">{{ accessCode }}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:24px 32px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="center" bgcolor="#0f766e" style="border-radius:6px;">
+                      <a href="{{ activationUrl }}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;line-height:1.2;font-weight:700;text-decoration:none;">Activar mi cuenta</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 0;">
+                <p style="margin:0;text-align:center;color:#6a7976;font-size:13px;line-height:1.6;">El enlace abrirá la activación con tu correo y código ya cargados. El código vence en <strong>{{ expiresInMinutes }} minutos</strong> y solo puede usarse una vez.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px 32px;">
+                <p style="margin:0 0 8px;color:#7a8885;font-size:12px;line-height:1.5;">Si el botón no funciona, abre este enlace en tu navegador:</p>
+                <p style="margin:0;word-break:break-all;color:#0f766e;font-size:12px;line-height:1.5;"><a href="{{ activationUrl }}" style="color:#0f766e;text-decoration:underline;">{{ activationUrl }}</a></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;background-color:#f8faf9;border-top:1px solid #e6eeec;border-radius:0 0 8px 8px;">
+                <p style="margin:0 0 6px;color:#71807d;font-size:12px;line-height:1.5;">Si no esperabas esta invitación, ignora este mensaje. No compartas tu código con nadie.</p>
+                <p style="margin:0;color:#8b9896;font-size:11px;line-height:1.5;">¿Necesitas ayuda? Escribe a <a href="mailto:{{ supportEmail }}" style="color:#0f766e;">{{ supportEmail }}</a> · © {{ currentYear }} {{ brandName }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

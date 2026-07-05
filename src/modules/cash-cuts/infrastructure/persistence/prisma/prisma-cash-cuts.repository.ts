@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, venta_estado } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  addMoney,
+  buildOffsetPagination,
+  getOffsetSkip,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import {
@@ -183,20 +188,33 @@ export class PrismaCashCutsRepository implements CashCutsRepository {
         balanceMiles: 0,
       };
 
-      summary.grossSalesMiles += sale.total_miles;
+      const saleTotalMiles = toMoneyNumber(sale.total_miles);
+      summary.grossSalesMiles = addMoney(
+        summary.grossSalesMiles,
+        saleTotalMiles,
+      );
 
       if (sale.estado === venta_estado.ACTIVA) {
         summary.activeSalesCount += 1;
-        summary.netSalesMiles += sale.total_miles;
+        summary.netSalesMiles = addMoney(summary.netSalesMiles, saleTotalMiles);
       }
 
       if (sale.estado === venta_estado.ANULADA) {
         summary.voidedSalesCount += 1;
-        summary.voidedSalesMiles += sale.total_miles;
+        summary.voidedSalesMiles = addMoney(
+          summary.voidedSalesMiles,
+          saleTotalMiles,
+        );
       }
 
-      summary.paidPrizesMiles += sale.pagos_premios?.monto_pagado_miles ?? 0;
-      summary.balanceMiles = summary.netSalesMiles - summary.paidPrizesMiles;
+      summary.paidPrizesMiles = addMoney(
+        summary.paidPrizesMiles,
+        sale.pagos_premios?.monto_pagado_miles,
+      );
+      summary.balanceMiles = addMoney(
+        summary.netSalesMiles,
+        -summary.paidPrizesMiles,
+      );
 
       sellers.set(sale.vendedores.id, summary);
     }
@@ -213,11 +231,20 @@ export class PrismaCashCutsRepository implements CashCutsRepository {
       (totals, seller) => ({
         activeSalesCount: totals.activeSalesCount + seller.activeSalesCount,
         voidedSalesCount: totals.voidedSalesCount + seller.voidedSalesCount,
-        grossSalesMiles: totals.grossSalesMiles + seller.grossSalesMiles,
-        voidedSalesMiles: totals.voidedSalesMiles + seller.voidedSalesMiles,
-        netSalesMiles: totals.netSalesMiles + seller.netSalesMiles,
-        paidPrizesMiles: totals.paidPrizesMiles + seller.paidPrizesMiles,
-        balanceMiles: totals.balanceMiles + seller.balanceMiles,
+        grossSalesMiles: addMoney(
+          totals.grossSalesMiles,
+          seller.grossSalesMiles,
+        ),
+        voidedSalesMiles: addMoney(
+          totals.voidedSalesMiles,
+          seller.voidedSalesMiles,
+        ),
+        netSalesMiles: addMoney(totals.netSalesMiles, seller.netSalesMiles),
+        paidPrizesMiles: addMoney(
+          totals.paidPrizesMiles,
+          seller.paidPrizesMiles,
+        ),
+        balanceMiles: addMoney(totals.balanceMiles, seller.balanceMiles),
       }),
       {
         activeSalesCount: 0,

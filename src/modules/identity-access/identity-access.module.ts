@@ -1,15 +1,20 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
+import { AuditLogsModule } from '../audit-logs';
 import {
   AccessTokenVerifierService,
+  AdminResetPasswordUseCase,
+  ConfirmPasswordResetUseCase,
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
   ListSellerInvitationsUseCase,
   LoginUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
+  RequestPasswordResetUseCase,
   ResendSellerAccessCodeUseCase,
   ResolveRequestIdentityUseCase,
   RevokeSellerInvitationUseCase,
@@ -39,21 +44,29 @@ import {
 } from './presentation';
 
 @Module({
-  imports: [DatabaseModule, JwtModule.register({})],
+  imports: [
+    DatabaseModule,
+    AuditLogsModule,
+    JwtModule.register({}),
+    ThrottlerModule.forRoot([{ name: 'passwordReset', ttl: 60_000, limit: 3 }]),
+  ],
   controllers: [AuthController, AuthMeController, SellerOnboardingController],
   providers: [
     PrismaAuthAccountRepository,
     PrismaIdentityAccessRepository,
     PrismaSellerOnboardingRepository,
     AccessTokenVerifierService,
+    AdminResetPasswordUseCase,
     SellerAccessCodeService,
     SupabaseAuthProviderService,
     ConfirmSellerAccessCodeUseCase,
+    ConfirmPasswordResetUseCase,
     CreateSellerInvitationUseCase,
     ListSellerInvitationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    RequestPasswordResetUseCase,
     ResendSellerAccessCodeUseCase,
     RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
@@ -92,12 +105,16 @@ import {
     },
   ],
   exports: [
+    AccessTokenVerifierService,
+    AdminResetPasswordUseCase,
     ConfirmSellerAccessCodeUseCase,
+    ConfirmPasswordResetUseCase,
     CreateSellerInvitationUseCase,
     ListSellerInvitationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    RequestPasswordResetUseCase,
     ResendSellerAccessCodeUseCase,
     RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,

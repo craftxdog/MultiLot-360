@@ -56,6 +56,7 @@ Framework-free building blocks shared by multiple bounded contexts:
 - `AppError` and typed errors.
 - `UseCase<Input, Output>`.
 - generic value objects such as `Money` and `Quantity`.
+- integration-event contracts and the `IntegrationEventPublisher` port.
 
 This layer must not import NestJS, Prisma, Express or Supabase clients.
 
@@ -69,6 +70,31 @@ Technical adapters and external systems:
 
 Infrastructure may depend on `shared-kernel`, but domain code must not depend on
 infrastructure.
+
+## Realtime rule
+
+Realtime follows the same dependency direction as persistence and mail:
+
+```txt
+application use case
+  -> IntegrationEventPublisher port
+  -> SocketIoEventPublisher adapter
+  -> RealtimeGateway
+  -> server-owned authorization rooms
+```
+
+Only a successfully persisted mutation publishes an event. Socket.IO does not
+expose business commands; HTTP controllers and use cases remain the only write
+path. Clients treat events as cache-invalidation signals and refetch the REST
+resource, so PostgreSQL remains the source of truth.
+
+The handshake validates the Supabase access token and resolves the internal
+identity before joining rooms. Room membership comes from database-backed
+roles, modules and seller ownership, never from client-provided room names.
+
+For horizontal scaling, the Redis adapter belongs strictly to infrastructure.
+Its Pub/Sub delivery is transient, so clients must resynchronize after a
+reconnect.
 
 ### `src/common`
 

@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { NumberLimit } from '../../domain/entities';
 import {
@@ -23,6 +27,8 @@ export class CreateNumberLimitsUseCase extends UseCase<
   constructor(
     @Inject(NUMBER_LIMITS_REPOSITORY)
     private readonly numberLimitsRepository: NumberLimitsRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -50,12 +56,25 @@ export class CreateNumberLimitsUseCase extends UseCase<
         return ErrorFactory.useCase(dateError, undefined, 400);
       }
 
-      return Result.success(
-        await this.numberLimitsRepository.createMany({
-          ...input,
-          numbers,
-        }),
-      );
+      const limits = await this.numberLimitsRepository.createMany({
+        ...input,
+        numbers,
+      });
+      const firstLimit = limits[0];
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.numberLimitsCreated,
+        aggregateId: firstLimit?.id,
+        audience: operationalAudience.numberLimits(firstLimit?.seller?.id),
+        payload: {
+          limitIds: limits.map((limit) => limit.id),
+          sellerId: firstLimit?.seller?.id ?? null,
+          drawConfigurationId: firstLimit?.drawConfiguration?.id ?? null,
+          numbers: limits.map((limit) => limit.number),
+        },
+      });
+
+      return Result.success(limits);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error

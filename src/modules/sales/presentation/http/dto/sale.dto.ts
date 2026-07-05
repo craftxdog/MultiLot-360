@@ -6,6 +6,7 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -56,14 +57,15 @@ export class SaleItemDto {
   number: string;
 
   @ApiProperty({
-    example: 10,
-    minimum: 1,
+    example: 1.4,
+    minimum: 0.01,
     maximum: 999999,
-    description: 'Prize amount expressed in thousands. Example: 10 = 10 mil.',
+    description:
+      'Prize amount expressed in thousands, with up to two decimals. Examples: 0.5 = 500 and 1.4 = 1,400.',
   })
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
   @Max(999999)
   prizeMiles: number;
 }
@@ -226,7 +228,7 @@ export class SaleDetailResponseDto {
   @ApiProperty({ example: '02' })
   number: string;
 
-  @ApiProperty({ example: 20 })
+  @ApiProperty({ example: 1.4 })
   prizeMiles: number;
 
   @ApiProperty()

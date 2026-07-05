@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common';
 import { EnvConfigModule } from './config/config.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { RealtimeModule } from './infrastructure/realtime';
 import { AuditLogsModule } from './modules/audit-logs';
 import { BlockedNumbersModule } from './modules/blocked-numbers';
 import { CashCutsModule } from './modules/cash-cuts';
@@ -15,6 +16,7 @@ import { PrizePaymentsModule } from './modules/prize-payments';
 import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
+import { SalesMatrixModule } from './modules/sales-matrix';
 import { SystemParametersModule } from './modules/system-parameters';
 
 @Module({
@@ -24,9 +26,11 @@ import { SystemParametersModule } from './modules/system-parameters';
     CommonModule,
     AuditLogsModule,
     IdentityAccessModule,
+    RealtimeModule,
     DrawsModule,
     NumberLimitsModule,
     SalesModule,
+    SalesMatrixModule,
     BlockedNumbersModule,
     ResultsModule,
     PrizePaymentsModule,

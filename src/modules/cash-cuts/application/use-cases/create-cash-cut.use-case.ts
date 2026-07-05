@@ -2,8 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
 import { CashCut } from '../../domain/entities';
 import {
@@ -23,6 +27,8 @@ export class CreateCashCutUseCase extends UseCase<
   constructor(
     @Inject(CASH_CUTS_REPOSITORY)
     private readonly cashCutsRepository: CashCutsRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -39,7 +45,21 @@ export class CreateCashCutUseCase extends UseCase<
         );
       }
 
-      return Result.success(await this.cashCutsRepository.create(input));
+      const cashCut = await this.cashCutsRepository.create(input);
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.cashCutCreated,
+        aggregateId: cashCut.id,
+        audience: operationalAudience.cashCuts(cashCut.visibleToSellers),
+        payload: {
+          cashCutId: cashCut.id,
+          startDate: cashCut.startDate,
+          endDate: cashCut.endDate,
+          visibleToSellers: cashCut.visibleToSellers,
+        },
+      });
+
+      return Result.success(cashCut);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error ? error.message : 'Could not create cash cut',

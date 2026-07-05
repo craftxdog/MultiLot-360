@@ -21,6 +21,24 @@ export type LogoutCommand = {
   accessToken: string;
 };
 
+export type RequestPasswordResetCommand = {
+  email: string;
+};
+
+export type ConfirmPasswordResetCommand = {
+  email: string;
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type AdminResetPasswordCommand = {
+  actorUserId: string;
+  targetUserId: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 export type SignupAdminCommand = {
   email: string;
   username: string;

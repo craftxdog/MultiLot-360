@@ -12,6 +12,7 @@ import {
 } from './common';
 import { AppLoggerService } from './config/app-logger.service';
 import { EnvConfigService } from './config/env-config.service';
+import { RedisSocketIoAdapter } from './infrastructure/realtime';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -46,14 +47,52 @@ async function bootstrap() {
     }),
   );
 
+  const socketAdapter = new RedisSocketIoAdapter(app, env);
+  await socketAdapter.connectToRedis();
+  app.useWebSocketAdapter(socketAdapter);
+
   if (env.swagger.enabled) {
     const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
         .setTitle(env.app.name)
-        .setDescription('API backend para MultiLot 360.')
+        .setDescription(
+          'API operacional de MultiLot 360. PostgreSQL es la fuente de verdad; Socket.IO solo notifica cambios confirmados. Todas las rutas privadas requieren un access token de Supabase y pueden exigir módulo, rol y permiso RBAC.',
+        )
         .setVersion('1.0.0')
         .addBearerAuth()
+        .addTag('Health', 'Estado del proceso y sus dependencias.')
+        .addTag('Auth', 'Sesiones, identidad y recuperación de contraseña.')
+        .addTag(
+          'Seller onboarding',
+          'Invitación, activación y administración de vendedores.',
+        )
+        .addTag(
+          'Draws',
+          'Configuraciones recurrentes y turnos operacionales de sorteos.',
+        )
+        .addTag(
+          'Number limits',
+          'Topes globales o por vendedor, con alcance general o por sorteo.',
+        )
+        .addTag(
+          'Blocked numbers',
+          'Bloqueos temporales de números por fecha o turno.',
+        )
+        .addTag('Sales', 'Ventas multi-número, consulta, política y anulación.')
+        .addTag(
+          'Sales Matrix',
+          'Vista administrativa 00-99 de la exposición vendida.',
+        )
+        .addTag('Results', 'Resultados y ventas ganadoras por turno.')
+        .addTag('Prize payments', 'Registro de premios efectivamente pagados.')
+        .addTag('Cash cuts', 'Cierres contables por vendedor y período.')
+        .addTag('Reports', 'Resumen operacional y desempeño por vendedor.')
+        .addTag('System parameters', 'Configuración operacional administrable.')
+        .addTag(
+          'Audit events',
+          'Trazabilidad técnica y de acciones de negocio.',
+        )
         .build(),
     );
 

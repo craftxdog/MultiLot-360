@@ -1,5 +1,14 @@
+{{ brandName }} - Confirmación de cuenta
+
 Hola {{ userName }},
 
-Tu codigo de confirmacion para {{ appName }} es: {{ confirmationCode }}
+Tu código de confirmación es: {{ confirmationCode }}
 
-Este codigo vence en {{ expiresInMinutes }} minutos.
+Confirma tu cuenta aquí. El correo y el código ya estarán cargados:
+{{ confirmationUrl }}
+
+El código vence en {{ expiresInMinutes }} minutos y solo puede utilizarse una vez.
+Si no creaste esta cuenta, ignora este mensaje y no compartas el código.
+
+Ayuda: {{ supportEmail }}
+© {{ currentYear }} {{ brandName }}

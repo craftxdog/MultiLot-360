@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventInput,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { BlockedNumber } from '../../domain/entities';
 import { BlockedNumbersRepository } from '../../domain/ports';
 import { CreateBlockedNumbersUseCase } from './create-blocked-numbers.use-case';
@@ -31,6 +36,14 @@ const createRepository = (): jest.Mocked<BlockedNumbersRepository> => ({
   delete: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Blocked numbers use cases', () => {
   let repository: jest.Mocked<BlockedNumbersRepository>;
 
@@ -39,11 +52,12 @@ describe('Blocked numbers use cases', () => {
   });
 
   it('creates unique normalized date-scoped blocked numbers', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.createMany.mockResolvedValue([
       createBlockedNumber({ number: '02' }),
       createBlockedNumber({ id: 'block-id-2', number: '15' }),
     ]);
-    const useCase = new CreateBlockedNumbersUseCase(repository);
+    const useCase = new CreateBlockedNumbersUseCase(repository, publisher);
 
     const result = await useCase.execute({
       numbers: ['2', '02', '15'],
@@ -58,6 +72,11 @@ describe('Blocked numbers use cases', () => {
       date: '2026-06-22',
       reason: 'Decision operativa',
       createdByUserId: 'user-id',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.blockedNumbersCreated,
+      aggregateId: 'block-id',
+      payload: { numbers: ['02', '15'] },
     });
   });
 
@@ -138,12 +157,17 @@ describe('Blocked numbers use cases', () => {
   });
 
   it('deletes one blocked number', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.delete.mockResolvedValue(createBlockedNumber());
-    const useCase = new DeleteBlockedNumberUseCase(repository);
+    const useCase = new DeleteBlockedNumberUseCase(repository, publisher);
 
     const result = await useCase.execute({ blockId: 'block-id' });
 
     expect(result.isSuccess).toBe(true);
     expect(repository.delete.mock.calls[0][0]).toBe('block-id');
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.blockedNumberDeleted,
+      aggregateId: 'block-id',
+    });
   });
 });

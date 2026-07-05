@@ -2,9 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AppError,
   ErrorFactory,
+  INTEGRATION_EVENT_PUBLISHER,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
   Result,
   UseCase,
+  operationalAudience,
 } from '../../../../shared-kernel';
+import { addMoney } from '../../../../common';
 import { Sale } from '../../domain/entities';
 import {
   SALES_REPOSITORY,
@@ -29,6 +34,8 @@ export class CreateSaleUseCase extends UseCase<
   constructor(
     @Inject(SALES_REPOSITORY)
     private readonly salesRepository: SalesRepository,
+    @Inject(INTEGRATION_EVENT_PUBLISHER)
+    private readonly eventPublisher?: IntegrationEventPublisher,
   ) {
     super();
   }
@@ -51,13 +58,31 @@ export class CreateSaleUseCase extends UseCase<
         );
       }
 
-      return Result.success(
-        await this.salesRepository.create({
-          sellerId: sellerResult.value,
-          shiftId: input.shiftId,
-          items,
-        }),
-      );
+      const sale = await this.salesRepository.create({
+        sellerId: sellerResult.value,
+        shiftId: input.shiftId,
+        items,
+      });
+
+      this.eventPublisher?.publish({
+        name: OPERATIONAL_EVENTS.saleCreated,
+        aggregateId: sale.id,
+        audience: operationalAudience.sales(sale.seller.id),
+        payload: {
+          saleId: sale.id,
+          sellerId: sale.seller.id,
+          shiftId: sale.shift?.id ?? null,
+          status: sale.status,
+          totalMiles: sale.totalMiles,
+          numbers: sale.details.map((detail) => detail.number),
+          items: sale.details.map((detail) => ({
+            number: detail.number,
+            prizeMiles: detail.prizeMiles,
+          })),
+        },
+      });
+
+      return Result.success(sale);
     } catch (error) {
       return ErrorFactory.useCase(
         error instanceof Error ? error.message : 'Could not create sale',
@@ -105,7 +130,7 @@ export class CreateSaleUseCase extends UseCase<
       const number = item.number.replace(/\D/g, '').padStart(2, '0');
       totalsByNumber.set(
         number,
-        (totalsByNumber.get(number) ?? 0) + item.prizeMiles,
+        addMoney(totalsByNumber.get(number), item.prizeMiles),
       );
     }
 

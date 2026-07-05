@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, venta_estado } from '@prisma/client';
-import { buildOffsetPagination } from '../../../../../common';
+import {
+  addMoney,
+  buildOffsetPagination,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import {
@@ -116,13 +120,34 @@ export class PrismaReportsRepository implements ReportsRepository {
       current.salesCount += saleTotals.salesCount;
       current.activeSalesCount += saleTotals.activeSalesCount;
       current.voidedSalesCount += saleTotals.voidedSalesCount;
-      current.grossSalesMiles += saleTotals.grossSalesMiles;
-      current.voidedSalesMiles += saleTotals.voidedSalesMiles;
-      current.netSalesMiles += saleTotals.netSalesMiles;
-      current.winningPrizeMiles += saleTotals.winningPrizeMiles;
-      current.paidPrizesMiles += saleTotals.paidPrizesMiles;
-      current.pendingPrizesMiles += saleTotals.pendingPrizesMiles;
-      current.balanceMiles += saleTotals.balanceMiles;
+      current.grossSalesMiles = addMoney(
+        current.grossSalesMiles,
+        saleTotals.grossSalesMiles,
+      );
+      current.voidedSalesMiles = addMoney(
+        current.voidedSalesMiles,
+        saleTotals.voidedSalesMiles,
+      );
+      current.netSalesMiles = addMoney(
+        current.netSalesMiles,
+        saleTotals.netSalesMiles,
+      );
+      current.winningPrizeMiles = addMoney(
+        current.winningPrizeMiles,
+        saleTotals.winningPrizeMiles,
+      );
+      current.paidPrizesMiles = addMoney(
+        current.paidPrizesMiles,
+        saleTotals.paidPrizesMiles,
+      );
+      current.pendingPrizesMiles = addMoney(
+        current.pendingPrizesMiles,
+        saleTotals.pendingPrizesMiles,
+      );
+      current.balanceMiles = addMoney(
+        current.balanceMiles,
+        saleTotals.balanceMiles,
+      );
 
       reports.set(sale.vendedores.id, current);
     }
@@ -166,29 +191,44 @@ export class PrismaReportsRepository implements ReportsRepository {
     };
 
     for (const sale of sales) {
-      const paidPrizesMiles = sale.pagos_premios?.monto_pagado_miles ?? 0;
+      const paidPrizesMiles = toMoneyNumber(
+        sale.pagos_premios?.monto_pagado_miles,
+      );
       const winningPrizeMiles = this.getWinningPrizeMiles(sale);
+      const saleTotalMiles = toMoneyNumber(sale.total_miles);
 
-      totals.grossSalesMiles += sale.total_miles;
-      totals.winningPrizeMiles += winningPrizeMiles;
-      totals.paidPrizesMiles += paidPrizesMiles;
+      totals.grossSalesMiles = addMoney(totals.grossSalesMiles, saleTotalMiles);
+      totals.winningPrizeMiles = addMoney(
+        totals.winningPrizeMiles,
+        winningPrizeMiles,
+      );
+      totals.paidPrizesMiles = addMoney(
+        totals.paidPrizesMiles,
+        paidPrizesMiles,
+      );
 
       if (sale.estado === venta_estado.ACTIVA) {
         totals.activeSalesCount += 1;
-        totals.netSalesMiles += sale.total_miles;
+        totals.netSalesMiles = addMoney(totals.netSalesMiles, saleTotalMiles);
       }
 
       if (sale.estado === venta_estado.ANULADA) {
         totals.voidedSalesCount += 1;
-        totals.voidedSalesMiles += sale.total_miles;
+        totals.voidedSalesMiles = addMoney(
+          totals.voidedSalesMiles,
+          saleTotalMiles,
+        );
       }
     }
 
     totals.pendingPrizesMiles = Math.max(
-      totals.winningPrizeMiles - totals.paidPrizesMiles,
+      addMoney(totals.winningPrizeMiles, -totals.paidPrizesMiles),
       0,
     );
-    totals.balanceMiles = totals.netSalesMiles - totals.paidPrizesMiles;
+    totals.balanceMiles = addMoney(
+      totals.netSalesMiles,
+      -totals.paidPrizesMiles,
+    );
 
     return totals;
   }
@@ -201,7 +241,7 @@ export class PrismaReportsRepository implements ReportsRepository {
 
     return sale.venta_detalle
       .filter((detail) => detail.numero === winningNumber)
-      .reduce((total, detail) => total + detail.premio_miles, 0);
+      .reduce((total, detail) => addMoney(total, detail.premio_miles), 0);
   }
 
   private toDateOnly(date: string): Date {

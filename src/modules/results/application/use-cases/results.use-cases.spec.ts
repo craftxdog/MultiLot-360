@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventPublisher,
+  IntegrationEventInput,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { DrawResult, WinningSale } from '../../domain/entities';
 import { ResultsRepository } from '../../domain/ports';
 import { CreateResultUseCase } from './create-result.use-case';
@@ -85,6 +90,14 @@ const createRepository = (): jest.Mocked<ResultsRepository> => ({
   listWinningSales: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Results use cases', () => {
   let repository: jest.Mocked<ResultsRepository>;
 
@@ -93,8 +106,9 @@ describe('Results use cases', () => {
   });
 
   it('creates a result with a normalized winning number', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.create.mockResolvedValue(createResult());
-    const useCase = new CreateResultUseCase(repository);
+    const useCase = new CreateResultUseCase(repository, publisher);
 
     const result = await useCase.execute({
       shiftId: 'shift-id',
@@ -107,6 +121,14 @@ describe('Results use cases', () => {
       shiftId: 'shift-id',
       winningNumber: '02',
       createdByUserId: 'admin-id',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.resultCreated,
+      aggregateId: 'result-id',
+      payload: {
+        shiftId: 'shift-id',
+        winningNumber: '20',
+      },
     });
   });
 

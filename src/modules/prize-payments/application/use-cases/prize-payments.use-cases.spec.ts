@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventPublisher,
+  IntegrationEventInput,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { PrizePayment } from '../../domain/entities';
 import { PrizePaymentsRepository } from '../../domain/ports';
 import { GetPrizePaymentUseCase } from './get-prize-payment.use-case';
@@ -75,6 +80,14 @@ const createRepository = (): jest.Mocked<PrizePaymentsRepository> => ({
   list: jest.fn(),
 });
 
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
+
 describe('Prize payment use cases', () => {
   let repository: jest.Mocked<PrizePaymentsRepository>;
 
@@ -83,8 +96,9 @@ describe('Prize payment use cases', () => {
   });
 
   it('pays a winning sale prize', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.pay.mockResolvedValue(createPrizePayment());
-    const useCase = new PayPrizeUseCase(repository);
+    const useCase = new PayPrizeUseCase(repository, publisher);
 
     const result = await useCase.execute({
       resultId: 'result-id',
@@ -97,6 +111,11 @@ describe('Prize payment use cases', () => {
       resultId: 'result-id',
       saleId: 'sale-id',
       paidByUserId: 'admin-id',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.prizePaid,
+      aggregateId: 'sale-id',
+      audience: { sellerIds: ['seller-id'] },
     });
   });
 

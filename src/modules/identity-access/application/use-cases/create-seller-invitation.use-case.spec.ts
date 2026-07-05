@@ -16,6 +16,7 @@ describe('CreateSellerInvitationUseCase', () => {
     sendSellerInvitation: jest.fn(),
     sendSellerAccessCode: jest.fn(),
     sendAccountConfirmation: jest.fn(),
+    sendPasswordRecoveryCode: jest.fn(),
   };
   const accessCodeService = {
     generate: jest.fn(),

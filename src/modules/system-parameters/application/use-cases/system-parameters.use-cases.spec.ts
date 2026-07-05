@@ -1,4 +1,9 @@
-import { PaginatedResult } from '../../../../shared-kernel';
+import {
+  IntegrationEventInput,
+  IntegrationEventPublisher,
+  OPERATIONAL_EVENTS,
+  PaginatedResult,
+} from '../../../../shared-kernel';
 import { SystemParameter } from '../../domain/entities';
 import { SystemParametersRepository } from '../../domain/ports';
 import { GetSystemParameterUseCase } from './get-system-parameter.use-case';
@@ -35,6 +40,14 @@ const createRepository = (): jest.Mocked<SystemParametersRepository> => ({
   list: jest.fn(),
   upsert: jest.fn(),
 });
+
+const createEventPublisher = () => {
+  const events: IntegrationEventInput[] = [];
+  const publisher: IntegrationEventPublisher = {
+    publish: (event) => events.push(event),
+  };
+  return { events, publisher };
+};
 
 describe('System parameter use cases', () => {
   let repository: jest.Mocked<SystemParametersRepository>;
@@ -95,8 +108,9 @@ describe('System parameter use cases', () => {
   });
 
   it('upserts a system parameter', async () => {
+    const { events, publisher } = createEventPublisher();
     repository.upsert.mockResolvedValue(createParameter());
-    const useCase = new UpsertSystemParameterUseCase(repository);
+    const useCase = new UpsertSystemParameterUseCase(repository, publisher);
 
     const result = await useCase.execute({
       key: ' sales.void_window_minutes ',
@@ -107,6 +121,11 @@ describe('System parameter use cases', () => {
     expect(repository.upsert.mock.calls[0][0]).toEqual({
       key: 'sales.void_window_minutes',
       value: '15',
+    });
+    expect(events[0]).toMatchObject({
+      name: OPERATIONAL_EVENTS.systemParameterUpdated,
+      aggregateId: 'sales.void_window_minutes',
+      payload: { key: 'sales.void_window_minutes' },
     });
   });
 });

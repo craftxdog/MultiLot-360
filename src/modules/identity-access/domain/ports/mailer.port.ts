@@ -27,8 +27,16 @@ export type SendAccountConfirmationInput = {
   expiresInMinutes: number;
 };
 
+export type SendPasswordRecoveryCodeInput = {
+  recipient: MailRecipient;
+  userName: string;
+  recoveryCode: string;
+  expiresInMinutes: number;
+};
+
 export interface MailerPort {
   sendSellerInvitation(input: SendSellerInvitationInput): Promise<void>;
   sendSellerAccessCode(input: SendSellerAccessCodeInput): Promise<void>;
   sendAccountConfirmation(input: SendAccountConfirmationInput): Promise<void>;
+  sendPasswordRecoveryCode(input: SendPasswordRecoveryCodeInput): Promise<void>;
 }
