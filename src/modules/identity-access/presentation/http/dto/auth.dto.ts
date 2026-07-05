@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -79,4 +80,84 @@ export class AuthSessionResponseDto {
 export class LogoutResponseDto {
   @ApiProperty({ example: true })
   signedOut: true;
+}
+
+export class RequestPasswordResetDto {
+  @ApiProperty({ example: 'usuario@example.com' })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @IsEmail()
+  email: string;
+}
+
+export class RequestPasswordResetResponseDto {
+  @ApiProperty({ example: true })
+  accepted: true;
+
+  @ApiProperty({
+    example:
+      'Si existe una cuenta elegible, enviaremos un código para restablecer la contraseña.',
+  })
+  message: string;
+}
+
+export class ConfirmPasswordResetDto {
+  @ApiProperty({ example: 'usuario@example.com' })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'code must contain exactly 6 digits' })
+  code: string;
+
+  @ApiProperty({ example: 'NuevaClave2026!' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  newPassword: string;
+
+  @ApiProperty({ example: 'NuevaClave2026!' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  confirmPassword: string;
+}
+
+export class ConfirmPasswordResetResponseDto {
+  @ApiProperty({ example: true })
+  passwordUpdated: true;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Supabase refresh sessions were revoked. Already-issued access tokens can remain valid until their JWT expiration.',
+  })
+  sessionsRevoked: true;
+}
+
+export class AdminResetPasswordDto {
+  @ApiProperty({ description: 'Internal usuarios.id of the target account.' })
+  @IsUUID()
+  targetUserId: string;
+
+  @ApiProperty({ example: 'NuevaClave2026!' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  newPassword: string;
+
+  @ApiProperty({ example: 'NuevaClave2026!' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  confirmPassword: string;
+}
+
+export class AdminResetPasswordResponseDto extends ConfirmPasswordResetResponseDto {
+  @ApiProperty()
+  targetUser: {
+    id: string;
+    username: string;
+  };
 }

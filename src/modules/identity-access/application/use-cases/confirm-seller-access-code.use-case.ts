@@ -54,7 +54,7 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
         return ErrorFactory.useCase(
           'Invalid or expired seller access code',
           undefined,
-          400,
+          422,
         );
       }
 
@@ -80,7 +80,7 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
         return ErrorFactory.useCase(
           'Invalid or expired seller access code',
           undefined,
-          400,
+          422,
         );
       }
 

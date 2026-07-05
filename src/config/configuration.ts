@@ -75,6 +75,8 @@ export interface AppConfig {
     signupEnabled: boolean;
     adminRoleName: string;
     confirmationUrl: string;
+    passwordResetUrl: string;
+    passwordResetCodeExpiresInMinutes: number;
   };
 }
 
@@ -151,6 +153,11 @@ export default (): AppConfig => {
       confirmationUrl:
         env.ACCOUNT_CONFIRMATION_URL ||
         new URL('/confirmar-cuenta', env.APP_WEB_URL).toString(),
+      passwordResetUrl:
+        env.PASSWORD_RESET_URL ||
+        new URL('/restablecer-contrasena', env.APP_WEB_URL).toString(),
+      passwordResetCodeExpiresInMinutes:
+        env.PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES,
     },
   };
 };

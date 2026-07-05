@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { EnvConfigService } from '../../../../config/env-config.service';
 import {
+  AdminResetPasswordInput,
   AuthProviderPort,
   AuthProviderSession,
   AuthProviderUser,
   CreateAuthUserInput,
+  GeneratePasswordRecoveryCodeInput,
+  PasswordRecoveryCode,
+  ResetPasswordWithRecoveryCodeInput,
   SignInWithPasswordInput,
   SupabaseJwtPayload,
 } from '../../domain';
@@ -86,6 +90,120 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
     if (error) {
       throw new Error(error.message);
     }
+  }
+
+  async generatePasswordRecoveryCode(
+    input: GeneratePasswordRecoveryCodeInput,
+  ): Promise<PasswordRecoveryCode> {
+    const { data, error } = await this.getAdminClient().auth.admin.generateLink(
+      {
+        type: 'recovery',
+        email: input.email,
+      },
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.properties.email_otp || !data.user.id) {
+      throw new Error('Supabase recovery code was not returned');
+    }
+
+    return {
+      authUserId: data.user.id,
+      code: data.properties.email_otp,
+    };
+  }
+
+  async resetPasswordWithRecoveryCode(
+    input: ResetPasswordWithRecoveryCodeInput,
+  ): Promise<{ authUserId: string }> {
+    return this.updatePasswordWithRecoveryCode(
+      input.email,
+      input.code,
+      input.newPassword,
+    );
+  }
+
+  async adminResetPassword(
+    input: AdminResetPasswordInput,
+  ): Promise<{ authUserId: string }> {
+    const admin = this.getAdminClient().auth.admin;
+    const { data: userData, error: userError } = await admin.getUserById(
+      input.authUserId,
+    );
+
+    if (userError || !userData.user?.email) {
+      throw new Error(userError?.message ?? 'Target auth user was not found');
+    }
+
+    const recovery = await this.generatePasswordRecoveryCode({
+      email: userData.user.email,
+    });
+
+    if (recovery.authUserId !== input.authUserId) {
+      throw new Error('Generated recovery code belongs to another user');
+    }
+
+    return this.updatePasswordWithRecoveryCode(
+      userData.user.email,
+      recovery.code,
+      input.newPassword,
+      input.authUserId,
+    );
+  }
+
+  private async updatePasswordWithRecoveryCode(
+    email: string,
+    code: string,
+    newPassword: string,
+    expectedAuthUserId?: string,
+  ): Promise<{ authUserId: string }> {
+    const client = this.createSupabaseClient(
+      this.requireConfig(
+        this.envConfig.supabase.publishableKey,
+        'SUPABASE_PUBLISHABLE_KEY',
+      ),
+    );
+    const { data: sessionData, error: sessionError } =
+      await client.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'recovery',
+      });
+
+    if (sessionError || !sessionData.session || !sessionData.user) {
+      throw new Error(
+        `RECOVERY_CODE_INVALID: ${
+          sessionError?.message ?? 'Recovery code is invalid'
+        }`,
+      );
+    }
+
+    if (expectedAuthUserId && sessionData.user.id !== expectedAuthUserId) {
+      throw new Error('Recovery code belongs to another user');
+    }
+
+    const { error: updateError } = await client.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    const { error: signOutError } =
+      await this.getAdminClient().auth.admin.signOut(
+        sessionData.session.access_token,
+        'global',
+      );
+
+    if (signOutError) {
+      throw new Error(`SESSION_REVOCATION_FAILED: ${signOutError.message}`);
+    }
+
+    return { authUserId: sessionData.user.id };
   }
 
   async verifyAccessToken(accessToken: string): Promise<SupabaseJwtPayload> {

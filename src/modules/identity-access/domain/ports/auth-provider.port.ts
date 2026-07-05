@@ -18,6 +18,26 @@ export type SignInWithPasswordInput = {
   password: string;
 };
 
+export type GeneratePasswordRecoveryCodeInput = {
+  email: string;
+};
+
+export type PasswordRecoveryCode = {
+  authUserId: string;
+  code: string;
+};
+
+export type ResetPasswordWithRecoveryCodeInput = {
+  email: string;
+  code: string;
+  newPassword: string;
+};
+
+export type AdminResetPasswordInput = {
+  authUserId: string;
+  newPassword: string;
+};
+
 export interface AuthProviderPort {
   createUser(input: CreateAuthUserInput): Promise<AuthProviderUser>;
   deleteUser(authUserId: string): Promise<void>;
@@ -26,5 +46,14 @@ export interface AuthProviderPort {
   ): Promise<AuthProviderSession>;
   refreshSession(refreshToken: string): Promise<AuthProviderSession>;
   signOut(accessToken: string): Promise<void>;
+  generatePasswordRecoveryCode(
+    input: GeneratePasswordRecoveryCodeInput,
+  ): Promise<PasswordRecoveryCode>;
+  resetPasswordWithRecoveryCode(
+    input: ResetPasswordWithRecoveryCodeInput,
+  ): Promise<{ authUserId: string }>;
+  adminResetPassword(
+    input: AdminResetPasswordInput,
+  ): Promise<{ authUserId: string }>;
   verifyAccessToken(accessToken: string): Promise<SupabaseJwtPayload>;
 }

@@ -17,6 +17,14 @@ const absolutePath = makeValidator<string>((input) => {
   return value.length > 1 ? value.replace(/\/$/, '') : value;
 });
 
+const resetCodeExpiryMinutes = makeValidator<number>((input) => {
+  const value = Number(input);
+  if (!Number.isInteger(value) || value < 5 || value > 1440) {
+    throw new Error('Expected an integer between 5 and 1440 minutes');
+  }
+  return value;
+});
+
 export function validateEnv(env: NodeJS.ProcessEnv) {
   return cleanEnv(env, {
     APP_NAME: str({ default: 'MultiLot 360 API' }),
@@ -87,5 +95,9 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     AUTH_SIGNUP_ENABLED: bool({ default: true }),
     AUTH_ADMIN_ROLE_NAME: str({ default: 'admin' }),
     ACCOUNT_CONFIRMATION_URL: url({ default: '' }),
+    PASSWORD_RESET_URL: url({ default: '' }),
+    PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES: resetCodeExpiryMinutes({
+      default: 60,
+    }),
   });
 }

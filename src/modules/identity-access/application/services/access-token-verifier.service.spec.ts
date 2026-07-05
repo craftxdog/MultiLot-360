@@ -7,7 +7,10 @@ describe('AccessTokenVerifierService', () => {
     deleteUser: jest.fn(),
     signInWithPassword: jest.fn(),
     refreshSession: jest.fn(),
+    generatePasswordRecoveryCode: jest.fn(),
     signOut: jest.fn(),
+    resetPasswordWithRecoveryCode: jest.fn(),
+    adminResetPassword: jest.fn(),
     verifyAccessToken: jest.fn(),
   };
 

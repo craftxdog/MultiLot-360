@@ -62,4 +62,21 @@ describe('TemplateRendererService', () => {
     expect(rendered.html).not.toContain('<script>');
     expect(rendered.html).toContain('&lt;script&gt;');
   });
+
+  it('renders password recovery code templates', () => {
+    const rendered = service.render('password-recovery-code', {
+      brandName: 'MultiLot 360',
+      userName: 'Usuario',
+      recoveryCode: '123456',
+      expiresInMinutes: 60,
+      passwordResetUrl:
+        'https://app.multilot360.com/restablecer-contrasena?email=user%40example.com',
+      supportEmail: 'soporte@multilot360.com',
+      currentYear: 2026,
+    });
+
+    expect(rendered.html).toContain('123456');
+    expect(rendered.html).toContain('Crear nueva contraseña');
+    expect(rendered.text).toContain('un solo uso');
+  });
 });

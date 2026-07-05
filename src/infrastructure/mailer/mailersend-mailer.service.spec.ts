@@ -20,6 +20,7 @@ describe('MailerSendMailerService', () => {
     },
     auth: {
       confirmationUrl: 'https://app.multilot360.com/confirmar-cuenta',
+      passwordResetUrl: 'https://app.multilot360.com/restablecer-contrasena',
     },
   } as EnvConfigService;
 
@@ -125,5 +126,45 @@ describe('MailerSendMailerService', () => {
       }),
     );
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the recovery code while keeping it out of the action URL', async () => {
+    const renderer = new TemplateRendererService();
+    const renderSpy = jest.spyOn(renderer, 'render');
+    const service = new MailerSendMailerService(
+      {
+        ...envConfig,
+        mailer: {
+          ...envConfig.mailer,
+          enabled: true,
+          apiToken: 'test-token',
+          fromEmail: 'no-reply@multilot360.com',
+        },
+      } as EnvConfigService,
+      renderer,
+    );
+
+    Object.defineProperty(service, 'client', {
+      value: { email: { send: jest.fn().mockResolvedValue(undefined) } },
+    });
+
+    await service.sendPasswordRecoveryCode({
+      recipient: { email: ' User@Example.com ', name: 'User' },
+      userName: 'User',
+      recoveryCode: '123456',
+      expiresInMinutes: 60,
+    });
+
+    expect(renderSpy).toHaveBeenCalledWith(
+      'password-recovery-code',
+      expect.objectContaining({
+        recoveryCode: '123456',
+        passwordResetUrl:
+          'https://app.multilot360.com/restablecer-contrasena?email=user%40example.com',
+      }),
+    );
+    expect(
+      String(renderSpy.mock.calls.at(-1)?.[1]?.passwordResetUrl),
+    ).not.toContain('123456');
   });
 });
