@@ -81,9 +81,9 @@ describe('Sales use cases', () => {
       actorRoleName: 'VENDEDOR',
       shiftId: 'shift-id',
       items: [
-        { number: '2', prizeMiles: 20 },
-        { number: '02', prizeMiles: 20 },
-        { number: '15', prizeMiles: 10 },
+        { number: '2', prizeMiles: 0.5 },
+        { number: '02', prizeMiles: 1.4 },
+        { number: '15', prizeMiles: 0.1 },
       ],
     });
 
@@ -92,8 +92,8 @@ describe('Sales use cases', () => {
       sellerId: 'seller-id',
       shiftId: 'shift-id',
       items: [
-        { number: '02', prizeMiles: 40 },
-        { number: '15', prizeMiles: 10 },
+        { number: '02', prizeMiles: 1.9 },
+        { number: '15', prizeMiles: 0.1 },
       ],
     });
     expect(events[0]).toMatchObject({

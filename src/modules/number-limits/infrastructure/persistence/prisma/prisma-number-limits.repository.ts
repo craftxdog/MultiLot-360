@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  buildOffsetPagination,
+  getOffsetSkip,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import { NumberLimit } from '../../../domain/entities';
@@ -315,7 +319,7 @@ export class PrismaNumberLimitsRepository implements NumberLimitsRepository {
           }
         : null,
       number: limit.numero,
-      limitMiles: limit.limite_miles,
+      limitMiles: toMoneyNumber(limit.limite_miles),
       validFrom: this.formatDateOnly(limit.vigente_desde),
       validUntil: limit.vigente_hasta
         ? this.formatDateOnly(limit.vigente_hasta)

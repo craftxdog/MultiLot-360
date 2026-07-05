@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  addMoney,
+  buildOffsetPagination,
+  getOffsetSkip,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import { Sale } from '../../../domain/entities';
@@ -291,11 +296,11 @@ export class PrismaSalesRepository implements SalesRepository {
           }
         : null,
       status: sale.estado,
-      totalMiles: sale.total_miles,
+      totalMiles: toMoneyNumber(sale.total_miles),
       details: sale.venta_detalle.map((detail) => ({
         id: detail.id,
         number: detail.numero,
-        prizeMiles: detail.premio_miles,
+        prizeMiles: toMoneyNumber(detail.premio_miles),
         createdAt: detail.creado_en,
       })),
       createdAt: sale.creado_en,
@@ -306,7 +311,7 @@ export class PrismaSalesRepository implements SalesRepository {
   }
 
   private sumTotalMiles(items: CreateSaleInput['items']): number {
-    return items.reduce((total, item) => total + item.prizeMiles, 0);
+    return addMoney(...items.map((item) => item.prizeMiles));
   }
 
   private normalizeNumber(number: string): string {

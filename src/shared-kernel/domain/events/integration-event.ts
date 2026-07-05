@@ -65,7 +65,7 @@ export const operationalAudience = {
     roles: ['VENDEDOR'],
   }),
   sales: (sellerId: string): IntegrationEventAudience => ({
-    modules: ['ventas'],
+    modules: ['ventas', 'matriz_ventas'],
     sellerIds: [sellerId],
   }),
   salesPolicy: (): IntegrationEventAudience => ({

@@ -9,6 +9,7 @@ import {
   UseCase,
   operationalAudience,
 } from '../../../../shared-kernel';
+import { addMoney } from '../../../../common';
 import { Sale } from '../../domain/entities';
 import {
   SALES_REPOSITORY,
@@ -72,7 +73,12 @@ export class CreateSaleUseCase extends UseCase<
           sellerId: sale.seller.id,
           shiftId: sale.shift?.id ?? null,
           status: sale.status,
+          totalMiles: sale.totalMiles,
           numbers: sale.details.map((detail) => detail.number),
+          items: sale.details.map((detail) => ({
+            number: detail.number,
+            prizeMiles: detail.prizeMiles,
+          })),
         },
       });
 
@@ -124,7 +130,7 @@ export class CreateSaleUseCase extends UseCase<
       const number = item.number.replace(/\D/g, '').padStart(2, '0');
       totalsByNumber.set(
         number,
-        (totalsByNumber.get(number) ?? 0) + item.prizeMiles,
+        addMoney(totalsByNumber.get(number), item.prizeMiles),
       );
     }
 

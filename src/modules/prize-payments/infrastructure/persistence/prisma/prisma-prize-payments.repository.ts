@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, venta_estado } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  addMoney,
+  buildOffsetPagination,
+  getOffsetSkip,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import { PrizePayment } from '../../../domain/entities';
@@ -97,7 +102,7 @@ export class PrismaPrizePaymentsRepository implements PrizePaymentsRepository {
 
       const winningAmountMiles = sale.venta_detalle
         .filter((detail) => detail.numero === result.numero_ganador)
-        .reduce((total, detail) => total + detail.premio_miles, 0);
+        .reduce((total, detail) => addMoney(total, detail.premio_miles), 0);
 
       if (winningAmountMiles <= 0) {
         throw new Error('Sale is not a winner for this result');
@@ -247,7 +252,7 @@ export class PrismaPrizePaymentsRepository implements PrizePaymentsRepository {
       sale: {
         id: payment.ventas.id,
         status: payment.ventas.estado,
-        totalMiles: payment.ventas.total_miles,
+        totalMiles: toMoneyNumber(payment.ventas.total_miles),
         createdAt: payment.ventas.creado_en,
         seller: {
           id: payment.ventas.vendedores.id,
@@ -268,7 +273,7 @@ export class PrismaPrizePaymentsRepository implements PrizePaymentsRepository {
             }
           : null,
       },
-      paidAmountMiles: payment.monto_pagado_miles,
+      paidAmountMiles: toMoneyNumber(payment.monto_pagado_miles),
       paidBy: payment.usuarios
         ? {
             id: payment.usuarios.id,

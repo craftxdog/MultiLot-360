@@ -6,6 +6,7 @@ import { config as loadEnv } from 'dotenv';
 type ModuleSeed = {
   code: string;
   description: string;
+  readOnly?: boolean;
 };
 
 loadEnv({ path: '.env' });
@@ -44,6 +45,11 @@ const MODULES: ModuleSeed[] = [
   { code: 'SORTEOS', description: 'Configuracion de sorteos' },
   { code: 'TURNOS', description: 'Gestion de turnos de sorteo' },
   { code: 'VENTAS', description: 'Gestion de ventas' },
+  {
+    code: 'MATRIZ_VENTAS',
+    description: 'Matriz administrativa de ventas',
+    readOnly: true,
+  },
   { code: 'RESULTADOS', description: 'Gestion de resultados' },
   { code: 'PAGOS_PREMIOS', description: 'Gestion de pagos de premios' },
   { code: 'NUMEROS_BLOQUEADOS', description: 'Gestion de numeros bloqueados' },
@@ -92,15 +98,15 @@ async function main() {
         rol_id: adminRole.id,
         modulo_id: module.id,
         puede_leer: true,
-        puede_crear: true,
-        puede_actualizar: true,
-        puede_borrar: true,
+        puede_crear: !moduleSeed.readOnly,
+        puede_actualizar: !moduleSeed.readOnly,
+        puede_borrar: !moduleSeed.readOnly,
       },
       update: {
         puede_leer: true,
-        puede_crear: true,
-        puede_actualizar: true,
-        puede_borrar: true,
+        puede_crear: !moduleSeed.readOnly,
+        puede_actualizar: !moduleSeed.readOnly,
+        puede_borrar: !moduleSeed.readOnly,
       },
     });
   }

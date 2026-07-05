@@ -16,6 +16,7 @@ import { PrizePaymentsModule } from './modules/prize-payments';
 import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
+import { SalesMatrixModule } from './modules/sales-matrix';
 import { SystemParametersModule } from './modules/system-parameters';
 
 @Module({
@@ -29,6 +30,7 @@ import { SystemParametersModule } from './modules/system-parameters';
     DrawsModule,
     NumberLimitsModule,
     SalesModule,
+    SalesMatrixModule,
     BlockedNumbersModule,
     ResultsModule,
     PrizePaymentsModule,

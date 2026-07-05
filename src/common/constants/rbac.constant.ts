@@ -11,6 +11,7 @@ export const SYSTEM_MODULES = {
   sorteos: 'sorteos',
   turnos: 'turnos',
   ventas: 'ventas',
+  salesMatrix: 'matriz_ventas',
   resultados: 'resultados',
   pagosPremios: 'pagos_premios',
   numerosBloqueados: 'numeros_bloqueados',

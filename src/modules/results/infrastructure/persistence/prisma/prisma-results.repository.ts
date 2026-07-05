@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, turno_estado, venta_estado } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  addMoney,
+  buildOffsetPagination,
+  getOffsetSkip,
+  toMoneyNumber,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import { DrawResult, ResultWinnerSummary, WinningSale } from '../../../domain';
@@ -300,11 +305,11 @@ export class PrismaResultsRepository implements ResultsRepository {
       .map((detail) => ({
         id: detail.id,
         number: detail.numero,
-        prizeMiles: detail.premio_miles,
+        prizeMiles: toMoneyNumber(detail.premio_miles),
         createdAt: detail.creado_en,
       }));
     const winningPrizeMiles = winningDetails.reduce(
-      (total, detail) => total + detail.prizeMiles,
+      (total, detail) => addMoney(total, detail.prizeMiles),
       0,
     );
 
@@ -327,14 +332,16 @@ export class PrismaResultsRepository implements ResultsRepository {
           }
         : null,
       saleStatus: sale.estado,
-      saleTotalMiles: sale.total_miles,
+      saleTotalMiles: toMoneyNumber(sale.total_miles),
       saleCreatedAt: sale.creado_en,
       winningPrizeMiles,
       winningDetails,
       paid: Boolean(sale.pagos_premios),
       payment: sale.pagos_premios
         ? {
-            paidAmountMiles: sale.pagos_premios.monto_pagado_miles,
+            paidAmountMiles: toMoneyNumber(
+              sale.pagos_premios.monto_pagado_miles,
+            ),
             paidByUserId: sale.pagos_premios.pagado_por,
             paidAt: sale.pagos_premios.pagado_en,
           }
@@ -388,8 +395,12 @@ export class PrismaResultsRepository implements ResultsRepository {
         },
       }),
     ]);
-    const totalPrizeMiles = winningDetailTotals._sum.premio_miles ?? 0;
-    const paidPrizeMiles = paidPrizeTotals._sum.monto_pagado_miles ?? 0;
+    const totalPrizeMiles = toMoneyNumber(
+      winningDetailTotals._sum.premio_miles,
+    );
+    const paidPrizeMiles = toMoneyNumber(
+      paidPrizeTotals._sum.monto_pagado_miles,
+    );
 
     return {
       winningSalesCount,
@@ -397,7 +408,10 @@ export class PrismaResultsRepository implements ResultsRepository {
       paidSalesCount,
       paidPrizeMiles,
       pendingSalesCount: Math.max(winningSalesCount - paidSalesCount, 0),
-      pendingPrizeMiles: Math.max(totalPrizeMiles - paidPrizeMiles, 0),
+      pendingPrizeMiles: Math.max(
+        addMoney(totalPrizeMiles, -paidPrizeMiles),
+        0,
+      ),
     };
   }
 

@@ -6,7 +6,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
-  IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -172,10 +172,10 @@ export class CreateNumberLimitsDto {
   })
   numbers: string[];
 
-  @ApiProperty({ example: 100, minimum: 1, maximum: 999999 })
+  @ApiProperty({ example: 100.5, minimum: 0.01, maximum: 999999 })
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
   @Max(999999)
   limitMiles: number;
 
@@ -238,11 +238,11 @@ export class UpdateNumberLimitDto {
   })
   number?: string;
 
-  @ApiPropertyOptional({ example: 100, minimum: 1, maximum: 999999 })
+  @ApiPropertyOptional({ example: 100.5, minimum: 0.01, maximum: 999999 })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
   @Max(999999)
   limitMiles?: number;
 

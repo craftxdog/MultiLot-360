@@ -97,7 +97,12 @@ export class VoidSaleUseCase extends UseCase<VoidSaleCommand, Sale, AppError> {
           sellerId: voidedSale.seller.id,
           shiftId: voidedSale.shift?.id ?? null,
           status: voidedSale.status,
+          totalMiles: voidedSale.totalMiles,
           numbers: voidedSale.details.map((detail) => detail.number),
+          items: voidedSale.details.map((detail) => ({
+            number: detail.number,
+            prizeMiles: detail.prizeMiles,
+          })),
         },
       });
 
