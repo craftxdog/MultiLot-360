@@ -1,12 +1,14 @@
 import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   CreateSellerInvitationCommand,
+  DeleteSellerCommand,
   ResendSellerAccessCodeCommand,
   RevokeSellerInvitationCommand,
 } from '../../../application';
 import { ListSellerInvitationsQuery, ListSellersQuery } from '../../../domain';
 import {
   CreateSellerInvitationDto,
+  DeleteSellerDto,
   ListSellerInvitationsQueryDto,
   ListSellersQueryDto,
   ResendSellerAccessCodeDto,
@@ -43,6 +45,20 @@ export class SellerOnboardingHttpMapper {
       roleName: dto.roleName,
       adminUserId: admin.id,
       adminName: admin.username ?? admin.roleName ?? 'Administrador',
+    };
+  }
+
+  static toDeleteSellerCommand(
+    sellerId: string,
+    dto: DeleteSellerDto | undefined,
+    admin: AuthenticatedUserContext,
+    hardDelete: boolean,
+  ): DeleteSellerCommand {
+    return {
+      sellerId,
+      adminUserId: admin.id,
+      reason: dto?.reason,
+      hardDelete,
     };
   }
 

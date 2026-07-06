@@ -1,6 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import {
   OffsetPaginationQueryDto,
   trimLowercaseString,
@@ -84,6 +93,21 @@ export class SellerOperationalReportsQueryDto extends OffsetPaginationQueryDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortDirection: 'asc' | 'desc' = 'asc';
+}
+
+export class BusinessAnalyticsQueryDto extends OperationalReportQueryDto {
+  @ApiPropertyOptional({
+    default: 10,
+    minimum: 1,
+    maximum: 50,
+    description: 'Cantidad máxima para rankings de vendedores, números y días.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  topLimit: number = 10;
 }
 
 export class OperationalReportFiltersResponseDto {
@@ -171,4 +195,175 @@ export class SellerOperationalReportResponseDto {
 
   @ApiProperty()
   balanceMiles: number;
+}
+
+export class BusinessAnalyticsSellerKpiResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  sellerId: string;
+
+  @ApiProperty()
+  sellerName: string;
+
+  @ApiProperty()
+  salesCount: number;
+
+  @ApiProperty()
+  activeSalesCount: number;
+
+  @ApiProperty()
+  voidedSalesCount: number;
+
+  @ApiProperty()
+  netSalesMiles: number;
+
+  @ApiProperty()
+  grossSalesMiles: number;
+
+  @ApiProperty()
+  paidPrizesMiles: number;
+
+  @ApiProperty()
+  balanceMiles: number;
+
+  @ApiProperty()
+  averageTicketMiles: number;
+
+  @ApiProperty()
+  numbersSoldCount: number;
+
+  @ApiProperty()
+  contributionPercent: number;
+}
+
+export class BusinessAnalyticsNumberKpiResponseDto {
+  @ApiProperty({ example: '45' })
+  number: string;
+
+  @ApiProperty()
+  ticketsCount: number;
+
+  @ApiProperty()
+  sellersCount: number;
+
+  @ApiProperty()
+  netSalesMiles: number;
+
+  @ApiProperty()
+  averagePrizeMiles: number;
+}
+
+export class BusinessAnalyticsDayKpiResponseDto {
+  @ApiProperty({ example: '2026-07-06' })
+  date: string;
+
+  @ApiProperty()
+  salesCount: number;
+
+  @ApiProperty()
+  sellersCount: number;
+
+  @ApiProperty()
+  netSalesMiles: number;
+
+  @ApiProperty()
+  grossSalesMiles: number;
+
+  @ApiProperty()
+  averageTicketMiles: number;
+}
+
+export class BusinessAnalyticsSummaryResponseDto {
+  @ApiProperty()
+  salesCount: number;
+
+  @ApiProperty()
+  activeSalesCount: number;
+
+  @ApiProperty()
+  voidedSalesCount: number;
+
+  @ApiProperty()
+  grossSalesMiles: number;
+
+  @ApiProperty()
+  netSalesMiles: number;
+
+  @ApiProperty()
+  voidedSalesMiles: number;
+
+  @ApiProperty()
+  winningPrizeMiles: number;
+
+  @ApiProperty()
+  paidPrizesMiles: number;
+
+  @ApiProperty()
+  pendingPrizesMiles: number;
+
+  @ApiProperty()
+  balanceMiles: number;
+
+  @ApiProperty()
+  averageTicketMiles: number;
+
+  @ApiProperty()
+  activeSellersCount: number;
+
+  @ApiProperty()
+  numbersSoldCount: number;
+
+  @ApiProperty({ nullable: true })
+  bestSeller: Pick<
+    BusinessAnalyticsSellerKpiResponseDto,
+    'sellerId' | 'sellerName' | 'netSalesMiles'
+  > | null;
+
+  @ApiProperty({ nullable: true })
+  bestNumber: Pick<
+    BusinessAnalyticsNumberKpiResponseDto,
+    'number' | 'netSalesMiles' | 'ticketsCount'
+  > | null;
+
+  @ApiProperty({ nullable: true })
+  bestDay: Pick<
+    BusinessAnalyticsDayKpiResponseDto,
+    'date' | 'netSalesMiles' | 'salesCount'
+  > | null;
+}
+
+export class BusinessAnalyticsProjectionResponseDto {
+  @ApiProperty()
+  periodDays: number;
+
+  @ApiProperty()
+  averageDailyNetSalesMiles: number;
+
+  @ApiProperty()
+  projectedNext7DaysNetSalesMiles: number;
+
+  @ApiProperty()
+  projectedNext30DaysNetSalesMiles: number;
+}
+
+export class BusinessAnalyticsReportResponseDto {
+  @ApiProperty({ type: OperationalReportFiltersResponseDto })
+  filters: OperationalReportFiltersResponseDto & { topLimit: number };
+
+  @ApiProperty({ type: BusinessAnalyticsSummaryResponseDto })
+  summary: BusinessAnalyticsSummaryResponseDto;
+
+  @ApiProperty({ type: [BusinessAnalyticsSellerKpiResponseDto] })
+  sellers: BusinessAnalyticsSellerKpiResponseDto[];
+
+  @ApiProperty({ type: [BusinessAnalyticsNumberKpiResponseDto] })
+  topNumbers: BusinessAnalyticsNumberKpiResponseDto[];
+
+  @ApiProperty({ type: [BusinessAnalyticsDayKpiResponseDto] })
+  bestDays: BusinessAnalyticsDayKpiResponseDto[];
+
+  @ApiProperty({ type: [BusinessAnalyticsDayKpiResponseDto] })
+  trend: BusinessAnalyticsDayKpiResponseDto[];
+
+  @ApiProperty({ type: BusinessAnalyticsProjectionResponseDto })
+  projection: BusinessAnalyticsProjectionResponseDto;
 }

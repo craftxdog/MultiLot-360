@@ -50,6 +50,11 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
       await this.getAdminClient().auth.admin.deleteUser(authUserId);
 
     if (error) {
+      const message = error.message.toLowerCase();
+      if (message.includes('not found') || message.includes('does not exist')) {
+        return;
+      }
+
       throw new Error(error.message);
     }
   }

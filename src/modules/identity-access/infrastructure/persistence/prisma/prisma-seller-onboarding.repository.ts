@@ -5,6 +5,7 @@ import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import {
   ConfirmSellerAccessInput,
+  DeleteSellerInput,
   ListSellerInvitationsQuery,
   ListSellersQuery,
   PendingSellerAccess,
@@ -20,6 +21,8 @@ import {
   SellerInvitation,
   SellerInvitationListItem,
   SellerDirectoryItem,
+  SellerDeletionResult,
+  SellerDeletionTarget,
 } from '../../../domain';
 
 const DEFAULT_SELLER_ROLE_NAME = 'vendedor';
@@ -63,6 +66,9 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
         address: item.direccion,
         active: item.activo && item.usuarios.activo,
         userActive: item.usuarios.activo,
+        deletedAt: item.eliminado_en ?? item.usuarios.eliminado_en,
+        deletionReason:
+          item.motivo_eliminacion ?? item.usuarios.motivo_eliminacion,
         createdAt: item.creado_en,
         updatedAt: item.actualizado_en,
       })),
@@ -134,6 +140,168 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       total,
       query,
     );
+  }
+
+  async findDeletionTarget(
+    sellerId: string,
+  ): Promise<SellerDeletionTarget | null> {
+    const seller = await this.prisma.vendedores.findUnique({
+      where: { id: sellerId },
+      include: { usuarios: true },
+    });
+
+    return seller ? this.toDeletionTarget(seller) : null;
+  }
+
+  async softDeleteSeller(
+    input: DeleteSellerInput,
+  ): Promise<SellerDeletionResult | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const seller = await tx.vendedores.findUnique({
+        where: { id: input.sellerId },
+        include: { usuarios: true },
+      });
+
+      if (!seller) return null;
+
+      const deletedAt = new Date();
+      await tx.codigos_acceso_vendedor.updateMany({
+        where: {
+          vendedor_id: seller.id,
+          estado: codigo_acceso_estado.PENDIENTE,
+        },
+        data: {
+          estado: codigo_acceso_estado.REVOCADO,
+        },
+      });
+      await tx.vendedores.update({
+        where: { id: seller.id },
+        data: {
+          activo: false,
+          eliminado_en: deletedAt,
+          motivo_eliminacion: input.reason,
+          actualizado_en: deletedAt,
+        },
+      });
+      await tx.usuarios.update({
+        where: { id: seller.usuario_id },
+        data: {
+          activo: false,
+          eliminado_en: deletedAt,
+          motivo_eliminacion: input.reason,
+          actualizado_en: deletedAt,
+        },
+      });
+      await this.recordDeletionAudit(tx, 'identity.seller.soft_deleted', {
+        adminUserId: input.adminUserId,
+        target: this.toDeletionTarget(seller),
+        reason: input.reason,
+        deletedAt: deletedAt.toISOString(),
+      });
+
+      return {
+        ...this.toDeletionTarget(seller),
+        mode: 'soft',
+        authUserDeleted: false,
+        deletedAt,
+      };
+    });
+  }
+
+  async hardDeleteSeller(
+    input: DeleteSellerInput & { authUserDeleted: boolean },
+  ): Promise<SellerDeletionResult | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const seller = await tx.vendedores.findUnique({
+        where: { id: input.sellerId },
+        include: { usuarios: true },
+      });
+
+      if (!seller) return null;
+
+      const deletedAt = new Date();
+      const target = this.toDeletionTarget(seller);
+      const saleIds = (
+        await tx.ventas.findMany({
+          where: { vendedor_id: seller.id },
+          select: { id: true },
+        })
+      ).map((sale) => sale.id);
+
+      await tx.auditoria_eventos.updateMany({
+        where: { usuario_id: seller.usuario_id },
+        data: { usuario_id: null },
+      });
+      await tx.numeros_bloqueados.updateMany({
+        where: { creado_por: seller.usuario_id },
+        data: { creado_por: null },
+      });
+      await tx.resultados.updateMany({
+        where: { creado_por: seller.usuario_id },
+        data: { creado_por: null },
+      });
+      await tx.pagos_premios.updateMany({
+        where: { pagado_por: seller.usuario_id },
+        data: { pagado_por: null },
+      });
+      await tx.cortes.updateMany({
+        where: { creado_por: seller.usuario_id },
+        data: { creado_por: null },
+      });
+      await tx.ventas.updateMany({
+        where: { anulada_por: seller.usuario_id },
+        data: { anulada_por: null },
+      });
+
+      if (saleIds.length > 0) {
+        await tx.pagos_premios.deleteMany({
+          where: { venta_id: { in: saleIds } },
+        });
+        await tx.venta_detalle.deleteMany({
+          where: { venta_id: { in: saleIds } },
+        });
+        await tx.ventas.deleteMany({
+          where: { id: { in: saleIds } },
+        });
+      }
+
+      await tx.limites_numero.deleteMany({
+        where: { vendedor_id: seller.id },
+      });
+      await tx.codigos_acceso_vendedor.deleteMany({
+        where: {
+          OR: [
+            { vendedor_id: seller.id },
+            { usuario_id: seller.usuario_id },
+            { creado_por: seller.usuario_id },
+          ],
+        },
+      });
+      await tx.notificaciones.deleteMany({
+        where: { usuario_id: seller.usuario_id },
+      });
+      await tx.vendedores.delete({
+        where: { id: seller.id },
+      });
+      await tx.usuarios.delete({
+        where: { id: seller.usuario_id },
+      });
+      await this.recordDeletionAudit(tx, 'identity.seller.hard_deleted', {
+        adminUserId: input.adminUserId,
+        target,
+        reason: input.reason,
+        deletedAt: deletedAt.toISOString(),
+        authUserDeleted: input.authUserDeleted,
+        deletedSalesCount: saleIds.length,
+      });
+
+      return {
+        ...target,
+        mode: 'hard',
+        authUserDeleted: input.authUserDeleted,
+        deletedAt,
+      };
+    });
   }
 
   async createInvitation(
@@ -269,6 +437,47 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
     return error instanceof Error
       ? error
       : new Error('Could not persist seller invitation');
+  }
+
+  private toDeletionTarget(seller: {
+    id: string;
+    usuario_id: string;
+    nombre: string;
+    usuarios: {
+      id: string;
+      username: string;
+      auth_user_id: string | null;
+    };
+  }): SellerDeletionTarget {
+    return {
+      sellerId: seller.id,
+      userId: seller.usuario_id,
+      username: seller.usuarios.username,
+      sellerName: seller.nombre,
+      authUserId: seller.usuarios.auth_user_id,
+    };
+  }
+
+  private async recordDeletionAudit(
+    tx: Prisma.TransactionClient,
+    event: string,
+    payload: Prisma.InputJsonValue,
+  ): Promise<void> {
+    const payloadObject =
+      typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+
+    await tx.auditoria_eventos.create({
+      data: {
+        usuario_id:
+          typeof payloadObject.adminUserId === 'string'
+            ? payloadObject.adminUserId
+            : null,
+        evento: event,
+        payload,
+      },
+    });
   }
 
   private buildInvitationListWhere(

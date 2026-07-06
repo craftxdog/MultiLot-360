@@ -1,9 +1,11 @@
 import { PaginatedResult } from '../../../../shared-kernel';
 import {
+  BusinessAnalyticsReport,
   OperationalOverviewReport,
   SellerOperationalReport,
 } from '../../domain/entities';
 import { ReportsRepository } from '../../domain/ports';
+import { GetBusinessAnalyticsUseCase } from './get-business-analytics.use-case';
 import { GetOperationalOverviewUseCase } from './get-operational-overview.use-case';
 import { ListSellerOperationalReportsUseCase } from './list-seller-operational-reports.use-case';
 
@@ -45,6 +47,48 @@ const createSellerReport = (
   ...overrides,
 });
 
+const createAnalytics = (
+  overrides: Partial<BusinessAnalyticsReport> = {},
+): BusinessAnalyticsReport => ({
+  filters: {
+    dateFrom: '2026-06-22',
+    dateUntil: '2026-06-22',
+    topLimit: 10,
+  },
+  summary: {
+    ...createOverview(),
+    averageTicketMiles: 100,
+    activeSellersCount: 1,
+    numbersSoldCount: 2,
+    bestSeller: {
+      sellerId: 'seller-id',
+      sellerName: 'Carlos Lopez',
+      netSalesMiles: 100,
+    },
+    bestNumber: {
+      number: '45',
+      netSalesMiles: 100,
+      ticketsCount: 2,
+    },
+    bestDay: {
+      date: '2026-06-22',
+      netSalesMiles: 100,
+      salesCount: 1,
+    },
+  },
+  sellers: [],
+  topNumbers: [],
+  bestDays: [],
+  trend: [],
+  projection: {
+    periodDays: 1,
+    averageDailyNetSalesMiles: 100,
+    projectedNext7DaysNetSalesMiles: 700,
+    projectedNext30DaysNetSalesMiles: 3000,
+  },
+  ...overrides,
+});
+
 const createPaginatedResult = <T>(items: T[]): PaginatedResult<T> => ({
   items,
   pagination: {
@@ -62,6 +106,7 @@ const createPaginatedResult = <T>(items: T[]): PaginatedResult<T> => ({
 });
 
 const createRepository = (): jest.Mocked<ReportsRepository> => ({
+  getBusinessAnalytics: jest.fn(),
   getOperationalOverview: jest.fn(),
   listSellerOperationalReports: jest.fn(),
 });
@@ -83,6 +128,38 @@ describe('Reports use cases', () => {
     });
 
     expect(result.isSuccess).toBe(true);
+  });
+
+  it('gets business analytics', async () => {
+    repository.getBusinessAnalytics.mockResolvedValue(createAnalytics());
+    const useCase = new GetBusinessAnalyticsUseCase(repository);
+
+    const result = await useCase.execute({
+      dateFrom: '2026-06-22',
+      dateUntil: '2026-06-22',
+      topLimit: 10,
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.getBusinessAnalytics.mock.calls[0][0]).toEqual({
+      dateFrom: '2026-06-22',
+      dateUntil: '2026-06-22',
+      topLimit: 10,
+    });
+  });
+
+  it('rejects invalid analytics date ranges', async () => {
+    const useCase = new GetBusinessAnalyticsUseCase(repository);
+
+    const result = await useCase.execute({
+      dateFrom: '2026-06-23',
+      dateUntil: '2026-06-22',
+      topLimit: 10,
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(result.isFailure && result.error.statusCode).toBe(400);
+    expect(repository.getBusinessAnalytics.mock.calls).toHaveLength(0);
   });
 
   it('rejects invalid overview date ranges', async () => {

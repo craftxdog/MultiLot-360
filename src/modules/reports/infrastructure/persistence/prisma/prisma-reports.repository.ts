@@ -8,10 +8,15 @@ import {
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import {
+  BusinessAnalyticsDayKpi,
+  BusinessAnalyticsNumberKpi,
+  BusinessAnalyticsReport,
+  BusinessAnalyticsSellerKpi,
   OperationalOverviewReport,
   SellerOperationalReport,
 } from '../../../domain/entities';
 import {
+  GetBusinessAnalyticsQuery,
   GetOperationalOverviewQuery,
   ListSellerOperationalReportsQuery,
   ReportsRepository,
@@ -68,6 +73,67 @@ export class PrismaReportsRepository implements ReportsRepository {
     const pagedItems = items.slice(start, start + query.limit);
 
     return buildOffsetPagination(pagedItems, items.length, query);
+  }
+
+  async getBusinessAnalytics(
+    query: GetBusinessAnalyticsQuery,
+  ): Promise<BusinessAnalyticsReport> {
+    const sales = await this.findReportSales(query);
+    const totals = this.sumSales(sales);
+    const sellers = this.buildAnalyticsSellerKpis(sales, totals.netSalesMiles);
+    const topNumbers = this.buildAnalyticsNumberKpis(sales);
+    const days = this.buildAnalyticsDayKpis(sales);
+    const topLimit = query.topLimit;
+
+    return {
+      filters: {
+        dateFrom: query.dateFrom,
+        dateUntil: query.dateUntil,
+        sellerId: query.sellerId,
+        drawCode: query.drawCode,
+        topLimit,
+      },
+      summary: {
+        ...totals,
+        averageTicketMiles: this.averageMoney(
+          totals.netSalesMiles,
+          totals.activeSalesCount,
+        ),
+        activeSellersCount: sellers.filter((seller) => seller.netSalesMiles > 0)
+          .length,
+        numbersSoldCount: sales
+          .filter((sale) => sale.estado === venta_estado.ACTIVA)
+          .reduce((total, sale) => total + sale.venta_detalle.length, 0),
+        bestSeller: sellers[0]
+          ? {
+              sellerId: sellers[0].sellerId,
+              sellerName: sellers[0].sellerName,
+              netSalesMiles: sellers[0].netSalesMiles,
+            }
+          : null,
+        bestNumber: topNumbers[0]
+          ? {
+              number: topNumbers[0].number,
+              netSalesMiles: topNumbers[0].netSalesMiles,
+              ticketsCount: topNumbers[0].ticketsCount,
+            }
+          : null,
+        bestDay: days[0]
+          ? {
+              date: days[0].date,
+              netSalesMiles: days[0].netSalesMiles,
+              salesCount: days[0].salesCount,
+            }
+          : null,
+      },
+      sellers: sellers.slice(0, topLimit),
+      topNumbers: topNumbers.slice(0, topLimit),
+      bestDays: days.slice(0, topLimit),
+      trend: [...days].sort((left, right) =>
+        left.date.localeCompare(right.date),
+      ),
+      projection: this.buildProjection(query, days),
+    };
   }
 
   private async findReportSales(
@@ -174,6 +240,180 @@ export class PrismaReportsRepository implements ReportsRepository {
     });
   }
 
+  private buildAnalyticsSellerKpis(
+    sales: ReportSaleRecord[],
+    totalNetSalesMiles: number,
+  ): BusinessAnalyticsSellerKpi[] {
+    return this.buildSellerReports(sales, {
+      dateFrom: '',
+      dateUntil: '',
+      page: 1,
+      limit: Number.MAX_SAFE_INTEGER,
+      sortBy: 'netSalesMiles',
+      sortDirection: 'desc',
+    }).map((seller) => {
+      const numbersSoldCount = sales
+        .filter(
+          (sale) =>
+            sale.vendedores.id === seller.sellerId &&
+            sale.estado === venta_estado.ACTIVA,
+        )
+        .reduce((total, sale) => total + sale.venta_detalle.length, 0);
+
+      return {
+        sellerId: seller.sellerId,
+        sellerName: seller.sellerName,
+        salesCount: seller.salesCount,
+        activeSalesCount: seller.activeSalesCount,
+        voidedSalesCount: seller.voidedSalesCount,
+        netSalesMiles: seller.netSalesMiles,
+        grossSalesMiles: seller.grossSalesMiles,
+        paidPrizesMiles: seller.paidPrizesMiles,
+        balanceMiles: seller.balanceMiles,
+        averageTicketMiles: this.averageMoney(
+          seller.netSalesMiles,
+          seller.activeSalesCount,
+        ),
+        numbersSoldCount,
+        contributionPercent: this.percent(
+          seller.netSalesMiles,
+          totalNetSalesMiles,
+        ),
+      };
+    });
+  }
+
+  private buildAnalyticsNumberKpis(
+    sales: ReportSaleRecord[],
+  ): BusinessAnalyticsNumberKpi[] {
+    const numbers = new Map<
+      string,
+      { sellers: Set<string>; ticketsCount: number; netSalesMiles: number }
+    >();
+
+    for (const sale of sales) {
+      if (sale.estado !== venta_estado.ACTIVA) continue;
+
+      for (const detail of sale.venta_detalle) {
+        const current = numbers.get(detail.numero) ?? {
+          sellers: new Set<string>(),
+          ticketsCount: 0,
+          netSalesMiles: 0,
+        };
+
+        current.sellers.add(sale.vendedores.id);
+        current.ticketsCount += 1;
+        current.netSalesMiles = addMoney(
+          current.netSalesMiles,
+          detail.premio_miles,
+        );
+        numbers.set(detail.numero, current);
+      }
+    }
+
+    return [...numbers.entries()]
+      .map(([number, value]) => ({
+        number,
+        ticketsCount: value.ticketsCount,
+        sellersCount: value.sellers.size,
+        netSalesMiles: value.netSalesMiles,
+        averagePrizeMiles: this.averageMoney(
+          value.netSalesMiles,
+          value.ticketsCount,
+        ),
+      }))
+      .sort(
+        (left, right) =>
+          right.netSalesMiles - left.netSalesMiles ||
+          right.ticketsCount - left.ticketsCount ||
+          left.number.localeCompare(right.number),
+      );
+  }
+
+  private buildAnalyticsDayKpis(
+    sales: ReportSaleRecord[],
+  ): BusinessAnalyticsDayKpi[] {
+    const days = new Map<
+      string,
+      {
+        salesCount: number;
+        sellers: Set<string>;
+        netSalesMiles: number;
+        grossSalesMiles: number;
+      }
+    >();
+
+    for (const sale of sales) {
+      const date = this.toReportDate(sale);
+      const current = days.get(date) ?? {
+        salesCount: 0,
+        sellers: new Set<string>(),
+        netSalesMiles: 0,
+        grossSalesMiles: 0,
+      };
+      const saleTotalMiles = toMoneyNumber(sale.total_miles);
+
+      current.salesCount += 1;
+      current.sellers.add(sale.vendedores.id);
+      current.grossSalesMiles = addMoney(
+        current.grossSalesMiles,
+        saleTotalMiles,
+      );
+
+      if (sale.estado === venta_estado.ACTIVA) {
+        current.netSalesMiles = addMoney(current.netSalesMiles, saleTotalMiles);
+      }
+
+      days.set(date, current);
+    }
+
+    return [...days.entries()]
+      .map(([date, value]) => ({
+        date,
+        salesCount: value.salesCount,
+        sellersCount: value.sellers.size,
+        netSalesMiles: value.netSalesMiles,
+        grossSalesMiles: value.grossSalesMiles,
+        averageTicketMiles: this.averageMoney(
+          value.netSalesMiles,
+          value.salesCount,
+        ),
+      }))
+      .sort(
+        (left, right) =>
+          right.netSalesMiles - left.netSalesMiles ||
+          right.salesCount - left.salesCount ||
+          left.date.localeCompare(right.date),
+      );
+  }
+
+  private buildProjection(
+    query: GetBusinessAnalyticsQuery,
+    days: BusinessAnalyticsDayKpi[],
+  ): BusinessAnalyticsReport['projection'] {
+    const periodDays = Math.max(
+      this.daysBetweenInclusive(query.dateFrom, query.dateUntil),
+      1,
+    );
+    const netSalesMiles = days.reduce(
+      (total, day) => addMoney(total, day.netSalesMiles),
+      0,
+    );
+    const averageDailyNetSalesMiles = this.averageMoney(
+      netSalesMiles,
+      periodDays,
+    );
+
+    return {
+      periodDays,
+      averageDailyNetSalesMiles,
+      projectedNext7DaysNetSalesMiles: addMoney(averageDailyNetSalesMiles * 7),
+      projectedNext30DaysNetSalesMiles: addMoney(
+        averageDailyNetSalesMiles * 30,
+      ),
+    };
+  }
+
   private sumSales(
     sales: ReportSaleRecord[],
   ): Omit<OperationalOverviewReport, 'filters'> {
@@ -242,6 +482,32 @@ export class PrismaReportsRepository implements ReportsRepository {
     return sale.venta_detalle
       .filter((detail) => detail.numero === winningNumber)
       .reduce((total, detail) => addMoney(total, detail.premio_miles), 0);
+  }
+
+  private averageMoney(total: number, count: number): number {
+    if (count <= 0) return 0;
+
+    return addMoney(total / count);
+  }
+
+  private percent(value: number, total: number): number {
+    if (total <= 0) return 0;
+
+    return addMoney((value / total) * 100);
+  }
+
+  private toReportDate(sale: ReportSaleRecord): string {
+    const date = sale.turnos?.fecha ?? sale.creado_en;
+
+    return date.toISOString().slice(0, 10);
+  }
+
+  private daysBetweenInclusive(dateFrom: string, dateUntil: string): number {
+    const from = this.toDateOnly(dateFrom).getTime();
+    const until = this.toDateOnly(dateUntil).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    return Math.floor((until - from) / dayMs) + 1;
   }
 
   private toDateOnly(date: string): Date {

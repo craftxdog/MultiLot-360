@@ -6,10 +6,13 @@ import {
   SYSTEM_MODULES,
 } from '../../../../../common';
 import {
+  GetBusinessAnalyticsUseCase,
   GetOperationalOverviewUseCase,
   ListSellerOperationalReportsUseCase,
 } from '../../../application';
 import {
+  BusinessAnalyticsQueryDto,
+  BusinessAnalyticsReportResponseDto,
   OperationalOverviewReportResponseDto,
   OperationalReportQueryDto,
   SellerOperationalReportResponseDto,
@@ -23,9 +26,19 @@ import { ReportsHttpMapper } from '../mappers';
 @RequireModules(SYSTEM_MODULES.ventas)
 export class ReportsController {
   constructor(
+    private readonly getBusinessAnalytics: GetBusinessAnalyticsUseCase,
     private readonly getOperationalOverview: GetOperationalOverviewUseCase,
     private readonly listSellerOperationalReports: ListSellerOperationalReportsUseCase,
   ) {}
+
+  @Get('analytics')
+  @Permissions('ventas.read')
+  @ApiOkResponse({ type: BusinessAnalyticsReportResponseDto })
+  analytics(@Query() query: BusinessAnalyticsQueryDto) {
+    return this.getBusinessAnalytics.execute(
+      ReportsHttpMapper.toBusinessAnalyticsQuery(query),
+    );
+  }
 
   @Get('overview')
   @Permissions('ventas.read')
