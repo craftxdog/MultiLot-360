@@ -34,6 +34,14 @@ type NumberLimit = {
   id: string;
 };
 
+type NotificationPayload = {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  readAt: string | null;
+};
+
 type VoidPolicy = {
   windowMinutes: number;
 };
@@ -323,6 +331,9 @@ async function assertSellerScopedEvent(
     sellerSocket,
     eventName,
   );
+  const notificationEventPromise = waitForEvent<
+    RealtimeEnvelope<NotificationPayload>
+  >(sellerSocket, 'notifications.created');
   const limits = await apiRequest<NumberLimit[]>('POST', '/number-limits', {
     token: adminToken,
     body: {
@@ -333,9 +344,10 @@ async function assertSellerScopedEvent(
     },
   });
   sellerFixture.numberLimitIds.push(...limits.map((limit) => limit.id));
-  const [adminEvent, sellerEvent] = await Promise.all([
+  const [adminEvent, sellerEvent, notificationEvent] = await Promise.all([
     adminEventPromise,
     sellerEventPromise,
+    notificationEventPromise,
   ]);
 
   if (
@@ -346,6 +358,35 @@ async function assertSellerScopedEvent(
   }
   console.log(
     `PASS seller-scoped realtime event delivered eventId=${sellerEvent.id}`,
+  );
+
+  if (
+    notificationEvent.payload.userId !== sellerFixture.userId ||
+    notificationEvent.payload.type !== eventName
+  ) {
+    throw new Error('Persistent notification was routed to the wrong seller');
+  }
+  const inbox = await apiRequest<NotificationPayload[]>(
+    'GET',
+    `/notifications?type=${eventName}&limit=10`,
+    { token: sellerFixture.accessToken },
+  );
+  if (
+    !inbox.some(
+      (notification) => notification.id === notificationEvent.payload.id,
+    )
+  ) {
+    throw new Error(
+      'Realtime notification is missing from the persistent inbox',
+    );
+  }
+  await apiRequest<NotificationPayload>(
+    'PATCH',
+    `/notifications/${notificationEvent.payload.id}/read`,
+    { token: sellerFixture.accessToken },
+  );
+  console.log(
+    `PASS persistent notification delivered and marked read notificationId=${notificationEvent.payload.id}`,
   );
 }
 
@@ -440,6 +481,9 @@ async function cleanupTemporarySeller(fixture?: SellerFixture): Promise<void> {
   if (!fixture) return;
 
   try {
+    // Audit persistence runs after the HTTP response; let the final request settle
+    // before deleting the fixture and its audit trail.
+    await delay(750);
     await fixture.pool.query('begin');
     if (fixture.numberLimitIds.length > 0) {
       await fixture.pool.query(

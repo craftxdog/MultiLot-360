@@ -18,6 +18,7 @@ import {
 import {
   isValidSystemParameterKey,
   normalizeSystemParameterKey,
+  validateSystemParameterValue,
 } from './system-parameter-key';
 
 export type UpsertSystemParameterCommand = UpsertSystemParameterInput;
@@ -49,6 +50,11 @@ export class UpsertSystemParameterUseCase extends UseCase<
           undefined,
           400,
         );
+      }
+
+      const valueError = validateSystemParameterValue(key, input.value);
+      if (valueError) {
+        return ErrorFactory.useCase(valueError, undefined, 400);
       }
 
       const parameter = await this.systemParametersRepository.upsert({

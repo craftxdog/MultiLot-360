@@ -52,6 +52,30 @@ type SellerInvitation = {
   status: string;
 };
 
+type SellerDirectoryItem = {
+  id: string;
+  userId: string;
+  username: string;
+  roleId: string;
+  roleName: string;
+  active: boolean;
+};
+
+type AccessPermission = {
+  moduleId: string;
+  moduleCode: string;
+  canRead: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+};
+
+type AccessRole = {
+  id: string;
+  name: string;
+  permissions: AccessPermission[];
+};
+
 type DrawConfiguration = {
   id: string;
   code: string;
@@ -139,6 +163,7 @@ const requireReadyDependencies =
 let total = 0;
 let failures = 0;
 let existingSellerId = process.env.SMOKE_SELLER_ID;
+let existingSellerUserId: string | undefined;
 
 async function request<T = ApiEnvelope<unknown>>(
   method: HttpMethod,
@@ -515,6 +540,7 @@ async function runAuthChecks() {
   }
 
   existingSellerId ??= sellerIdentity.seller.id;
+  existingSellerUserId = sellerIdentity.user.id;
   pass('seller profile', `sellerId=${sellerIdentity.seller.id}`);
   expectStatus(
     'seller cannot create draw configurations',
@@ -525,6 +551,123 @@ async function runAuthChecks() {
         time: '23:59:59',
       },
     }),
+    [403],
+  );
+}
+
+async function runAccessAndNotificationChecks() {
+  expectEnvelope<SellerDirectoryItem[]>(
+    'seller directory with filters and pagination',
+    await request(
+      'GET',
+      '/identity-access/sellers?active=true&page=1&limit=5&sortBy=name&sortDirection=asc',
+    ),
+    200,
+  );
+  expectEnvelope<unknown[]>(
+    'access modules matrix',
+    await request('GET', '/parameters/access/modules'),
+    200,
+  );
+  const roles = expectEnvelope<AccessRole[]>(
+    'access roles matrix',
+    await request('GET', '/parameters/access/roles'),
+    200,
+  );
+  const sellerRole = roles.find(
+    (role) => role.name.toUpperCase() === 'VENDEDOR',
+  );
+  if (!sellerRole) throw new Error('Seller role was not found.');
+
+  expectEnvelope<AccessRole>(
+    'access role detail',
+    await request('GET', `/parameters/access/roles/${sellerRole.id}`),
+    200,
+  );
+  expectEnvelope<AccessRole>(
+    'access role permissions idempotent replace',
+    await request(
+      'PUT',
+      `/parameters/access/roles/${sellerRole.id}/permissions`,
+      {
+        body: {
+          permissions: sellerRole.permissions.map((permission) => ({
+            moduleCode: permission.moduleCode,
+            canRead: permission.canRead,
+            canCreate: permission.canCreate,
+            canUpdate: permission.canUpdate,
+            canDelete: permission.canDelete,
+          })),
+        },
+      },
+    ),
+    200,
+  );
+
+  if (existingSellerUserId) {
+    expectEnvelope(
+      'seller role idempotent assignment',
+      await request(
+        'PATCH',
+        `/parameters/access/users/${existingSellerUserId}/role`,
+        { body: { roleId: sellerRole.id } },
+      ),
+      200,
+    );
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const accessAudits = expectEnvelope<AuditEvent[]>(
+    'access mutations audited',
+    await request(
+      'GET',
+      '/audit-events?event=http.request.completed&page=1&limit=50',
+    ),
+    200,
+  );
+  if (
+    !accessAudits.some(
+      (event) =>
+        isRecord(event.payload) &&
+        typeof event.payload.path === 'string' &&
+        event.payload.path.includes('/parameters/access/'),
+    )
+  ) {
+    fail('access mutation audit payload', 'RBAC path was not recorded');
+  } else {
+    pass('access mutation audit payload');
+  }
+
+  expectEnvelope<unknown[]>(
+    'admin notification inbox',
+    await request('GET', '/notifications?page=1&limit=5'),
+    200,
+  );
+  expectEnvelope(
+    'admin unread notification count',
+    await request('GET', '/notifications/unread-count'),
+    200,
+  );
+
+  if (!sellerJwt) return;
+  const sellerReadPaths = [
+    '/draws/shifts/active',
+    '/blocked-numbers?page=1&limit=5',
+    '/number-limits?page=1&limit=5',
+    '/results?page=1&limit=5',
+    '/notifications?page=1&limit=5',
+    '/notifications/unread-count',
+  ];
+  for (const path of sellerReadPaths) {
+    expectEnvelope(
+      `seller permission ${path}`,
+      await request('GET', path, { token: sellerJwt }),
+      200,
+    );
+  }
+  expectStatus(
+    'seller cannot administer access matrix',
+    await request('GET', '/parameters/access/roles', { token: sellerJwt }),
     [403],
   );
 }
@@ -1072,6 +1215,7 @@ async function main() {
 
   await runPublicChecks();
   await runAuthChecks();
+  await runAccessAndNotificationChecks();
   await runSellerOnboardingChecks();
   await runOperationalFlowChecks();
 

@@ -128,4 +128,33 @@ describe('System parameter use cases', () => {
       payload: { key: 'sales.void_window_minutes' },
     });
   });
+
+  it('rejects an invalid sales milestone configuration', async () => {
+    const useCase = new UpsertSystemParameterUseCase(repository);
+    const result = await useCase.execute({
+      key: 'notifications.sales_milestone',
+      value: '{"thresholdMiles":0}',
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(result.isFailure && result.error.statusCode).toBe(400);
+    expect(repository.upsert.mock.calls).toHaveLength(0);
+  });
+
+  it('accepts personalized sales milestone templates', async () => {
+    repository.upsert.mockResolvedValue(
+      createParameter({ key: 'notifications.sales_milestone' }),
+    );
+    const useCase = new UpsertSystemParameterUseCase(repository);
+    const result = await useCase.execute({
+      key: 'notifications.sales_milestone',
+      value: JSON.stringify({
+        enabled: true,
+        thresholdMiles: 100,
+        sellerMessage: 'Felicidades {{sellerName}}',
+      }),
+    });
+
+    expect(result.isSuccess).toBe(true);
+  });
 });

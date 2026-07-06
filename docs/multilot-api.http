@@ -14,6 +14,8 @@
 @resultId = 00000000-0000-4000-8000-000000000009
 @cutId = 00000000-0000-4000-8000-000000000010
 @auditEventId = 1
+@roleId = 00000000-0000-4000-8000-000000000011
+@notificationId = 00000000-0000-4000-8000-000000000012
 
 ### Sistema
 
@@ -107,6 +109,11 @@ Authorization: Bearer {{adminToken}}
 
 ### Vendedores e invitaciones
 
+# ROUTE: GET /identity-access/sellers
+GET {{baseUrl}}/identity-access/sellers?search=ulloa&active=true&page=1&limit=25&sortBy=name&sortDirection=asc
+Authorization: Bearer {{adminToken}}
+
+###
 # ROUTE: GET /identity-access/sellers/invitations
 GET {{baseUrl}}/identity-access/sellers/invitations?status=PENDIENTE&page=1&limit=25&sortBy=createdAt&sortDirection=desc
 Authorization: Bearer {{adminToken}}
@@ -451,6 +458,69 @@ Authorization: Bearer {{adminToken}}
 
 ### Parámetros
 
+# ROUTE: GET /parameters/access/modules
+GET {{baseUrl}}/parameters/access/modules?search=ventas
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /parameters/access/roles
+GET {{baseUrl}}/parameters/access/roles?search=vendedor
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: GET /parameters/access/roles/:roleId
+GET {{baseUrl}}/parameters/access/roles/{{roleId}}
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: POST /parameters/access/roles
+# Persistente: crea un rol sin permisos; configura su matriz después.
+POST {{baseUrl}}/parameters/access/roles
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "supervisor"
+}
+
+###
+# ROUTE: PUT /parameters/access/roles/:roleId/permissions
+# Reemplazo completo: primero consulta el rol y envía todos los módulos deseados.
+PUT {{baseUrl}}/parameters/access/roles/{{roleId}}/permissions
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "permissions": [
+    {
+      "moduleCode": "TURNOS",
+      "canRead": true,
+      "canCreate": false,
+      "canUpdate": false,
+      "canDelete": false
+    },
+    {
+      "moduleCode": "VENTAS",
+      "canRead": true,
+      "canCreate": true,
+      "canUpdate": true,
+      "canDelete": false
+    }
+  ]
+}
+
+###
+# ROUTE: PATCH /parameters/access/users/:userId/role
+PATCH {{baseUrl}}/parameters/access/users/{{userId}}/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "roleId": "{{roleId}}"
+}
+
+###
+
 # ROUTE: GET /parameters
 GET {{baseUrl}}/parameters?key=sales.&page=1&limit=25&sortBy=key&sortDirection=asc
 Authorization: Bearer {{adminToken}}
@@ -469,6 +539,37 @@ Content-Type: application/json
 {
   "value": "10"
 }
+
+###
+# Configuración personalizable de meta por monto y/o cantidad de ventas.
+PUT {{baseUrl}}/parameters/notifications.sales_milestone
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "value": "{\"enabled\":true,\"thresholdMiles\":100,\"sellerTitle\":\"Meta alcanzada\",\"sellerMessage\":\"¡Felicidades \u007b\u007bsellerName\u007d\u007d! Has vendido \u007b\u007btotalMiles\u007d\u007d mil en \u007b\u007bsalesCount\u007d\u007d ventas.\",\"adminTitle\":\"Meta de vendedor\",\"adminMessage\":\"\u007b\u007bsellerName\u007d\u007d llegó a \u007b\u007btotalMiles\u007d\u007d mil en el turno \u007b\u007bshiftId\u007d\u007d.\"}"
+}
+
+### Notificaciones
+
+# ROUTE: GET /notifications
+GET {{baseUrl}}/notifications?unread=true&type=number-limits.created&page=1&limit=25&sortBy=createdAt&sortDirection=desc
+Authorization: Bearer {{sellerToken}}
+
+###
+# ROUTE: GET /notifications/unread-count
+GET {{baseUrl}}/notifications/unread-count
+Authorization: Bearer {{sellerToken}}
+
+###
+# ROUTE: PATCH /notifications/:notificationId/read
+PATCH {{baseUrl}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{sellerToken}}
+
+###
+# ROUTE: PATCH /notifications/read-all
+PATCH {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{sellerToken}}
 
 ### Auditoría
 

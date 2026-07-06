@@ -6,6 +6,7 @@ import { PaginatedResult } from '../../../../../shared-kernel';
 import {
   ConfirmSellerAccessInput,
   ListSellerInvitationsQuery,
+  ListSellersQuery,
   PendingSellerAccess,
   PersistResendSellerAccessCodeInput,
   PersistSellerInvitationInput,
@@ -18,6 +19,7 @@ import {
   SellerAccessCodeStatus,
   SellerInvitation,
   SellerInvitationListItem,
+  SellerDirectoryItem,
 } from '../../../domain';
 
 const DEFAULT_SELLER_ROLE_NAME = 'vendedor';
@@ -26,6 +28,48 @@ const PENDING_PASSWORD_HASH = 'supabase:pending';
 @Injectable()
 export class PrismaSellerOnboardingRepository implements SellerOnboardingRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listSellers(
+    query: ListSellersQuery,
+  ): Promise<PaginatedResult<SellerDirectoryItem>> {
+    const where = this.buildSellerListWhere(query);
+    const orderBy = this.buildSellerListOrderBy(query);
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.vendedores.findMany({
+        where,
+        include: {
+          usuarios: {
+            include: { roles: true },
+          },
+        },
+        orderBy,
+        skip: getOffsetSkip(query),
+        take: query.limit,
+      }),
+      this.prisma.vendedores.count({ where }),
+    ]);
+
+    return buildOffsetPagination(
+      items.map((item) => ({
+        id: item.id,
+        userId: item.usuario_id,
+        username: item.usuarios.username,
+        userName: item.usuarios.nombre,
+        roleId: item.usuarios.roles.id,
+        roleName: item.usuarios.roles.nombre,
+        name: item.nombre,
+        documentId: item.cedula,
+        phone: item.telefono,
+        address: item.direccion,
+        active: item.activo && item.usuarios.activo,
+        userActive: item.usuarios.activo,
+        createdAt: item.creado_en,
+        updatedAt: item.actualizado_en,
+      })),
+      total,
+      query,
+    );
+  }
 
   async listInvitations(
     query: ListSellerInvitationsQuery,
@@ -263,6 +307,74 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
           : {},
       ],
     };
+  }
+
+  private buildSellerListWhere(
+    query: ListSellersQuery,
+  ): Prisma.vendedoresWhereInput {
+    const activeFilter =
+      query.active === undefined
+        ? {}
+        : query.active
+          ? { activo: true, usuarios: { activo: true } }
+          : { OR: [{ activo: false }, { usuarios: { activo: false } }] };
+
+    return {
+      AND: [
+        activeFilter,
+        query.roleId ? { usuarios: { rol_id: query.roleId } } : {},
+        query.username
+          ? {
+              usuarios: {
+                username: { contains: query.username, mode: 'insensitive' },
+              },
+            }
+          : {},
+        query.documentId
+          ? { cedula: { contains: query.documentId, mode: 'insensitive' } }
+          : {},
+        query.createdFrom ? { creado_en: { gte: query.createdFrom } } : {},
+        query.createdTo ? { creado_en: { lte: query.createdTo } } : {},
+        query.search
+          ? {
+              OR: [
+                { nombre: { contains: query.search, mode: 'insensitive' } },
+                { cedula: { contains: query.search, mode: 'insensitive' } },
+                { telefono: { contains: query.search, mode: 'insensitive' } },
+                {
+                  usuarios: {
+                    username: { contains: query.search, mode: 'insensitive' },
+                  },
+                },
+                {
+                  usuarios: {
+                    nombre: { contains: query.search, mode: 'insensitive' },
+                  },
+                },
+              ],
+            }
+          : {},
+      ],
+    };
+  }
+
+  private buildSellerListOrderBy(
+    query: ListSellersQuery,
+  ): Prisma.vendedoresOrderByWithRelationInput {
+    const direction = query.sortDirection;
+    if (query.sortBy === 'name' || query.sortBy === 'nombre') {
+      return { nombre: direction };
+    }
+    if (query.sortBy === 'documentId' || query.sortBy === 'cedula') {
+      return { cedula: direction };
+    }
+    if (query.sortBy === 'username') {
+      return { usuarios: { username: direction } };
+    }
+    if (query.sortBy === 'active' || query.sortBy === 'activo') {
+      return { activo: direction };
+    }
+    return { creado_en: direction };
   }
 
   private buildStatusWhere(

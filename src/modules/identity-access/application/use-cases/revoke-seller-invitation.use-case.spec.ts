@@ -3,6 +3,7 @@ import { RevokeSellerInvitationUseCase } from './revoke-seller-invitation.use-ca
 
 describe('RevokeSellerInvitationUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
+    listSellers: jest.fn(),
     listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
