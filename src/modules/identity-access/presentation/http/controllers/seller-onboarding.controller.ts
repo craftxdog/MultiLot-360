@@ -30,6 +30,7 @@ import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
   ListSellerInvitationsUseCase,
+  ListSellersUseCase,
   ResendSellerAccessCodeUseCase,
   RevokeSellerInvitationUseCase,
 } from '../../../application';
@@ -38,11 +39,13 @@ import {
   ConfirmSellerAccessCodeResponseDto,
   CreateSellerInvitationDto,
   ListSellerInvitationsQueryDto,
+  ListSellersQueryDto,
   ResendSellerAccessCodeDto,
   ResendSellerAccessCodeResponseDto,
   RevokeSellerInvitationResponseDto,
   SellerInvitationListItemResponseDto,
   SellerInvitationResponseDto,
+  SellerDirectoryItemResponseDto,
 } from '../dto';
 import { SellerOnboardingHttpMapper } from '../mappers';
 
@@ -54,8 +57,20 @@ export class SellerOnboardingController {
     private readonly confirmSellerAccessCode: ConfirmSellerAccessCodeUseCase,
     private readonly resendSellerAccessCode: ResendSellerAccessCodeUseCase,
     private readonly listSellerInvitations: ListSellerInvitationsUseCase,
+    private readonly listSellers: ListSellersUseCase,
     private readonly revokeSellerInvitation: RevokeSellerInvitationUseCase,
   ) {}
+
+  @Get()
+  @ApiBearerAuth()
+  @RequireModules(SYSTEM_MODULES.vendedores)
+  @Permissions('vendedores.read')
+  @ApiOkResponse({ type: [SellerDirectoryItemResponseDto] })
+  sellers(@Query() query: ListSellersQueryDto) {
+    return this.listSellers.execute(
+      SellerOnboardingHttpMapper.toListSellersQuery(query),
+    );
+  }
 
   @Get('invitations')
   @ApiBearerAuth()

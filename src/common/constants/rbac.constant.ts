@@ -19,6 +19,7 @@ export const SYSTEM_MODULES = {
   cortes: 'cortes',
   parametros: 'parametros',
   auditoria: 'auditoria',
+  notificaciones: 'notificaciones',
 } as const;
 
 export type SystemModule = (typeof SYSTEM_MODULES)[keyof typeof SYSTEM_MODULES];

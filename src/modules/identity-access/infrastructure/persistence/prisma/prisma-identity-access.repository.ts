@@ -59,9 +59,11 @@ export class PrismaIdentityAccessRepository implements IdentityAccessRepository 
     const permissionRows = user.roles.permisos_por_rol;
     const modules = [
       ...new Set(
-        permissionRows.map((permission) =>
-          permission.modulos.codigo.toLowerCase(),
-        ),
+        permissionRows
+          .filter((permission) =>
+            PERMISSION_ACTIONS.some(({ field }) => permission[field]),
+          )
+          .map((permission) => permission.modulos.codigo.toLowerCase()),
       ),
     ];
     const permissions = [

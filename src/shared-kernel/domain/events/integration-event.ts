@@ -46,6 +46,9 @@ export const OPERATIONAL_EVENTS = {
   prizePaid: 'prize-payments.paid',
   cashCutCreated: 'cash-cuts.created',
   systemParameterUpdated: 'parameters.updated',
+  accessRolePermissionsUpdated: 'access.role.permissions.updated',
+  accessUserRoleUpdated: 'access.user.role.updated',
+  notificationCreated: 'notifications.created',
 } as const;
 
 export type OperationalEventName =
@@ -86,5 +89,13 @@ export const operationalAudience = {
   }),
   parameters: (): IntegrationEventAudience => ({
     modules: ['parametros'],
+  }),
+  accessRole: (roleName: string): IntegrationEventAudience => ({
+    modules: ['roles'],
+    roles: [roleName],
+  }),
+  accessUser: (userId: string): IntegrationEventAudience => ({
+    modules: ['roles'],
+    userIds: [userId],
   }),
 };
