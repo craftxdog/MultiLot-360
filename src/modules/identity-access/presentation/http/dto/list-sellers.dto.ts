@@ -99,6 +99,12 @@ export class SellerDirectoryItemResponseDto {
   @ApiProperty()
   userActive: boolean;
 
+  @ApiProperty({ nullable: true })
+  deletedAt: Date | null;
+
+  @ApiProperty({ nullable: true })
+  deletionReason: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

@@ -3,6 +3,8 @@ import {
   PaginatedResult,
 } from '../../../../shared-kernel';
 import {
+  BusinessAnalyticsReport,
+  BusinessAnalyticsFilters,
   OperationalOverviewReport,
   OperationalReportFilters,
   SellerOperationalReport,
@@ -11,6 +13,7 @@ import {
 export const REPORTS_REPOSITORY = Symbol('REPORTS_REPOSITORY');
 
 export type GetOperationalOverviewQuery = OperationalReportFilters;
+export type GetBusinessAnalyticsQuery = BusinessAnalyticsFilters;
 
 export type ListSellerOperationalReportsQuery = OffsetPaginationQuery &
   OperationalReportFilters;
@@ -22,4 +25,7 @@ export interface ReportsRepository {
   listSellerOperationalReports(
     query: ListSellerOperationalReportsQuery,
   ): Promise<PaginatedResult<SellerOperationalReport>>;
+  getBusinessAnalytics(
+    query: GetBusinessAnalyticsQuery,
+  ): Promise<BusinessAnalyticsReport>;
 }

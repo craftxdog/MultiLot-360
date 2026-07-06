@@ -9,6 +9,9 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),
     revokeInvitation: jest.fn(),
+    findDeletionTarget: jest.fn(),
+    softDeleteSeller: jest.fn(),
+    hardDeleteSeller: jest.fn(),
     findPendingAccessCode: jest.fn(),
     confirmAccessCode: jest.fn(),
   };

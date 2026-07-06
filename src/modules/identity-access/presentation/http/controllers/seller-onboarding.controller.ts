@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Param,
   ParseUUIDPipe,
   Get,
@@ -29,6 +30,7 @@ import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
+  DeleteSellerUseCase,
   ListSellerInvitationsUseCase,
   ListSellersUseCase,
   ResendSellerAccessCodeUseCase,
@@ -38,6 +40,7 @@ import {
   ConfirmSellerAccessCodeDto,
   ConfirmSellerAccessCodeResponseDto,
   CreateSellerInvitationDto,
+  DeleteSellerDto,
   ListSellerInvitationsQueryDto,
   ListSellersQueryDto,
   ResendSellerAccessCodeDto,
@@ -46,6 +49,7 @@ import {
   SellerInvitationListItemResponseDto,
   SellerInvitationResponseDto,
   SellerDirectoryItemResponseDto,
+  SellerDeletionResponseDto,
 } from '../dto';
 import { SellerOnboardingHttpMapper } from '../mappers';
 
@@ -59,6 +63,7 @@ export class SellerOnboardingController {
     private readonly listSellerInvitations: ListSellerInvitationsUseCase,
     private readonly listSellers: ListSellersUseCase,
     private readonly revokeSellerInvitation: RevokeSellerInvitationUseCase,
+    private readonly deleteSeller: DeleteSellerUseCase,
   ) {}
 
   @Get()
@@ -137,6 +142,50 @@ export class SellerOnboardingController {
   ) {
     return this.revokeSellerInvitation.execute(
       SellerOnboardingHttpMapper.toRevokeInvitationCommand(invitationId, admin),
+    );
+  }
+
+  @Patch(':sellerId/soft-delete')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @RequireModules(SYSTEM_MODULES.usuarios)
+  @Permissions('usuarios.delete')
+  @ApiParam({ name: 'sellerId', format: 'uuid' })
+  @ApiOkResponse({ type: SellerDeletionResponseDto })
+  softDeleteSeller(
+    @CurrentUser() admin: AuthenticatedUserContext,
+    @Param('sellerId', new ParseUUIDPipe({ version: '4' })) sellerId: string,
+    @Body() body: DeleteSellerDto,
+  ) {
+    return this.deleteSeller.execute(
+      SellerOnboardingHttpMapper.toDeleteSellerCommand(
+        sellerId,
+        body,
+        admin,
+        false,
+      ),
+    );
+  }
+
+  @Delete(':sellerId')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @RequireModules(SYSTEM_MODULES.usuarios)
+  @Permissions('usuarios.delete')
+  @ApiParam({ name: 'sellerId', format: 'uuid' })
+  @ApiOkResponse({ type: SellerDeletionResponseDto })
+  hardDeleteSeller(
+    @CurrentUser() admin: AuthenticatedUserContext,
+    @Param('sellerId', new ParseUUIDPipe({ version: '4' })) sellerId: string,
+    @Body() body: DeleteSellerDto,
+  ) {
+    return this.deleteSeller.execute(
+      SellerOnboardingHttpMapper.toDeleteSellerCommand(
+        sellerId,
+        body,
+        admin,
+        true,
+      ),
     );
   }
 }

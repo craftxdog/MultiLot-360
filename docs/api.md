@@ -148,11 +148,12 @@ Supabase Auth conserva credenciales y sesiones en `auth.users`. El esquema
 
 La matriz `00..99`, reportes y resúmenes de cortes son proyecciones de lectura;
 no duplican datos en tablas propias. Las columnas monetarias operacionales son
-`numeric(14,2)`. El schema íntegro está en `prisma/schema.prisma` y la migración
-de decimales/RBAC de matriz en
-`prisma/migrations/20260701213000_support_decimal_sales_and_matrix/` y la de
-notificaciones/RBAC en
-`prisma/migrations/20260706181532_add_notifications_and_rbac_defaults/`.
+`numeric(14,2)`. El schema íntegro está en `prisma/schema.prisma`. Las
+migraciones recientes están en:
+
+- `prisma/migrations/20260701213000_support_decimal_sales_and_matrix/`;
+- `prisma/migrations/20260706181532_add_notifications_and_rbac_defaults/`;
+- `prisma/migrations/20260706221047_add_seller_deletion_metadata/`.
 
 ## Sistema y salud
 
@@ -217,6 +218,8 @@ contraseñas, service role keys ni tokens completos.
 | POST | `/identity-access/sellers/access-code/confirm` | Público | Consume el código, establece contraseña y activa la cuenta. |
 | POST | `/identity-access/sellers/access-code/resend` | `usuarios.create` | Invalida el código anterior y envía uno nuevo. |
 | PATCH | `/identity-access/sellers/invitations/:invitationId/revoke` | `usuarios.update` o `usuarios.create` | Revoca una invitación pendiente. |
+| PATCH | `/identity-access/sellers/:sellerId/soft-delete` | `usuarios.delete` | Eliminación lógica: desactiva usuario/vendedor, marca metadata de baja, revoca invitaciones pendientes y audita la acción. |
+| DELETE | `/identity-access/sellers/:sellerId` | `usuarios.delete` | Eliminación física: borra Auth Supabase, ventas, detalles, pagos, límites, códigos, notificaciones y el perfil usuario/vendedor; conserva auditoría administrativa. |
 
 El código de acceso es de un solo uso, cambia al reenviarse y tiene vencimiento.
 La confirmación pública exige correo, código y contraseña; no acepta un JWT de
@@ -225,6 +228,8 @@ administrador como sustituto.
 Filtros del directorio: `search`, `username`, `documentId`, `active`, `roleId`,
 `createdFrom`, `createdTo`, `page`, `limit`, `sortBy` y `sortDirection`.
 `search` consulta nombre, documento, teléfono, username y nombre del usuario.
+El directorio devuelve `deletedAt` y `deletionReason` para distinguir una baja
+lógica de un vendedor pendiente o simplemente inactivo.
 
 ## Sorteos y turnos
 
@@ -367,11 +372,16 @@ venta, resultado y usuario que confirmó el pago.
 
 | Método | Ruta | Acceso | Propósito |
 | --- | --- | --- | --- |
+| GET | `/reports/analytics` | `ventas.read` | KPI ejecutivo: resumen, ranking de vendedores, números top, mejores días, tendencia y proyección. |
 | GET | `/reports/overview` | `ventas.read` | Totales operacionales para fecha, turno o vendedor. |
 | GET | `/reports/sellers` | `ventas.read` | Desglose comparativo por vendedor. |
 
 Los reportes son proyecciones de lectura. No modifican ventas ni reemplazan
 los cortes contables.
+
+`/reports/analytics` acepta `dateFrom`, `dateUntil`, `sellerId?`,
+`drawCode?` y `topLimit?` (1-50). La proyección usa el promedio diario neto del
+período filtrado para estimar los próximos 7 y 30 días.
 
 ## Parámetros del sistema
 

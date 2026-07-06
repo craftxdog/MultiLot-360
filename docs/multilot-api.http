@@ -160,6 +160,26 @@ Content-Type: application/json
 PATCH {{baseUrl}}/identity-access/sellers/invitations/{{invitationId}}/revoke
 Authorization: Bearer {{adminToken}}
 
+###
+# ROUTE: PATCH /identity-access/sellers/:sellerId/soft-delete
+PATCH {{baseUrl}}/identity-access/sellers/{{sellerId}}/soft-delete
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Baja administrativa temporal"
+}
+
+###
+# ROUTE: DELETE /identity-access/sellers/:sellerId
+DELETE {{baseUrl}}/identity-access/sellers/{{sellerId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Eliminación definitiva solicitada por administración"
+}
+
 ### Configuraciones y turnos de sorteo
 
 # ROUTE: GET /draws/configurations
@@ -447,6 +467,11 @@ Authorization: Bearer {{adminToken}}
 
 ### Reportes
 
+# ROUTE: GET /reports/analytics
+GET {{baseUrl}}/reports/analytics?dateFrom={{date}}&dateUntil={{date}}&topLimit=10
+Authorization: Bearer {{adminToken}}
+
+###
 # ROUTE: GET /reports/overview
 GET {{baseUrl}}/reports/overview?dateFrom={{date}}&dateUntil={{date}}&sellerId={{sellerId}}&drawCode=nacional-11am
 Authorization: Bearer {{adminToken}}

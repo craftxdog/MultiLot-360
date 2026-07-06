@@ -1,5 +1,6 @@
 export * from './auth.dto';
 export * from './auth-me-response.dto';
+export * from './delete-seller.dto';
 export * from './list-seller-invitations.dto';
 export * from './list-sellers.dto';
 export * from './resend-access-code.dto';

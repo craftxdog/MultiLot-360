@@ -1,8 +1,10 @@
 import {
+  GetBusinessAnalyticsQuery,
   GetOperationalOverviewQuery,
   ListSellerOperationalReportsQuery,
 } from '../../../domain';
 import {
+  BusinessAnalyticsQueryDto,
   OperationalReportQueryDto,
   SellerOperationalReportsQueryDto,
 } from '../dto';
@@ -31,6 +33,18 @@ export class ReportsHttpMapper {
       limit: dto.limit,
       sortBy: dto.sortBy,
       sortDirection: dto.sortDirection,
+    };
+  }
+
+  static toBusinessAnalyticsQuery(
+    dto: BusinessAnalyticsQueryDto,
+  ): GetBusinessAnalyticsQuery {
+    return {
+      dateFrom: dto.dateFrom,
+      dateUntil: dto.dateUntil,
+      sellerId: dto.sellerId,
+      drawCode: dto.drawCode,
+      topLimit: dto.topLimit,
     };
   }
 }

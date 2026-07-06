@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
+  GetBusinessAnalyticsUseCase,
   GetOperationalOverviewUseCase,
   ListSellerOperationalReportsUseCase,
 } from './application';
@@ -13,6 +14,7 @@ import { ReportsController } from './presentation';
   controllers: [ReportsController],
   providers: [
     PrismaReportsRepository,
+    GetBusinessAnalyticsUseCase,
     GetOperationalOverviewUseCase,
     ListSellerOperationalReportsUseCase,
     {
@@ -20,6 +22,10 @@ import { ReportsController } from './presentation';
       useExisting: PrismaReportsRepository,
     },
   ],
-  exports: [GetOperationalOverviewUseCase, ListSellerOperationalReportsUseCase],
+  exports: [
+    GetBusinessAnalyticsUseCase,
+    GetOperationalOverviewUseCase,
+    ListSellerOperationalReportsUseCase,
+  ],
 })
 export class ReportsModule {}

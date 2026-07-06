@@ -5,6 +5,8 @@ import {
   SellerInvitationListItem,
   SellerInvitation,
   SellerDirectoryItem,
+  SellerDeletionResult,
+  SellerDeletionTarget,
 } from '../entities';
 import { PaginatedResult } from '../../../../shared-kernel';
 
@@ -68,6 +70,12 @@ export type RevokeSellerInvitationInput = {
   adminUserId?: string;
 };
 
+export type DeleteSellerInput = {
+  sellerId: string;
+  adminUserId: string;
+  reason?: string;
+};
+
 export type PendingSellerAccess = {
   userId: string;
   sellerId: string;
@@ -91,6 +99,13 @@ export interface SellerOnboardingRepository {
   revokeInvitation(
     input: RevokeSellerInvitationInput,
   ): Promise<RevokedSellerInvitation | null>;
+  findDeletionTarget(sellerId: string): Promise<SellerDeletionTarget | null>;
+  softDeleteSeller(
+    input: DeleteSellerInput,
+  ): Promise<SellerDeletionResult | null>;
+  hardDeleteSeller(
+    input: DeleteSellerInput & { authUserDeleted: boolean },
+  ): Promise<SellerDeletionResult | null>;
   findPendingAccessCode(
     email: string,
     accessCodeHash: string,
