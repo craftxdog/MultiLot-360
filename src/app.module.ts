@@ -12,6 +12,7 @@ import { DrawsModule } from './modules/draws';
 import { HealthModule } from './modules/health';
 import { IdentityAccessModule } from './modules/identity-access';
 import { NumberLimitsModule } from './modules/number-limits';
+import { NotificationsModule } from './modules/notifications';
 import { PrizePaymentsModule } from './modules/prize-payments';
 import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
@@ -29,6 +30,7 @@ import { SystemParametersModule } from './modules/system-parameters';
     RealtimeModule,
     DrawsModule,
     NumberLimitsModule,
+    NotificationsModule,
     SalesModule,
     SalesMatrixModule,
     BlockedNumbersModule,

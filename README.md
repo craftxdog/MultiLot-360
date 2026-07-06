@@ -41,6 +41,7 @@ destructivas están identificadas.
 | Módulo | Responsabilidad |
 | --- | --- |
 | Identity access | Supabase Auth, sesiones, RBAC, invitaciones y recuperación de contraseña. |
+| Access control | Matriz administrable de roles/módulos/permisos y asignación de roles. |
 | Draws | Configuraciones recurrentes y ciclo de vida de turnos. |
 | Number limits | Límites globales, por vendedor y por sorteo. |
 | Blocked numbers | Bloqueos por fecha o turno. |
@@ -51,6 +52,7 @@ destructivas están identificadas.
 | Cash cuts | Cortes y saldos contables por período. |
 | Reports | Resumen operacional y desempeño por vendedor. |
 | Parameters | Reglas operacionales administrables. |
+| Notifications | Bandeja persistente, metas personalizables y entrega Socket.IO por usuario. |
 | Audit logs | Trazabilidad técnica y semántica sin persistir secretos. |
 | Realtime | Invalidación/refetch mediante Socket.IO y Redis. |
 
@@ -116,6 +118,16 @@ yarn prisma:validate
 
 Revisa siempre el diff de `prisma/schema.prisma` después de `db pull`.
 
+Después de aplicar la migración de RBAC/notificaciones, valida la configuración:
+
+```bash
+yarn rbac:seed
+yarn rbac:verify
+```
+
+`rbac:seed` es idempotente y garantiza los permisos mínimos de `VENDEDOR` para
+turnos, bloqueos, límites, resultados y notificaciones.
+
 ## Ejecución
 
 ```bash
@@ -132,9 +144,11 @@ yarn start:dev
 ## Tiempo real
 
 Socket.IO notifica cambios confirmados en sorteos, turnos, límites, bloqueos,
-ventas, resultados, premios, cortes y parámetros. La conexión usa el access
-token de Supabase en `auth.token`; las salas se calculan en el servidor según
-el usuario, rol, vendedor y módulos autorizados.
+ventas, resultados, premios, cortes, parámetros y RBAC. La conexión usa el
+access token de Supabase en `auth.token`; las salas se calculan en el servidor
+según el usuario, rol, vendedor y módulos autorizados. Los avisos dirigidos al
+usuario se emiten como `notifications.created` y también se guardan en su
+bandeja REST.
 
 Los eventos no sustituyen las respuestas REST. El cliente los usa para
 invalidar y refrescar sus consultas, especialmente después de reconectar. El
@@ -164,7 +178,8 @@ yarn build
 
 ## Smoke real
 
-El runner `scripts/api-smoke.ts` comprueba los endpoints públicos, Auth y RBAC.
+El runner `scripts/api-smoke.ts` comprueba los endpoints públicos, Auth, matriz
+RBAC, directorio paginado, permisos del vendedor y bandeja de notificaciones.
 Con el flujo operacional habilitado crea datos identificados con
 `codex-smoke-*` y recorre:
 

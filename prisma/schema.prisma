@@ -52,6 +52,7 @@ model usuarios {
   codigos_acceso_usuario codigos_acceso_vendedor[] @relation("codigos_acceso_usuario")
   cortes                 cortes[]
   numeros_bloqueados     numeros_bloqueados[]
+  notificaciones         notificaciones[]
   pagos_premios          pagos_premios[]
   resultados             resultados[]
   roles                  roles                     @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -246,6 +247,24 @@ model auditoria_eventos {
 
   @@index([creado_en(sort: Desc)], map: "ix_auditoria_eventos_creado_en")
   @@index([usuario_id], map: "ix_auditoria_eventos_usuario_id")
+}
+
+model notificaciones {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String    @db.Uuid
+  tipo       String    @db.VarChar(80)
+  titulo     String    @db.VarChar(160)
+  mensaje    String
+  datos      Json?
+  dedup_key  String?   @db.VarChar(220)
+  leida_en   DateTime? @db.Timestamptz(6)
+  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([dedup_key], map: "uq_notificaciones_dedup_key", where: raw("(dedup_key IS NOT NULL)"))
+  @@index([usuario_id, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_creado")
+  @@index([usuario_id, leida_en, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_leida")
+  @@index([tipo, creado_en(sort: Desc)], map: "ix_notificaciones_tipo_creado")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

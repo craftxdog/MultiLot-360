@@ -107,6 +107,20 @@ Los SQL bajo `prisma/migrations/` documentan y permiten reproducir cambios
 aplicados de forma controlada. No ejecutar un archivo nuevamente sin revisar su
 estado en el entorno objetivo.
 
+El proyecto Supabase original fue creado antes del historial de Prisma Migrate.
+Si `prisma migrate deploy` devuelve `P3005`, no marcar migraciones ni baselinar
+automáticamente una base productiva. Revisa el SQL y ejecuta únicamente el
+archivo pendiente autorizado, por ejemplo:
+
+```bash
+yarn prisma db execute --file prisma/migrations/20260706181532_add_notifications_and_rbac_defaults/migration.sql
+yarn rbac:verify
+```
+
+La verificación debe confirmar tabla `notificaciones`, módulo
+`NOTIFICACIONES`, parámetro `notifications.sales_milestone` y permisos mínimos
+del rol vendedor.
+
 Las columnas monetarias operacionales deben permanecer en `numeric(14,2)`:
 
 ```txt
@@ -125,6 +139,8 @@ limites_numero.limite_miles
 - No usar eventos Socket.IO para ejecutar mutaciones.
 
 El cliente siempre hace refetch REST después de eventos o reconexión.
+`notifications.created` se persiste antes de emitirse a la sala del usuario;
+si el socket se pierde, la bandeja REST conserva el aviso.
 
 ## Validación previa a publicar
 
@@ -142,6 +158,9 @@ yarn build
 Para una prueba operacional real, levantar API y Redis y ejecutar
 `yarn test:api:smoke` con credenciales temporales autorizadas. Los flujos que
 crean invitaciones o envían correo deben habilitarse explícitamente.
+El smoke realtime con vendedor temporal comprueba persistencia y lectura de
+notificaciones. Si se interrumpe, ejecutar `yarn test:realtime:cleanup` para
+eliminar solamente fixtures `codex.realtime.*`.
 
 ## Estrategia de ramas
 

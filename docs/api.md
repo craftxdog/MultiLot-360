@@ -85,6 +85,11 @@ DTOs de entrada principales:
 | `AdminResetPasswordDto` | `targetUserId`, `newPassword`, `confirmPassword` | Solo ADMIN con `usuarios.update`; usuario activo y enlazado a Supabase. |
 | `CreateSellerInvitationDto` | `email`, `username`, `sellerName`, `documentId`, `phone?`, `address?`, `roleName?` | Cédula y teléfono nicaragüense normalizados; código de acceso de un solo uso. |
 | `ConfirmSellerAccessCodeDto` | `email`, `accessCode`, `password` | Código de 6 dígitos y contraseña 8..72. |
+| `ListSellersQueryDto` | `search?`, `username?`, `documentId?`, `active?`, `roleId?`, `createdFrom?`, `createdTo?` | Directorio paginado; búsqueda por nombre, usuario, documento o teléfono. |
+| `CreateAccessRoleDto` | `name` | Nombre único de 2..80 caracteres. |
+| `ReplaceAccessRolePermissionsDto` | `permissions[]` | Reemplazo completo de la matriz; cada módulo define `canRead`, `canCreate`, `canUpdate`, `canDelete`. |
+| `AssignUserRoleDto` | `roleId` | UUID de rol; un administrador no puede retirarse a sí mismo el rol `ADMIN`. |
+| `ListNotificationsQueryDto` | `type?`, `unread?` | Bandeja paginada del usuario autenticado; nunca acepta `userId` ajeno. |
 | `CreateDrawConfigurationDto` | `code`, `time`, `tuesdayOnly?`, `lockSecondsBefore?`, `reopenSecondsAfter?`, `active?` | Código slug; hora `HH:mm[:ss]`; ventanas enteras acotadas. |
 | `OpenDrawShiftDto` | `configurationId`, `date` | UUID de configuración y fecha ISO corta. |
 | `CreateNumberLimitsDto` | `sellerId?`, `drawConfigurationId?` o `drawCode?`, `numbers`, `limitMiles`, `validFrom`, `validUntil?` | 1..100 números; monto 0.01..999999; alcances opcionales. |
@@ -139,12 +144,15 @@ Supabase Auth conserva credenciales y sesiones en `auth.users`. El esquema
 | `cortes` | Período contable, visibilidad y usuario creador. |
 | `parametros` | Claves operacionales permitidas, no secretos. |
 | `auditoria_eventos` | Evento, actor opcional, payload JSON y timestamp. |
+| `notificaciones` | Bandeja durable por usuario, tipo, mensaje personalizado, payload, lectura y clave de deduplicación. |
 
 La matriz `00..99`, reportes y resúmenes de cortes son proyecciones de lectura;
 no duplican datos en tablas propias. Las columnas monetarias operacionales son
 `numeric(14,2)`. El schema íntegro está en `prisma/schema.prisma` y la migración
 de decimales/RBAC de matriz en
-`prisma/migrations/20260701213000_support_decimal_sales_and_matrix/`.
+`prisma/migrations/20260701213000_support_decimal_sales_and_matrix/` y la de
+notificaciones/RBAC en
+`prisma/migrations/20260706181532_add_notifications_and_rbac_defaults/`.
 
 ## Sistema y salud
 
@@ -203,6 +211,7 @@ contraseñas, service role keys ni tokens completos.
 
 | Método | Ruta | Acceso | Propósito |
 | --- | --- | --- | --- |
+| GET | `/identity-access/sellers` | `vendedores.read` | Lista vendedores activos/inactivos con búsqueda, filtros, orden y paginación. |
 | GET | `/identity-access/sellers/invitations` | `usuarios.read` | Lista invitaciones con filtros y paginación. |
 | POST | `/identity-access/sellers/invitations` | `usuarios.create` | Crea usuario/vendedor, emite código temporal y envía invitación. |
 | POST | `/identity-access/sellers/access-code/confirm` | Público | Consume el código, establece contraseña y activa la cuenta. |
@@ -212,6 +221,10 @@ contraseñas, service role keys ni tokens completos.
 El código de acceso es de un solo uso, cambia al reenviarse y tiene vencimiento.
 La confirmación pública exige correo, código y contraseña; no acepta un JWT de
 administrador como sustituto.
+
+Filtros del directorio: `search`, `username`, `documentId`, `active`, `roleId`,
+`createdFrom`, `createdTo`, `page`, `limit`, `sortBy` y `sortDirection`.
+`search` consulta nombre, documento, teléfono, username y nombre del usuario.
 
 ## Sorteos y turnos
 
@@ -364,12 +377,71 @@ los cortes contables.
 
 | Método | Ruta | Acceso | Propósito |
 | --- | --- | --- | --- |
+| GET | `/parameters/access/modules` | `roles.read` | Catálogo de módulos y cantidad de roles configurados. |
+| GET | `/parameters/access/roles` | `roles.read` | Matriz completa de roles, usuarios asignados y permisos por módulo. |
+| GET | `/parameters/access/roles/:roleId` | `roles.read` | Obtiene un rol con todos los módulos, incluso los deshabilitados. |
+| POST | `/parameters/access/roles` | `roles.create` | Crea un rol inicialmente sin permisos. |
+| PUT | `/parameters/access/roles/:roleId/permissions` | `roles.update` | Reemplaza atómicamente la matriz completa del rol. |
+| PATCH | `/parameters/access/users/:userId/role` | `roles.update` | Asigna un rol a un usuario y emite actualización realtime. |
 | GET | `/parameters` | `parametros.read` | Lista parámetros administrables. |
 | GET | `/parameters/:key` | `parametros.read` | Obtiene un valor por clave. |
 | PUT | `/parameters/:key` | `parametros.update` | Crea o reemplaza el valor de la clave. |
 
 Los parámetros cambian reglas operacionales sin desplegar código. Las claves
 reconocidas se validan en aplicación; no son un almacén arbitrario de secretos.
+
+El reemplazo de permisos es total: los módulos omitidos quedan deshabilitados.
+El rol `ADMIN` debe conservar lectura/actualización de `ROLES` y `PARAMETROS`, y
+un administrador no puede retirarse a sí mismo su rol. Cada mutación genera
+auditoría HTTP y los eventos `access.role.permissions.updated` o
+`access.user.role.updated`; el frontend debe volver a consultar `/auth/me`.
+
+Permisos operacionales mínimos sembrados para `VENDEDOR`:
+
+```txt
+ventas.read|create|update
+turnos.read
+numeros_bloqueados.read
+limites_numero.read
+resultados.read
+notificaciones.read|update
+```
+
+### Meta configurable de ventas
+
+La clave `notifications.sales_milestone` contiene JSON. `thresholdMiles` mide
+el monto vendido en miles y `thresholdSalesCount` permite, opcionalmente,
+activar también una meta por cantidad de tickets. Se notifica una sola vez por
+vendedor, turno y combinación de umbrales.
+
+```json
+{
+  "enabled": true,
+  "thresholdMiles": 100,
+  "sellerTitle": "Meta de ventas alcanzada",
+  "sellerMessage": "¡Felicidades {{sellerName}}! Has vendido {{totalMiles}} mil en {{salesCount}} ventas.",
+  "adminTitle": "Vendedor alcanzó una meta",
+  "adminMessage": "{{sellerName}} alcanzó {{totalMiles}} mil en el turno {{shiftId}}."
+}
+```
+
+Tokens admitidos: `sellerName`, `sellerId`, `shiftId`, `totalMiles`,
+`salesCount`, `thresholdMiles` y `thresholdSalesCount`.
+
+## Notificaciones
+
+| Método | Ruta | Acceso | Propósito |
+| --- | --- | --- | --- |
+| GET | `/notifications` | `notificaciones.read` | Lista únicamente la bandeja del usuario autenticado; filtra por `type` y `unread`. |
+| GET | `/notifications/unread-count` | `notificaciones.read` | Devuelve `{ unread }` para badges y navegación. |
+| PATCH | `/notifications/:notificationId/read` | `notificaciones.update` | Marca como leída una notificación propia; otra cuenta obtiene `404`. |
+| PATCH | `/notifications/read-all` | `notificaciones.update` | Marca toda la bandeja propia como leída. |
+
+Se crean notificaciones persistentes para apertura/bloqueo/reapertura/cierre de
+turnos, límites de números, bloqueos, resultados y ventas ganadoras. La meta de
+ventas notifica al vendedor y a todos los administradores activos. Cada fila
+usa una clave de deduplicación y la tabla tiene RLS habilitado; la API aplica
+ownership usando la identidad interna, nunca un `userId` enviado por el cliente.
 
 ## Auditoría
 
@@ -395,10 +467,15 @@ number-limits.created|updated|expired
 blocked-numbers.created|deleted
 sales.created|voided
 results.created
-prize-payments.created
+prize-payments.paid
 cash-cuts.created
-parameters.upserted
+parameters.updated
+access.role.permissions.updated|access.user.role.updated
+notifications.created
 ```
 
-El cliente debe invalidar/refrescar su consulta REST. Al reconectar también
-debe hacer refetch, porque Socket.IO no sustituye un log durable.
+El cliente debe invalidar/refrescar su consulta REST. Al recibir cambios de
+acceso debe consultar nuevamente `/auth/me`; si cambió de rol, debe reconectar
+el socket para recalcular sus salas. Los eventos operacionales no son un log
+durable, pero `notifications.created` también queda almacenado en la bandeja
+REST del destinatario.

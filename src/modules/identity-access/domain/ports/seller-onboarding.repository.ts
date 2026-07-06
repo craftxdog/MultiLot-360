@@ -4,6 +4,7 @@ import {
   SellerAccessCodeStatus,
   SellerInvitationListItem,
   SellerInvitation,
+  SellerDirectoryItem,
 } from '../entities';
 import { PaginatedResult } from '../../../../shared-kernel';
 
@@ -16,6 +17,20 @@ export type ListSellerInvitationsQuery = {
   username?: string;
   sellerName?: string;
   status?: SellerAccessCodeStatus;
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+};
+
+export type ListSellersQuery = {
+  search?: string;
+  username?: string;
+  documentId?: string;
+  active?: boolean;
+  roleId?: string;
+  createdFrom?: Date;
+  createdTo?: Date;
   page: number;
   limit: number;
   sortBy: string;
@@ -61,6 +76,9 @@ export type PendingSellerAccess = {
 };
 
 export interface SellerOnboardingRepository {
+  listSellers(
+    query: ListSellersQuery,
+  ): Promise<PaginatedResult<SellerDirectoryItem>>;
   listInvitations(
     query: ListSellerInvitationsQuery,
   ): Promise<PaginatedResult<SellerInvitationListItem>>;

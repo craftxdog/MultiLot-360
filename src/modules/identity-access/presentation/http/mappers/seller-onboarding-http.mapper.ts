@@ -4,14 +4,31 @@ import {
   ResendSellerAccessCodeCommand,
   RevokeSellerInvitationCommand,
 } from '../../../application';
-import { ListSellerInvitationsQuery } from '../../../domain';
+import { ListSellerInvitationsQuery, ListSellersQuery } from '../../../domain';
 import {
   CreateSellerInvitationDto,
   ListSellerInvitationsQueryDto,
+  ListSellersQueryDto,
   ResendSellerAccessCodeDto,
 } from '../dto';
 
 export class SellerOnboardingHttpMapper {
+  static toListSellersQuery(dto: ListSellersQueryDto): ListSellersQuery {
+    return {
+      search: dto.search,
+      username: dto.username,
+      documentId: dto.documentId,
+      active: dto.active,
+      roleId: dto.roleId,
+      createdFrom: dto.createdFrom,
+      createdTo: dto.createdTo,
+      page: dto.page,
+      limit: dto.limit,
+      sortBy: dto.sortBy,
+      sortDirection: dto.sortDirection,
+    };
+  }
+
   static toCreateInvitationCommand(
     dto: CreateSellerInvitationDto,
     admin: AuthenticatedUserContext,

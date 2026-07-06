@@ -11,6 +11,8 @@ HTTP controller -> use case -> repository/transaction -> event publisher
                                                     -> Socket.IO gateway
                                                     -> authorized rooms
                                                     -> client refetches REST
+                                                    -> notification projector
+                                                    -> persistent inbox + user room
 ```
 
 El puerto `IntegrationEventPublisher` vive en `shared-kernel/domain`. La
@@ -40,7 +42,8 @@ socket.on('sales.created', () => {
 ```
 
 Al reconectar, el cliente debe volver a consultar sus vistas activas. Los
-eventos son señales de invalidación rápidas, no un registro durable.
+eventos operacionales son señales de invalidación rápidas; las notificaciones
+dirigidas sí quedan disponibles mediante `GET /notifications`.
 
 ## Seguridad
 
@@ -65,6 +68,8 @@ blocked-numbers.deleted           sales.created
 sales.voided                      sales.void-policy.updated
 results.created                   prize-payments.paid
 cash-cuts.created                 parameters.updated
+access.role.permissions.updated  access.user.role.updated
+notifications.created
 ```
 
 Todos usan el envelope versionado:
@@ -115,8 +120,11 @@ yarn test:realtime:smoke
 
 Con `REALTIME_SMOKE_PROVISION_SELLER=true`, el runner crea una invitación de
 prueba con MailerSend desactivado en la instancia temporal, confirma la cuenta,
-inicia sesión como `VENDEDOR`, valida RBAC y entrega de eventos globales y por
-vendedor. En `finally` elimina límites creados, usuario/vendedor, códigos de
-acceso y usuario Supabase Auth. No use esta opción contra una API compartida;
+inicia sesión como `VENDEDOR`, valida RBAC, eventos globales y por vendedor,
+persistencia de la notificación, `notifications.created` y marcado como leído.
+En `finally` elimina límites, notificaciones, usuario/vendedor, códigos de
+acceso y usuario Supabase Auth. `yarn test:realtime:cleanup` elimina únicamente
+fixtures con prefijo `codex.realtime` si una ejecución fue interrumpida. No use
+esta opción contra una API compartida;
 requiere `REALTIME_SMOKE_START_SERVER=true` salvo autorización explícita con
 `REALTIME_SMOKE_ALLOW_EXTERNAL_PROVISION=true`.

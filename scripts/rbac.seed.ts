@@ -57,7 +57,30 @@ const MODULES: ModuleSeed[] = [
   { code: 'CORTES', description: 'Gestion de cortes' },
   { code: 'PARAMETROS', description: 'Gestion de parametros del sistema' },
   { code: 'AUDITORIA', description: 'Consulta de auditoria' },
+  { code: 'NOTIFICACIONES', description: 'Bandeja de notificaciones' },
 ];
+
+const SELLER_PERMISSIONS: Record<
+  string,
+  { read: boolean; create: boolean; update: boolean; delete: boolean }
+> = {
+  VENTAS: { read: true, create: true, update: true, delete: false },
+  TURNOS: { read: true, create: false, update: false, delete: false },
+  NUMEROS_BLOQUEADOS: {
+    read: true,
+    create: false,
+    update: false,
+    delete: false,
+  },
+  LIMITES_NUMERO: {
+    read: true,
+    create: false,
+    update: false,
+    delete: false,
+  },
+  RESULTADOS: { read: true, create: false, update: false, delete: false },
+  NOTIFICACIONES: { read: true, create: false, update: true, delete: false },
+};
 
 async function main() {
   const adminRole = await prisma.roles.findFirst({
@@ -71,6 +94,14 @@ async function main() {
 
   if (!adminRole) {
     throw new Error(`Role "${ADMIN_ROLE_NAME}" does not exist.`);
+  }
+
+  const sellerRole = await prisma.roles.findFirst({
+    where: { nombre: { equals: 'vendedor', mode: 'insensitive' } },
+  });
+
+  if (!sellerRole) {
+    throw new Error('Role "vendedor" does not exist.');
   }
 
   for (const moduleSeed of MODULES) {
@@ -109,10 +140,36 @@ async function main() {
         puede_borrar: !moduleSeed.readOnly,
       },
     });
+
+    const sellerPermission = SELLER_PERMISSIONS[moduleSeed.code];
+    if (sellerPermission) {
+      await prisma.permisos_por_rol.upsert({
+        where: {
+          rol_id_modulo_id: {
+            rol_id: sellerRole.id,
+            modulo_id: module.id,
+          },
+        },
+        create: {
+          rol_id: sellerRole.id,
+          modulo_id: module.id,
+          puede_leer: sellerPermission.read,
+          puede_crear: sellerPermission.create,
+          puede_actualizar: sellerPermission.update,
+          puede_borrar: sellerPermission.delete,
+        },
+        update: {
+          puede_leer: sellerPermission.read,
+          puede_crear: sellerPermission.create,
+          puede_actualizar: sellerPermission.update,
+          puede_borrar: sellerPermission.delete,
+        },
+      });
+    }
   }
 
   console.log(
-    `RBAC seed completed for role "${adminRole.nombre}" with ${MODULES.length} modules.`,
+    `RBAC seed completed for roles "${adminRole.nombre}" and "${sellerRole.nombre}" with ${MODULES.length} modules.`,
   );
 }
 

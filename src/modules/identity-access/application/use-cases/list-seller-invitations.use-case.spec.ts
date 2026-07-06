@@ -3,6 +3,7 @@ import { ListSellerInvitationsUseCase } from './list-seller-invitations.use-case
 
 describe('ListSellerInvitationsUseCase', () => {
   const repository: jest.Mocked<SellerOnboardingRepository> = {
+    listSellers: jest.fn(),
     listInvitations: jest.fn(),
     createInvitation: jest.fn(),
     resendAccessCode: jest.fn(),

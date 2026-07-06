@@ -108,6 +108,29 @@ Un corte captura un período contable de un vendedor. Sus totales derivan de
 ventas y premios confirmados. Los reportes son consultas operacionales y no
 cambian el estado del negocio.
 
+## Roles, módulos y permisos
+
+Un rol contiene una matriz por módulo con cuatro capacidades: lectura,
+creación, actualización y eliminación. La autorización HTTP exige simultáneamente
+JWT válido, usuario activo, módulo habilitado y permiso específico. La matriz
+se reemplaza de forma atómica para evitar estados parciales y se protege el
+acceso mínimo de administración contra bloqueos accidentales.
+
+El rol de vendedor recibe solamente las lecturas operacionales necesarias para
+vender de forma segura: turno, bloqueos, límites y resultados, además de crear
+sus ventas y administrar la lectura de su propia bandeja.
+
+## Notificaciones y metas
+
+Las notificaciones son proyecciones persistentes de eventos confirmados. Cada
+destinatario tiene su propia fila y clave de deduplicación. Socket.IO acelera la
+entrega, mientras REST permite recuperar avisos perdidos y marcar su lectura.
+
+La meta de ventas agrega ventas activas por vendedor y turno. Puede configurarse
+por monto en miles, cantidad de tickets o ambos. Al alcanzarse se genera un
+aviso personalizado para el vendedor y otro para administradores; una misma
+meta no vuelve a emitirse para la misma combinación vendedor/turno/umbrales.
+
 ## Eventos y consistencia
 
 Los casos de uso publican eventos solamente después de persistir con éxito. El
