@@ -197,6 +197,23 @@ describe('Sales use cases', () => {
     expect(repository.create.mock.calls[0][0].sellerId).toBe('seller-id');
   });
 
+  it('requires a seller assignment when an admin has no seller profile', async () => {
+    const useCase = new CreateSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      actorRoleName: 'ADMIN',
+      shiftId: 'shift-id',
+      items: [{ number: '02', prizeMiles: 20 }],
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(result.isFailure && result.error.statusCode).toBe(400);
+    expect(result.isFailure && result.error.message).toBe(
+      'sellerId is required for admins or users without an assigned seller profile',
+    );
+    expect(repository.create.mock.calls).toHaveLength(0);
+  });
+
   it('forces non-admin list queries to the current seller', async () => {
     const paginatedResult: PaginatedResult<Sale> = {
       items: [],

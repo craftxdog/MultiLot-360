@@ -25,6 +25,9 @@ export type CreateSaleCommand = {
   items: SaleItemInput[];
 };
 
+const SELLER_ASSIGNMENT_REQUIRED_MESSAGE =
+  'sellerId is required for admins or users without an assigned seller profile';
+
 @Injectable()
 export class CreateSaleUseCase extends UseCase<
   CreateSaleCommand,
@@ -117,7 +120,11 @@ export class CreateSaleUseCase extends UseCase<
     const sellerId = requestedSellerId ?? currentSellerId;
 
     if (!sellerId) {
-      return ErrorFactory.useCase('sellerId is required', undefined, 400);
+      return ErrorFactory.useCase(
+        SELLER_ASSIGNMENT_REQUIRED_MESSAGE,
+        undefined,
+        400,
+      );
     }
 
     return Result.success(sellerId);
