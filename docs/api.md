@@ -96,7 +96,7 @@ DTOs de entrada principales:
 | `UpdateNumberLimitDto` | Campos parciales del límite | `null` elimina alcance de vendedor/sorteo; monto con dos decimales. |
 | `ExpireNumberLimitDto` | `expiresOn` | Fecha efectiva de expiración. |
 | `CreateBlockedNumbersDto` | `numbers`, `shiftId?`, `date?`, `reason?` | Exactamente un alcance operacional: turno o fecha. |
-| `CreateSaleDto` | `sellerId?`, `shiftId`, `items[]` | 1..100 ítems; cada `{number, prizeMiles}` exige dos dígitos y monto positivo con dos decimales. |
+| `CreateSaleDto` | `sellerId?`, `shiftId`, `items[]` | 1..100 ítems; cada `{number, prizeMiles}` exige dos dígitos y monto positivo con dos decimales. `sellerId` es obligatorio para ADMIN o usuarios sin perfil vendedor. |
 | `VoidSaleDto` | `reason` | Motivo obligatorio, máximo 250. |
 | `UpdateSalesVoidPolicyDto` | `windowMinutes` | Entero entre 1 y 1440. |
 | `GetSalesMatrixQueryDto` | `date`, `shiftId?`, `drawCode?`, `sellerId?`, `status?` | `status=ACTIVA|ANULADA|TODAS`; fecha obligatoria. |
@@ -311,6 +311,14 @@ Los campos terminados en `Miles` representan miles de córdobas y admiten dos
 decimales: `1.40` equivale a C$1,400.00. Nunca se usa punto flotante en
 PostgreSQL; se almacena `numeric(14,2)` y la aplicación redondea a centavos de
 la unidad `Miles`.
+
+Contrato de asignación segura:
+
+- Un vendedor autenticado puede omitir `sellerId`; la API usa su perfil vendedor
+  actual.
+- Un ADMIN o usuario autenticado sin perfil vendedor debe enviar `sellerId` para
+  seleccionar el responsable de la venta.
+- Un vendedor no ADMIN no puede enviar un `sellerId` distinto al suyo.
 
 Una venta se persiste completa o no se persiste. Debe tener turno operable,
 números válidos, montos positivos, ausencia de bloqueos y capacidad en todos

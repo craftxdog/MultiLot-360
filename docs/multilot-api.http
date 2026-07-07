@@ -337,6 +337,8 @@ Authorization: Bearer {{adminToken}}
 
 ###
 # ROUTE: POST /sales
+# Admin o usuario sin perfil vendedor debe enviar sellerId; vendedor propio
+# puede omitirlo y la API usa su perfil autenticado.
 POST {{baseUrl}}/sales
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
