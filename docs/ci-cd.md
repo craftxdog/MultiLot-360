@@ -20,7 +20,8 @@ Cada `push`, `pull_request` o ejecución manual valida:
 1. Instalación reproducible con `yarn install --frozen-lockfile`.
 2. `yarn prisma:validate`.
 3. `yarn prisma:generate`.
-4. `yarn prisma:migrate:deploy` sobre PostgreSQL limpio del workflow.
+4. `yarn prisma:db:push:ci` sobre PostgreSQL limpio del workflow para validar
+   que el schema actual puede materializarse desde cero.
 5. `yarn format:check`.
 6. `yarn docs:check`, que exige que `docs/api.md` y
    `docs/multilot-api.http` cubran todas las rutas registradas.
@@ -30,7 +31,10 @@ Cada `push`, `pull_request` o ejecución manual valida:
 10. `yarn build`.
 
 El job levanta PostgreSQL 16 y Redis 7 como servicios de GitHub Actions para
-validar migraciones y dependencias base sin tocar Supabase real.
+validar el schema y dependencias base sin tocar Supabase real. Este repositorio
+usa un flujo introspectivo contra Supabase y no conserva todavía una migración
+baseline inicial; por eso `prisma migrate deploy` queda reservado para entornos
+con historial de migraciones ya inicializado.
 
 ## Gate de despliegue
 

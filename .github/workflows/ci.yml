@@ -90,8 +90,8 @@ jobs:
       - name: Generate Prisma client
         run: yarn prisma:generate
 
-      - name: Validate migrations on clean PostgreSQL
-        run: yarn prisma:migrate:deploy
+      - name: Validate schema on clean PostgreSQL
+        run: yarn prisma:db:push:ci
 
       - name: Check formatting
         run: yarn format:check
