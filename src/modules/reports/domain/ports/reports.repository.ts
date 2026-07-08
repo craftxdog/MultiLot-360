@@ -12,11 +12,19 @@ import {
 
 export const REPORTS_REPOSITORY = Symbol('REPORTS_REPOSITORY');
 
-export type GetOperationalOverviewQuery = OperationalReportFilters;
-export type GetBusinessAnalyticsQuery = BusinessAnalyticsFilters;
+export type ReportAccessScope = {
+  currentSellerId?: string;
+  actorRoleName?: string;
+};
+
+export type GetOperationalOverviewQuery = OperationalReportFilters &
+  ReportAccessScope;
+export type GetBusinessAnalyticsQuery = BusinessAnalyticsFilters &
+  ReportAccessScope;
 
 export type ListSellerOperationalReportsQuery = OffsetPaginationQuery &
-  OperationalReportFilters;
+  OperationalReportFilters &
+  ReportAccessScope;
 
 export interface ReportsRepository {
   getOperationalOverview(

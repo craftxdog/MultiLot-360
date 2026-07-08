@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -15,12 +16,14 @@ import {
 } from '../../../../../common';
 import { AuthenticatedUserContext } from '../../../../../common/interfaces';
 import {
+  DeleteNotificationUseCase,
   GetUnreadNotificationCountUseCase,
   ListNotificationsUseCase,
   MarkAllNotificationsReadUseCase,
   MarkNotificationReadUseCase,
 } from '../../../application';
 import {
+  DeleteNotificationResponseDto,
   ListNotificationsQueryDto,
   MarkAllNotificationsReadResponseDto,
   NotificationResponseDto,
@@ -37,6 +40,7 @@ export class NotificationsController {
     private readonly unreadCount: GetUnreadNotificationCountUseCase,
     private readonly markRead: MarkNotificationReadUseCase,
     private readonly markAllRead: MarkAllNotificationsReadUseCase,
+    private readonly deleteNotification: DeleteNotificationUseCase,
   ) {}
 
   @Get()
@@ -72,5 +76,16 @@ export class NotificationsController {
     @CurrentUser() user: AuthenticatedUserContext,
   ) {
     return this.markRead.execute({ notificationId, userId: user.id });
+  }
+
+  @Delete(':notificationId')
+  @Permissions('notificaciones.delete')
+  @ApiOkResponse({ type: DeleteNotificationResponseDto })
+  delete(
+    @Param('notificationId', new ParseUUIDPipe({ version: '4' }))
+    notificationId: string,
+    @CurrentUser() user: AuthenticatedUserContext,
+  ) {
+    return this.deleteNotification.execute({ notificationId, userId: user.id });
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
+  DeleteNotificationUseCase,
   GetUnreadNotificationCountUseCase,
   ListNotificationsUseCase,
   MarkAllNotificationsReadUseCase,
@@ -23,6 +24,7 @@ import { NotificationsController } from './presentation';
     ListNotificationsUseCase,
     MarkAllNotificationsReadUseCase,
     MarkNotificationReadUseCase,
+    DeleteNotificationUseCase,
     {
       provide: NOTIFICATIONS_REPOSITORY,
       useExisting: PrismaNotificationsRepository,

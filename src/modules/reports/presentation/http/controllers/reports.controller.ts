@@ -1,6 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
+  CurrentSeller,
+  CurrentUser,
   Permissions,
   RequireModules,
   SYSTEM_MODULES,
@@ -34,27 +36,47 @@ export class ReportsController {
   @Get('analytics')
   @Permissions('ventas.read')
   @ApiOkResponse({ type: BusinessAnalyticsReportResponseDto })
-  analytics(@Query() query: BusinessAnalyticsQueryDto) {
+  analytics(
+    @Query() query: BusinessAnalyticsQueryDto,
+    @CurrentSeller('id') currentSellerId?: string,
+    @CurrentUser('roleName') actorRoleName?: string,
+  ) {
     return this.getBusinessAnalytics.execute(
-      ReportsHttpMapper.toBusinessAnalyticsQuery(query),
+      ReportsHttpMapper.toBusinessAnalyticsQuery(
+        query,
+        currentSellerId,
+        actorRoleName,
+      ),
     );
   }
 
   @Get('overview')
   @Permissions('ventas.read')
   @ApiOkResponse({ type: OperationalOverviewReportResponseDto })
-  overview(@Query() query: OperationalReportQueryDto) {
+  overview(
+    @Query() query: OperationalReportQueryDto,
+    @CurrentSeller('id') currentSellerId?: string,
+    @CurrentUser('roleName') actorRoleName?: string,
+  ) {
     return this.getOperationalOverview.execute(
-      ReportsHttpMapper.toOverviewQuery(query),
+      ReportsHttpMapper.toOverviewQuery(query, currentSellerId, actorRoleName),
     );
   }
 
   @Get('sellers')
   @Permissions('ventas.read')
   @ApiOkResponse({ type: [SellerOperationalReportResponseDto] })
-  sellers(@Query() query: SellerOperationalReportsQueryDto) {
+  sellers(
+    @Query() query: SellerOperationalReportsQueryDto,
+    @CurrentSeller('id') currentSellerId?: string,
+    @CurrentUser('roleName') actorRoleName?: string,
+  ) {
     return this.listSellerOperationalReports.execute(
-      ReportsHttpMapper.toSellerReportsQuery(query),
+      ReportsHttpMapper.toSellerReportsQuery(
+        query,
+        currentSellerId,
+        actorRoleName,
+      ),
     );
   }
 }

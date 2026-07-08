@@ -1,5 +1,6 @@
 import { NotificationsRepository } from '../../domain';
 import {
+  DeleteNotificationUseCase,
   GetUnreadNotificationCountUseCase,
   MarkAllNotificationsReadUseCase,
   MarkNotificationReadUseCase,
@@ -12,6 +13,7 @@ describe('Notification use cases', () => {
     unreadCount,
     markRead: jest.fn(),
     markAllRead: jest.fn(),
+    delete: jest.fn(),
   } as jest.Mocked<NotificationsRepository>;
 
   beforeEach(() => jest.clearAllMocks());
@@ -49,5 +51,27 @@ describe('Notification use cases', () => {
 
     if (result.isFailure) throw result.error;
     expect(result.value).toEqual({ updatedCount: 4, readAt });
+  });
+
+  it('deletes only a notification owned by the authenticated user', async () => {
+    repository.delete.mockResolvedValue({
+      deleted: true,
+      notificationId: 'notification-id',
+    });
+
+    const result = await new DeleteNotificationUseCase(repository).execute({
+      notificationId: 'notification-id',
+      userId: 'user-id',
+    });
+
+    if (result.isFailure) throw result.error;
+    expect(result.value).toEqual({
+      deleted: true,
+      notificationId: 'notification-id',
+    });
+    expect(repository.delete.mock.calls[0]).toEqual([
+      'notification-id',
+      'user-id',
+    ]);
   });
 });

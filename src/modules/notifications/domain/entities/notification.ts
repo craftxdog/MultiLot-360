@@ -17,3 +17,8 @@ export type MarkAllNotificationsReadResult = {
   updatedCount: number;
   readAt: Date;
 };
+
+export type DeleteNotificationResult = {
+  deleted: true;
+  notificationId: string;
+};

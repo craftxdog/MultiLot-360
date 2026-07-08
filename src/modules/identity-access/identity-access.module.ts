@@ -125,6 +125,7 @@ import {
     RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
     SignupAdminUseCase,
+    AUTH_PROVIDER,
   ],
 })
 export class IdentityAccessModule {}

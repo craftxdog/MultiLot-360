@@ -3,6 +3,7 @@ import { Request } from 'express';
 export type AuthenticatedUserContext = {
   id: string;
   authUserId?: string | null;
+  email?: string | null;
   username?: string;
   roleId?: string;
   roleName?: string;

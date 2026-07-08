@@ -803,6 +803,8 @@ async function runOperationalFlowChecks() {
         code: `codex-smoke-${uniqueSuffix}`,
         time: '23:59:59',
         tuesdayOnly: false,
+        autoGenerateShifts: true,
+        singleDate: null,
         lockSecondsBefore: 0,
         reopenSecondsAfter: 86_400,
         active: true,

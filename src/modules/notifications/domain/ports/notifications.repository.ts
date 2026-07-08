@@ -1,5 +1,6 @@
 import { PaginatedResult } from '../../../../shared-kernel';
 import {
+  DeleteNotificationResult,
   MarkAllNotificationsReadResult,
   Notification,
   NotificationUnreadCount,
@@ -25,4 +26,8 @@ export interface NotificationsRepository {
     userId: string,
   ): Promise<Notification | null>;
   markAllRead(userId: string): Promise<MarkAllNotificationsReadResult>;
+  delete(
+    notificationId: string,
+    userId: string,
+  ): Promise<DeleteNotificationResult | null>;
 }

@@ -125,6 +125,7 @@ describe('Reports use cases', () => {
     const result = await useCase.execute({
       dateFrom: '2026-06-22',
       dateUntil: '2026-06-22',
+      actorRoleName: 'ADMIN',
     });
 
     expect(result.isSuccess).toBe(true);
@@ -138,6 +139,7 @@ describe('Reports use cases', () => {
       dateFrom: '2026-06-22',
       dateUntil: '2026-06-22',
       topLimit: 10,
+      actorRoleName: 'ADMIN',
     });
 
     expect(result.isSuccess).toBe(true);
@@ -184,6 +186,7 @@ describe('Reports use cases', () => {
     const result = await useCase.execute({
       dateFrom: '2026-06-22',
       dateUntil: '2026-06-22',
+      actorRoleName: 'ADMIN',
       page: 1,
       limit: 25,
       sortBy: 'sellerName',
@@ -191,6 +194,25 @@ describe('Reports use cases', () => {
     });
 
     expect(result.isSuccess).toBe(true);
+  });
+
+  it('forces seller analytics to the authenticated seller', async () => {
+    repository.getBusinessAnalytics.mockResolvedValue(createAnalytics());
+    const useCase = new GetBusinessAnalyticsUseCase(repository);
+
+    const result = await useCase.execute({
+      dateFrom: '2026-06-22',
+      dateUntil: '2026-06-22',
+      sellerId: 'other-seller-id',
+      currentSellerId: 'seller-id',
+      actorRoleName: 'VENDEDOR',
+      topLimit: 10,
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.getBusinessAnalytics.mock.calls[0][0]).toMatchObject({
+      sellerId: 'seller-id',
+    });
   });
 
   it('rejects invalid seller report date ranges', async () => {

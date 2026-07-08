@@ -111,15 +111,21 @@ model sorteos_config {
   codigo                  String           @unique
   hora                    DateTime         @db.Time(6)
   solo_martes             Boolean          @default(false)
+  auto_generar_turnos     Boolean          @default(true)
+  fecha_unica             DateTime?        @db.Date
   lock_segundos_antes     Int              @default(60)
   reopen_segundos_despues Int              @default(600)
   activo                  Boolean          @default(true)
+  eliminado_en            DateTime?        @db.Timestamptz(6)
+  motivo_eliminacion      String?
   creado_en               DateTime         @default(now()) @db.Timestamptz(6)
   actualizado_en          DateTime         @default(now()) @db.Timestamptz(6)
   limites_numero          limites_numero[]
   turnos                  turnos[]
 
+  @@index([auto_generar_turnos, activo], map: "ix_sorteos_auto_activo")
   @@index([activo, hora], map: "ix_sorteos_activo_hora")
+  @@index([fecha_unica], map: "ix_sorteos_fecha_unica")
 }
 
 model turnos {

@@ -15,9 +15,13 @@ describe('Draw realtime events', () => {
     code: '11',
     time: '11:00:00',
     tuesdayOnly: false,
+    autoGenerateShifts: true,
+    singleDate: null,
     lockSecondsBefore: 300,
     reopenSecondsAfter: 60,
     active: true,
+    deletedAt: null,
+    deletionReason: null,
     createdAt: new Date('2026-06-22T08:00:00.000Z'),
     updatedAt: new Date('2026-06-22T08:00:00.000Z'),
   };

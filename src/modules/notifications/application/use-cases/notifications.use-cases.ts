@@ -7,6 +7,7 @@ import {
   UseCase,
 } from '../../../../shared-kernel';
 import {
+  DeleteNotificationResult,
   MarkAllNotificationsReadResult,
   Notification,
   NotificationUnreadCount,
@@ -122,6 +123,37 @@ export class MarkAllNotificationsReadUseCase extends UseCase<
         'Could not mark notifications as read',
         error,
       );
+    }
+  }
+}
+
+@Injectable()
+export class DeleteNotificationUseCase extends UseCase<
+  { notificationId: string; userId: string },
+  DeleteNotificationResult,
+  AppError
+> {
+  constructor(
+    @Inject(NOTIFICATIONS_REPOSITORY)
+    private readonly repository: NotificationsRepository,
+  ) {
+    super();
+  }
+
+  async execute(input: {
+    notificationId: string;
+    userId: string;
+  }): Promise<Result<DeleteNotificationResult, AppError>> {
+    try {
+      const deleted = await this.repository.delete(
+        input.notificationId,
+        input.userId,
+      );
+      return deleted
+        ? Result.success(deleted)
+        : ErrorFactory.useCase('Notification not found', undefined, 404);
+    } catch (error) {
+      return ErrorFactory.useCase('Could not delete notification', error);
     }
   }
 }
