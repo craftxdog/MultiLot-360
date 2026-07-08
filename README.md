@@ -244,7 +244,7 @@ GitHub Actions protege `develop` y `master` con:
 
 - PostgreSQL y Redis de CI.
 - Validación/generación de Prisma.
-- Materialización del schema sobre PostgreSQL limpio.
+- Chequeo de migraciones versionadas.
 - Formato, documentación de API, lint, pruebas unitarias, e2e y build.
 - Gate de despliegue por environment: `staging` para `develop` y `production`
   para `master`.

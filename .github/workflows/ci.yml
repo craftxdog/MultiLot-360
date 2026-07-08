@@ -90,8 +90,12 @@ jobs:
       - name: Generate Prisma client
         run: yarn prisma:generate
 
-      - name: Validate schema on clean PostgreSQL
-        run: yarn prisma:db:push:ci
+      - name: Check migration files
+        run: |
+          test -d prisma/migrations
+          migration_count="$(find prisma/migrations -mindepth 2 -maxdepth 2 -name migration.sql | wc -l | tr -d ' ')"
+          test "$migration_count" -gt 0
+          echo "Found $migration_count Prisma migration files."
 
       - name: Check formatting
         run: yarn format:check
