@@ -21,9 +21,6 @@ concurrency:
 env:
   NODE_VERSION: '22'
   NODE_ENV: test
-  CI_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
-  CI_REDIS_HOST: localhost
-  CI_REDIS_PORT: '6379'
 
 jobs:
   quality:
@@ -57,11 +54,11 @@ jobs:
           --health-retries 5
 
     env:
-      PRISMA_DATABASE_URL: ${{ env.CI_DATABASE_URL }}
-      DATABASE_URL: ${{ env.CI_DATABASE_URL }}
-      DIRECT_URL: ${{ env.CI_DATABASE_URL }}
-      REDIS_HOST: ${{ env.CI_REDIS_HOST }}
-      REDIS_PORT: ${{ env.CI_REDIS_PORT }}
+      PRISMA_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
       SUPABASE_PROJECT_REF: wweiogaeaikasrlldbdy
       SUPABASE_URL: https://wweiogaeaikasrlldbdy.supabase.co
       SUPABASE_PUBLISHABLE_KEY: ci-placeholder
