@@ -196,6 +196,7 @@ Content-Type: application/json
   "code": "nacional-11am",
   "time": "11:00:00",
   "tuesdayOnly": false,
+  "autoGenerateShifts": true,
   "lockSecondsBefore": 60,
   "reopenSecondsAfter": 600,
   "active": true
@@ -215,7 +216,37 @@ Content-Type: application/json
 {
   "lockSecondsBefore": 90,
   "reopenSecondsAfter": 900,
+  "autoGenerateShifts": true,
   "active": true
+}
+
+###
+# ROUTE: GET /draws/configurations/:configurationId/delete-impact
+# Consulta este impacto antes de ejecutar un borrado físico.
+GET {{baseUrl}}/draws/configurations/{{configurationId}}/delete-impact
+Authorization: Bearer {{adminToken}}
+
+###
+# ROUTE: PATCH /draws/configurations/:configurationId/soft-delete
+PATCH {{baseUrl}}/draws/configurations/{{configurationId}}/soft-delete
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Configuración duplicada creada por error"
+}
+
+###
+# ROUTE: DELETE /draws/configurations/:configurationId
+# Acción irreversible: reautentica al administrador y borra dependencias en cascada.
+DELETE {{baseUrl}}/draws/configurations/{{configurationId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "adminPassword": "{{adminPassword}}",
+  "confirmation": "DELETE_DRAW_CONFIGURATION",
+  "reason": "Limpieza administrativa aprobada"
 }
 
 ###
@@ -236,6 +267,16 @@ Content-Type: application/json
 
 {
   "configurationId": "{{configurationId}}",
+  "date": "{{date}}"
+}
+
+###
+# ROUTE: POST /draws/shifts/auto-generate
+POST {{baseUrl}}/draws/shifts/auto-generate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
   "date": "{{date}}"
 }
 
@@ -596,6 +637,11 @@ Authorization: Bearer {{sellerToken}}
 ###
 # ROUTE: PATCH /notifications/read-all
 PATCH {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{sellerToken}}
+
+###
+# ROUTE: DELETE /notifications/:notificationId
+DELETE {{baseUrl}}/notifications/{{notificationId}}
 Authorization: Bearer {{sellerToken}}
 
 ### Auditoría

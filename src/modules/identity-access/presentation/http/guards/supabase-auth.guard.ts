@@ -46,15 +46,20 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException(result.error.message);
     }
 
-    this.attachIdentity(request, result.value.user);
+    this.attachIdentity(request, result.value.user, payload);
 
     return true;
   }
 
-  private attachIdentity(request: ApiRequest, identity: IdentityUser): void {
+  private attachIdentity(
+    request: ApiRequest,
+    identity: IdentityUser,
+    payload: SupabaseJwtPayload,
+  ): void {
     request.user = {
       id: identity.id,
       authUserId: identity.authUserId,
+      email: payload.email,
       username: identity.username,
       roleId: identity.role.id,
       roleName: identity.role.name,

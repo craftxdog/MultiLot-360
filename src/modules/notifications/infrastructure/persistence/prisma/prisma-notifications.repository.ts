@@ -4,6 +4,7 @@ import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import {
+  DeleteNotificationResult,
   MarkAllNotificationsReadResult,
   Notification,
   NotificationUnreadCount,
@@ -73,6 +74,17 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
       data: { leida_en: readAt },
     });
     return { updatedCount: result.count, readAt };
+  }
+
+  async delete(
+    notificationId: string,
+    userId: string,
+  ): Promise<DeleteNotificationResult | null> {
+    const result = await this.prisma.notificaciones.deleteMany({
+      where: { id: notificationId, usuario_id: userId },
+    });
+
+    return result.count > 0 ? { deleted: true, notificationId } : null;
   }
 
   private orderBy(

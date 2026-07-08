@@ -16,6 +16,8 @@ export type CreateDrawConfigurationCommand = {
   code: string;
   time: string;
   tuesdayOnly?: boolean;
+  autoGenerateShifts?: boolean;
+  singleDate?: string | null;
   lockSecondsBefore?: number;
   reopenSecondsAfter?: number;
   active?: boolean;

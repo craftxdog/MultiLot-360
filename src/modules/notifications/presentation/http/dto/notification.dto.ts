@@ -62,3 +62,11 @@ export class MarkAllNotificationsReadResponseDto {
   @ApiProperty()
   readAt: Date;
 }
+
+export class DeleteNotificationResponseDto {
+  @ApiProperty()
+  deleted: true;
+
+  @ApiProperty()
+  notificationId: string;
+}

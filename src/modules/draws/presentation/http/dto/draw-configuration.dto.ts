@@ -6,10 +6,12 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import {
   OffsetPaginationQueryDto,
@@ -17,6 +19,7 @@ import {
 } from '../../../../../common';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DRAW_CONFIGURATION_SORT_FIELDS = [
   'code',
   'time',
@@ -35,6 +38,9 @@ const toOptionalBoolean = (value: unknown): unknown => {
 
   return value;
 };
+
+const trimUnknownString = (value: unknown): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class CreateDrawConfigurationDto {
   @ApiProperty({ example: 'nacional-11am' })
@@ -55,6 +61,30 @@ export class CreateDrawConfigurationDto {
   @IsOptional()
   @IsBoolean()
   tuesdayOnly?: boolean;
+
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      'When true, the API can auto-create a daily shift for each operable date.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoGenerateShifts?: boolean;
+
+  @ApiPropertyOptional({
+    example: '2026-07-07',
+    description:
+      'Required when autoGenerateShifts=false. The configuration only operates on this date.',
+  })
+  @ValidateIf(
+    (dto: CreateDrawConfigurationDto) => dto.autoGenerateShifts === false,
+  )
+  @Transform(({ value }) => trimUnknownString(value))
+  @IsString()
+  @Matches(DATE_PATTERN, {
+    message: 'La fecha única debe tener formato YYYY-MM-DD.',
+  })
+  singleDate?: string;
 
   @ApiPropertyOptional({ default: 60 })
   @IsOptional()
@@ -118,6 +148,12 @@ export class DrawConfigurationResponseDto {
   tuesdayOnly: boolean;
 
   @ApiProperty()
+  autoGenerateShifts: boolean;
+
+  @ApiPropertyOptional({ nullable: true, example: '2026-07-07' })
+  singleDate: string | null;
+
+  @ApiProperty()
   lockSecondsBefore: number;
 
   @ApiProperty()
@@ -126,9 +162,100 @@ export class DrawConfigurationResponseDto {
   @ApiProperty()
   active: boolean;
 
+  @ApiPropertyOptional({ nullable: true })
+  deletedAt: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  deletionReason: string | null;
+
   @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()
   updatedAt: Date;
+}
+
+export class SoftDeleteDrawConfigurationDto {
+  @ApiPropertyOptional({ maxLength: 250 })
+  @IsOptional()
+  @Transform(({ value }) => trimUnknownString(value))
+  @IsString()
+  @MaxLength(250)
+  reason?: string;
+}
+
+export class HardDeleteDrawConfigurationDto extends SoftDeleteDrawConfigurationDto {
+  @ApiProperty({
+    description:
+      'Current admin password. The API reauthenticates the actor before destructive deletion.',
+  })
+  @IsString()
+  @MaxLength(72)
+  adminPassword: string;
+
+  @ApiProperty({
+    example: 'DELETE_DRAW_CONFIGURATION',
+    description: 'Explicit confirmation phrase required for hard delete.',
+  })
+  @IsString()
+  @Matches(/^DELETE_DRAW_CONFIGURATION$/)
+  confirmation: 'DELETE_DRAW_CONFIGURATION';
+}
+
+export class DrawConfigurationDeleteImpactCountsDto {
+  @ApiProperty()
+  shifts: number;
+
+  @ApiProperty()
+  sales: number;
+
+  @ApiProperty()
+  saleDetails: number;
+
+  @ApiProperty()
+  results: number;
+
+  @ApiProperty()
+  prizePayments: number;
+
+  @ApiProperty()
+  blockedNumbers: number;
+
+  @ApiProperty()
+  numberLimits: number;
+}
+
+export class DrawConfigurationDeleteImpactResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID('4')
+  configurationId: string;
+
+  @ApiProperty()
+  code: string;
+
+  @ApiProperty()
+  active: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  deletedAt: Date | null;
+
+  @ApiProperty({ type: DrawConfigurationDeleteImpactCountsDto })
+  counts: DrawConfigurationDeleteImpactCountsDto;
+
+  @ApiProperty()
+  requiresConfirmation: boolean;
+}
+
+export class DeleteDrawConfigurationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  configurationId: string;
+
+  @ApiProperty({ enum: ['SOFT', 'HARD'] })
+  mode: 'SOFT' | 'HARD';
+
+  @ApiProperty()
+  deleted: true;
+
+  @ApiProperty({ type: DrawConfigurationDeleteImpactResponseDto })
+  impact: DrawConfigurationDeleteImpactResponseDto;
 }

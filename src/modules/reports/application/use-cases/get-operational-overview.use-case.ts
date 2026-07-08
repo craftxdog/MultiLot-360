@@ -37,8 +37,14 @@ export class GetOperationalOverviewUseCase extends UseCase<
         );
       }
 
+      const scopedQuery = this.toScopedQuery(input);
+
+      if (scopedQuery.isFailure) {
+        return scopedQuery;
+      }
+
       return Result.success(
-        await this.reportsRepository.getOperationalOverview(input),
+        await this.reportsRepository.getOperationalOverview(scopedQuery.value),
       );
     } catch (error) {
       return ErrorFactory.useCase(
@@ -48,5 +54,32 @@ export class GetOperationalOverviewUseCase extends UseCase<
         error,
       );
     }
+  }
+
+  private toScopedQuery(
+    input: GetOperationalOverviewQuery,
+  ): Result<GetOperationalOverviewQuery, AppError> {
+    const { actorRoleName, currentSellerId, ...query } = input;
+
+    if (this.isAdmin(actorRoleName)) {
+      return Result.success(query);
+    }
+
+    if (!currentSellerId) {
+      return ErrorFactory.useCase(
+        'Seller reports require an assigned seller profile',
+        undefined,
+        403,
+      );
+    }
+
+    return Result.success({
+      ...query,
+      sellerId: currentSellerId,
+    });
+  }
+
+  private isAdmin(roleName?: string): boolean {
+    return roleName?.toUpperCase() === 'ADMIN';
   }
 }
