@@ -1,4 +1,4 @@
-name: CI
+name: MultiLot 360 CI/CD
 
 on:
   workflow_dispatch:
@@ -15,28 +15,63 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  NODE_ENV: test
+  CI_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
+  CI_REDIS_HOST: localhost
+  CI_REDIS_PORT: '6379'
 
 jobs:
   quality:
-    name: Quality checks
+    name: Validate, test and build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: multilot360
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d multilot360"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
-      NODE_ENV: test
-      PRISMA_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/multilot360?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      PRISMA_DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+      DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+      DIRECT_URL: ${{ env.CI_DATABASE_URL }}
+      REDIS_HOST: ${{ env.CI_REDIS_HOST }}
+      REDIS_PORT: ${{ env.CI_REDIS_PORT }}
       SUPABASE_PROJECT_REF: wweiogaeaikasrlldbdy
       SUPABASE_URL: https://wweiogaeaikasrlldbdy.supabase.co
       SUPABASE_PUBLISHABLE_KEY: ci-placeholder
       SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
-      SUPABASE_JWT_SECRET: ci-placeholder
-      SELLER_ACCESS_CODE_SECRET: ci-placeholder
+      SUPABASE_JWT_SECRET: ci-placeholder-secret-with-enough-length-for-ci
+      SELLER_ACCESS_CODE_SECRET: ci-placeholder-secret-with-enough-length-for-ci
+      APP_WEB_URL: http://localhost:8080
+      SELLER_ACTIVATION_URL: http://localhost:8080/activar-vendedor
+      ACCOUNT_CONFIRMATION_URL: http://localhost:8080/confirmar-cuenta
+      PASSWORD_RESET_URL: http://localhost:8080/restablecer-contrasena
 
     steps:
       - name: Checkout
@@ -45,7 +80,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: yarn
           cache-dependency-path: yarn.lock
 
@@ -58,17 +93,84 @@ jobs:
       - name: Generate Prisma client
         run: yarn prisma:generate
 
+      - name: Validate migrations on clean PostgreSQL
+        run: yarn prisma:migrate:deploy
+
       - name: Check formatting
         run: yarn format:check
 
-      - name: Check API reference
+      - name: Check API reference and HTTP collection
         run: yarn docs:check
 
       - name: Lint
         run: yarn lint:check
 
-      - name: Test
+      - name: Unit tests
         run: yarn test --runInBand --watchman=false
+
+      - name: E2E smoke tests
+        run: yarn test:e2e --runInBand --watchman=false
 
       - name: Build
         run: yarn build
+
+      - name: Publish validation summary
+        if: always()
+        run: |
+          {
+            echo "## MultiLot 360 CI summary"
+            echo ""
+            echo "- Branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Prisma schema, migrations, docs, lint, tests and build are enforced."
+            echo "- PostgreSQL and Redis services are validated inside CI."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deployment gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality
+    if: github.event_name == 'push'
+    environment:
+      name: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+
+    steps:
+      - name: Enforce deployment branch policy
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            develop)
+              echo "Deploy target: staging"
+              ;;
+            master)
+              echo "Deploy target: production"
+              ;;
+            *)
+              echo "Branch ${GITHUB_REF_NAME} is not allowed to deploy."
+              exit 1
+              ;;
+          esac
+
+      - name: Trigger deployment webhook
+        if: env.DEPLOY_WEBHOOK_URL != ''
+        run: |
+          curl --fail-with-body --request POST "$DEPLOY_WEBHOOK_URL" \
+            --header "content-type: application/json" \
+            --header "authorization: Bearer $DEPLOY_WEBHOOK_TOKEN" \
+            --data "{\"repository\":\"${GITHUB_REPOSITORY}\",\"branch\":\"${GITHUB_REF_NAME}\",\"commit\":\"${GITHUB_SHA}\",\"environment\":\"${{ github.ref_name == 'master' && 'production' || 'staging' }}\"}"
+
+      - name: Deployment provider not configured
+        if: env.DEPLOY_WEBHOOK_URL == ''
+        run: |
+          {
+            echo "## Deployment gate passed"
+            echo ""
+            echo "No DEPLOY_WEBHOOK_URL secret is configured yet."
+            echo "CI is complete and this job is ready to trigger staging/production once the deployment provider is connected."
+          } >> "$GITHUB_STEP_SUMMARY"

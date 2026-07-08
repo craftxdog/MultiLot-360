@@ -20,6 +20,7 @@
     "lint:check": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\"",
     "prisma:pull": "prisma db pull",
     "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:validate": "prisma validate",
     "rbac:seed": "ts-node scripts/rbac.seed.ts",
     "rbac:verify": "ts-node scripts/verify-rbac-notifications.ts",

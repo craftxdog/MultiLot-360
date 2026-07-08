@@ -26,6 +26,7 @@ Documentación de referencia:
 
 - `docs/api.md`: contrato completo de rutas, DTOs, permisos y esquema.
 - `docs/multilot-api.http`: colección HTTP ejecutable de todos los endpoints.
+- `docs/ci-cd.md`: reglas de CI/CD, protección de ramas y gate de deploy.
 - `docs/domain-concepts.md`: conceptos, reglas e invariantes del negocio.
 - `docs/operations-runbook.md`: preparación, seguridad y despliegue.
 - `src/infrastructure/realtime/README.md`: autenticación, salas y eventos.
@@ -239,5 +240,13 @@ yarn test:realtime:smoke
 
 ## CI
 
-GitHub Actions ejecuta validación de Prisma, generación del cliente, formato,
-lint, pruebas unitarias y build sobre `develop` y `master`.
+GitHub Actions protege `develop` y `master` con:
+
+- PostgreSQL y Redis de CI.
+- Validación/generación de Prisma.
+- Aplicación de migraciones sobre PostgreSQL limpio.
+- Formato, documentación de API, lint, pruebas unitarias, e2e y build.
+- Gate de despliegue por environment: `staging` para `develop` y `production`
+  para `master`.
+
+El detalle operativo está en `docs/ci-cd.md`.
