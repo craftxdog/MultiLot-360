@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: multilot360
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d multilot360"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - multilot-smoke-redis-password
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "multilot-smoke-redis-password",
+          "ping",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${API_IMAGE:-multilot-api360:smoke}
+    platform: ${API_IMAGE_PLATFORM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_NAME: MultiLot 360 API Docker Smoke
+      APP_WEB_URL: http://localhost:8080
+      NODE_ENV: staging
+      PORT: 3000
+      API_PREFIX: api/v1
+      CORS_ORIGINS: http://localhost:8080
+      LOG_LEVEL: warn
+      SWAGGER_ENABLED: "false"
+      SUPABASE_PROJECT_REF: smokeprojectref
+      SUPABASE_URL: https://smokeprojectref.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: smoke-publishable-key
+      SUPABASE_SERVICE_ROLE_KEY: smoke-service-role-key
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/multilot360?schema=public
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: multilot360
+      DB_SSL: "false"
+      DB_POOL_MAX: 2
+      DB_POOL_IDLE_TIMEOUT_MS: 5000
+      DB_POOL_CONNECTION_TIMEOUT_MS: 5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: multilot-smoke-redis-password
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: "multilot360:smoke:"
+      REALTIME_ENABLED: "true"
+      REALTIME_REDIS_ENABLED: "true"
+      REALTIME_REDIS_KEY: "multilot360:smoke:socket.io"
+      MAILERSEND_ENABLED: "false"
+      AUTH_SIGNUP_ENABLED: "false"
+    ports:
+      - "${API_SMOKE_PORT:-3100}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('node:http').get('http://127.0.0.1:3000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      start_period: 5s
+      retries: 20

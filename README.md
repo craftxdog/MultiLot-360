@@ -246,7 +246,7 @@ GitHub Actions protege `develop` y `master` con:
 - Validación/generación de Prisma.
 - Chequeo de migraciones versionadas.
 - Formato, documentación de API, lint, pruebas unitarias, e2e y build.
-- Gate de despliegue por environment: `staging` para `develop` y `production`
+- Imagen y gate por environment: `development` para `develop` y `production`
   para `master`.
 
 El detalle operativo está en `docs/ci-cd.md`.

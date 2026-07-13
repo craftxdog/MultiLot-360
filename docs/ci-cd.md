@@ -7,7 +7,7 @@ El workflow principal vive en `.github/workflows/ci.yml` y protege las ramas
 
 | Rama | Uso | Validaciones | CD |
 | --- | --- | --- | --- |
-| `develop` | Integración y pruebas de cambios listos para staging. | CI completo obligatorio. | Gate `staging`. |
+| `develop` | Integración y pruebas de cambios listos para development. | CI completo obligatorio. | Imagen + gate `development`. |
 | `master` | Estado estable de producción. | CI completo obligatorio. | Gate `production`. |
 
 No se deben mantener ramas locales o remotas permanentes fuera de `develop` y
@@ -38,13 +38,23 @@ migraciones ya inicializado y no se ejecuta contra una base vacía en CI.
 
 ## Gate de despliegue
 
-El job `deploy` solo corre después de CI verde y únicamente en `push` a
-`develop` o `master`.
+El job `image` corre después de CI verde en cada `push` a `develop` o `master`.
+Publica una etiqueta mutable por entorno y otra inmutable con el SHA:
 
-- `develop` usa environment `staging`.
+```text
+develop -> ghcr.io/craftxdog/multilot-api360:development
+master  -> ghcr.io/craftxdog/multilot-api360:production
+ambas   -> ghcr.io/craftxdog/multilot-api360:<github-sha>
+```
+
+El job `deploy` solo corre cuando CI e imagen terminan correctamente.
+
+- `develop` usa environment `development`.
 - `master` usa environment `production`.
 
-Si el secreto `DEPLOY_WEBHOOK_URL` no está configurado, el gate termina
+`DEPLOY_WEBHOOK_URL` debe ser un secreto de environment, no un secreto global
+compartido. Cada environment contiene el webhook de su propio servicio
+Dokploy. Si no está configurado, el gate termina
 correctamente y deja constancia en el summary. Esto permite activar branch
 protection desde ya sin bloquear el repositorio por falta de proveedor de
 deploy.
@@ -63,7 +73,7 @@ El webhook recibe:
   "repository": "owner/repo",
   "branch": "develop|master",
   "commit": "sha",
-  "environment": "staging|production"
+  "environment": "development|production"
 }
 ```
 
@@ -78,6 +88,9 @@ En Settings -> Rules -> Rulesets o Branch protection:
 - Restringir force-push y borrado de ramas principales.
 - En environment `production`, requerir aprobación manual antes de desplegar.
 
+La guía detallada de ambos modelos de despliegue, límites y rollback está en
+`docs/deployment-strategies.md`.
+
 ## Validación local equivalente
 
 Antes de publicar:
@@ -91,4 +104,5 @@ yarn lint:check
 yarn test --runInBand --no-watchman
 yarn test:e2e --runInBand --no-watchman
 yarn build
+yarn docker:smoke
 ```
