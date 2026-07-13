@@ -62,6 +62,9 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     DB_PASSWORD: str({ default: '' }),
     DB_DATABASE: str({ default: 'postgres' }),
     DB_SSL: bool({ default: true }),
+    DB_POOL_MAX: num({ default: 5 }),
+    DB_POOL_IDLE_TIMEOUT_MS: num({ default: 30000 }),
+    DB_POOL_CONNECTION_TIMEOUT_MS: num({ default: 10000 }),
 
     REDIS_HOST: str(),
     REDIS_PORT: port({ default: 6379 }),
@@ -112,6 +115,9 @@ type ProductionEnv = {
   AUTH_SIGNUP_ENABLED: boolean;
   CORS_ORIGINS: string[];
   DATABASE_URL: string;
+  DB_POOL_CONNECTION_TIMEOUT_MS: number;
+  DB_POOL_IDLE_TIMEOUT_MS: number;
+  DB_POOL_MAX: number;
   DB_SSL: boolean;
   LOG_LEVEL: string;
   MAILERSEND_API_TOKEN: string;
@@ -169,6 +175,21 @@ function validateProductionEnv(env: ProductionEnv): void {
   if (!env.DB_SSL) {
     errors.push('DB_SSL must be true');
   }
+  validateIntegerRange('DB_POOL_MAX', env.DB_POOL_MAX, 1, 10, errors);
+  validateIntegerRange(
+    'DB_POOL_IDLE_TIMEOUT_MS',
+    env.DB_POOL_IDLE_TIMEOUT_MS,
+    1000,
+    300000,
+    errors,
+  );
+  validateIntegerRange(
+    'DB_POOL_CONNECTION_TIMEOUT_MS',
+    env.DB_POOL_CONNECTION_TIMEOUT_MS,
+    1000,
+    60000,
+    errors,
+  );
 
   if (!env.REDIS_KEY_PREFIX.toLowerCase().includes('production')) {
     errors.push('REDIS_KEY_PREFIX must identify the production environment');
@@ -193,6 +214,18 @@ function validateProductionEnv(env: ProductionEnv): void {
     throw new Error(
       `Unsafe production configuration:\n- ${errors.join('\n- ')}`,
     );
+  }
+}
+
+function validateIntegerRange(
+  name: string,
+  value: number,
+  minimum: number,
+  maximum: number,
+  errors: string[],
+): void {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    errors.push(`${name} must be an integer between ${minimum} and ${maximum}`);
   }
 }
 

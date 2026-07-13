@@ -32,6 +32,9 @@ export interface AppConfig {
     password: string;
     database: string;
     ssl: boolean;
+    poolMax: number;
+    poolIdleTimeoutMs: number;
+    poolConnectionTimeoutMs: number;
   };
 
   redis: {
@@ -110,6 +113,9 @@ export default (): AppConfig => {
       password: env.DB_PASSWORD,
       database: env.DB_DATABASE,
       ssl: env.DB_SSL,
+      poolMax: env.DB_POOL_MAX,
+      poolIdleTimeoutMs: env.DB_POOL_IDLE_TIMEOUT_MS,
+      poolConnectionTimeoutMs: env.DB_POOL_CONNECTION_TIMEOUT_MS,
     },
     redis: {
       host: env.REDIS_HOST,

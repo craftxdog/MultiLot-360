@@ -20,6 +20,9 @@ export class PrismaService
     const database = envConfig.database;
     const adapter = new PrismaPg({
       connectionString: database.url,
+      max: database.poolMax,
+      idleTimeoutMillis: database.poolIdleTimeoutMs,
+      connectionTimeoutMillis: database.poolConnectionTimeoutMs,
       ...(database.ssl && { ssl: { rejectUnauthorized: false } }),
     });
 

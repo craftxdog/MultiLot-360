@@ -50,6 +50,15 @@ describe('validateEnv realtime configuration', () => {
       }),
     ).toThrow(/APP_WEB_URL must use HTTPS/);
   });
+
+  it('rejects an oversized production database pool', () => {
+    expect(() =>
+      validateEnv({
+        ...productionEnv(),
+        DB_POOL_MAX: '11',
+      }),
+    ).toThrow(/DB_POOL_MAX must be an integer between 1 and 10/);
+  });
 });
 
 function productionEnv(): NodeJS.ProcessEnv {
@@ -68,6 +77,9 @@ function productionEnv(): NodeJS.ProcessEnv {
     DATABASE_URL:
       'postgresql://postgres.project:password@pooler.supabase.com:5432/postgres?schema=public',
     DB_SSL: 'true',
+    DB_POOL_MAX: '3',
+    DB_POOL_IDLE_TIMEOUT_MS: '30000',
+    DB_POOL_CONNECTION_TIMEOUT_MS: '10000',
     REDIS_HOST: 'redis-production',
     REDIS_PASSWORD: 'redis-production-password',
     REDIS_KEY_PREFIX: 'multilot360:production:',
