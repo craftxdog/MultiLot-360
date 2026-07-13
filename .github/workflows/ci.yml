@@ -63,7 +63,6 @@ jobs:
       SUPABASE_URL: https://wweiogaeaikasrlldbdy.supabase.co
       SUPABASE_PUBLISHABLE_KEY: ci-placeholder
       SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
-      SUPABASE_JWT_SECRET: ci-placeholder-secret-with-enough-length-for-ci
       SELLER_ACCESS_CODE_SECRET: ci-placeholder-secret-with-enough-length-for-ci
       APP_WEB_URL: http://localhost:8080
       SELLER_ACTIVATION_URL: http://localhost:8080/activar-vendedor
@@ -147,12 +146,65 @@ jobs:
             echo "- PostgreSQL and Redis services are validated inside CI."
           } >> "$GITHUB_STEP_SUMMARY"
 
+  image:
+    name: Build production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+    if: github.event_name == 'push' && github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/multilot-api360:production
+            ghcr.io/${{ github.repository_owner }}/multilot-api360:${{ github.sha }}
+          cache-from: type=gha,scope=production-image
+          cache-to: type=gha,mode=max,scope=production-image
+          provenance: mode=max
+          sbom: true
+
+      - name: Publish image summary
+        run: |
+          {
+            echo "## Production image published"
+            echo ""
+            echo "- Mutable deployment tag: \`ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multilot-api360:production\`"
+            echo "- Immutable release tag: \`ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multilot-api360:${GITHUB_SHA}\`"
+            echo "- The VPS only needs to pull and run this image; it does not build application sources."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deployment gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: quality
-    if: github.event_name == 'push'
+    needs:
+      - quality
+      - image
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      needs.quality.result == 'success' &&
+      (github.ref_name != 'master' || needs.image.result == 'success')
     environment:
       name: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
     concurrency:
