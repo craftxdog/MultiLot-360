@@ -52,7 +52,6 @@ Nunca versionar:
 
 - `DATABASE_URL` y `DIRECT_URL` con contraseña real;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `SUPABASE_JWT_SECRET`;
 - `MAILERSEND_API_TOKEN`;
 - `SELLER_ACCESS_CODE_SECRET`;
 - access tokens, refresh tokens u OTP de pruebas.
@@ -76,6 +75,10 @@ Configuración recomendada en el dashboard:
 La service role se usa solo en el backend. La autorización de negocio no toma
 roles desde `user_metadata`; resuelve `usuarios`, roles, módulos y permisos en
 PostgreSQL.
+
+Supabase Auth firma los tokens con sus claves administradas (actualmente ECC)
+y la API valida sesiones mediante Supabase Auth. No se copia ni mantiene un
+secreto JWT compartido dentro de la aplicación.
 
 ## Postura RLS
 
@@ -106,11 +109,12 @@ el correo normalizado; el OTP no viaja en la URL.
 
 ## Base de datos y Prisma
 
-Cada entorno nuevo debe comenzar desde
-`supabase/migrations/20260713000000_production_baseline.sql` y ejecutar después
-`supabase/seed.sql`. El baseline contiene solo estructura; el seed contiene
-solo roles, módulos, permisos y parámetros idempotentes. No se copian usuarios,
-vendedores, sorteos, turnos ni ventas desde otro entorno.
+Cada entorno nuevo debe aplicar en orden todos los archivos de
+`supabase/migrations/` y ejecutar después `supabase/seed.sql`. El baseline
+contiene solo estructura; las migraciones posteriores endurecen o evolucionan
+esa estructura, y el seed contiene solo roles, módulos, permisos y parámetros
+idempotentes. No se copian usuarios, vendedores, sorteos, turnos ni ventas
+desde otro entorno.
 
 La base remota es la fuente de verdad del flujo introspectivo:
 

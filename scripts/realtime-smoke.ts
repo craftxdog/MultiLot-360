@@ -423,8 +423,7 @@ async function createTemporarySeller(
       },
     );
 
-    const secret =
-      process.env.SELLER_ACCESS_CODE_SECRET ?? process.env.SUPABASE_JWT_SECRET;
+    const secret = process.env.SELLER_ACCESS_CODE_SECRET;
     if (!secret) throw new Error('Seller access-code secret is not configured');
     const accessCodeHash = createHmac('sha256', secret)
       .update(accessCode)

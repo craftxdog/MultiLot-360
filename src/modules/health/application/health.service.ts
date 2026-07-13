@@ -53,10 +53,9 @@ export class HealthService {
   }
 
   private checkConfig(): HealthCheck {
-    const missing = [
-      ['SUPABASE_JWT_SECRET', this.envConfig.supabase.jwtSecret],
-      ['DATABASE_URL', this.envConfig.database.url],
-    ].filter(([, value]) => !value);
+    const missing = [['DATABASE_URL', this.envConfig.database.url]].filter(
+      ([, value]) => !value,
+    );
 
     if (missing.length > 0) {
       return {

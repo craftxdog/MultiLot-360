@@ -21,7 +21,6 @@ export interface AppConfig {
     url: string;
     publishableKey: string;
     serviceRoleKey: string;
-    jwtSecret: string;
   };
 
   database: {
@@ -33,6 +32,9 @@ export interface AppConfig {
     password: string;
     database: string;
     ssl: boolean;
+    poolMax: number;
+    poolIdleTimeoutMs: number;
+    poolConnectionTimeoutMs: number;
   };
 
   redis: {
@@ -101,7 +103,6 @@ export default (): AppConfig => {
       url: env.SUPABASE_URL,
       publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-      jwtSecret: env.SUPABASE_JWT_SECRET,
     },
     database: {
       url: env.DATABASE_URL,
@@ -112,6 +113,9 @@ export default (): AppConfig => {
       password: env.DB_PASSWORD,
       database: env.DB_DATABASE,
       ssl: env.DB_SSL,
+      poolMax: env.DB_POOL_MAX,
+      poolIdleTimeoutMs: env.DB_POOL_IDLE_TIMEOUT_MS,
+      poolConnectionTimeoutMs: env.DB_POOL_CONNECTION_TIMEOUT_MS,
     },
     redis: {
       host: env.REDIS_HOST,
@@ -142,7 +146,7 @@ export default (): AppConfig => {
     },
     sellerAccess: {
       codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
-      codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
+      codeSecret: env.SELLER_ACCESS_CODE_SECRET,
       activationUrl:
         env.SELLER_ACTIVATION_URL ||
         new URL('/activar-vendedor', env.APP_WEB_URL).toString(),
