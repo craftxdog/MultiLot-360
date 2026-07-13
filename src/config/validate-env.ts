@@ -50,7 +50,6 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     }),
     SUPABASE_PUBLISHABLE_KEY: str({ default: '' }),
     SUPABASE_SERVICE_ROLE_KEY: str({ default: '' }),
-    SUPABASE_JWT_SECRET: str({ default: '' }),
 
     DATABASE_URL: str({
       default:
@@ -126,7 +125,6 @@ type ProductionEnv = {
   REDIS_KEY_PREFIX: string;
   REDIS_PASSWORD: string;
   SELLER_ACCESS_CODE_SECRET: string;
-  SUPABASE_JWT_SECRET: string;
   SUPABASE_PROJECT_REF: string;
   SUPABASE_PUBLISHABLE_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
@@ -160,7 +158,6 @@ function validateProductionEnv(env: ProductionEnv): void {
   requireLength('SUPABASE_PROJECT_REF', env.SUPABASE_PROJECT_REF, 10);
   requireLength('SUPABASE_PUBLISHABLE_KEY', env.SUPABASE_PUBLISHABLE_KEY, 20);
   requireLength('SUPABASE_SERVICE_ROLE_KEY', env.SUPABASE_SERVICE_ROLE_KEY, 32);
-  requireLength('SUPABASE_JWT_SECRET', env.SUPABASE_JWT_SECRET, 32);
   requireLength('SELLER_ACCESS_CODE_SECRET', env.SELLER_ACCESS_CODE_SECRET, 32);
   requireLength('REDIS_PASSWORD', env.REDIS_PASSWORD, 16);
 
@@ -168,13 +165,6 @@ function validateProductionEnv(env: ProductionEnv): void {
   if (env.SUPABASE_URL !== expectedSupabaseUrl) {
     errors.push(`SUPABASE_URL must equal ${expectedSupabaseUrl}`);
   }
-  if (
-    env.SELLER_ACCESS_CODE_SECRET &&
-    env.SELLER_ACCESS_CODE_SECRET === env.SUPABASE_JWT_SECRET
-  ) {
-    errors.push('SELLER_ACCESS_CODE_SECRET must be independent');
-  }
-
   validateProductionDatabaseUrl(env.DATABASE_URL, errors);
   if (!env.DB_SSL) {
     errors.push('DB_SSL must be true');

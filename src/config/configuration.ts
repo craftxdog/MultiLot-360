@@ -21,7 +21,6 @@ export interface AppConfig {
     url: string;
     publishableKey: string;
     serviceRoleKey: string;
-    jwtSecret: string;
   };
 
   database: {
@@ -101,7 +100,6 @@ export default (): AppConfig => {
       url: env.SUPABASE_URL,
       publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-      jwtSecret: env.SUPABASE_JWT_SECRET,
     },
     database: {
       url: env.DATABASE_URL,
@@ -142,7 +140,7 @@ export default (): AppConfig => {
     },
     sellerAccess: {
       codeExpiresInMinutes: env.SELLER_ACCESS_CODE_EXPIRES_IN_MINUTES,
-      codeSecret: env.SELLER_ACCESS_CODE_SECRET || env.SUPABASE_JWT_SECRET,
+      codeSecret: env.SELLER_ACCESS_CODE_SECRET,
       activationUrl:
         env.SELLER_ACTIVATION_URL ||
         new URL('/activar-vendedor', env.APP_WEB_URL).toString(),

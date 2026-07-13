@@ -14,9 +14,7 @@ export class SellerAccessCodeService {
     const secret = this.envConfig.sellerAccess.codeSecret;
 
     if (!secret) {
-      throw new Error(
-        'SELLER_ACCESS_CODE_SECRET or SUPABASE_JWT_SECRET is required',
-      );
+      throw new Error('SELLER_ACCESS_CODE_SECRET is required');
     }
 
     return createHmac('sha256', secret).update(code.trim()).digest('hex');

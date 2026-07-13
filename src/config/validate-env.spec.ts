@@ -41,14 +41,12 @@ describe('validateEnv realtime configuration', () => {
     ).toThrow('Unsafe production configuration');
   });
 
-  it('rejects development origins and shared secrets in production', () => {
+  it('rejects development origins in production', () => {
     expect(() =>
       validateEnv({
         ...productionEnv(),
         APP_WEB_URL: 'http://localhost:3000',
         CORS_ORIGINS: 'http://localhost:3000',
-        SELLER_ACCESS_CODE_SECRET:
-          'supabase-jwt-secret-that-is-long-enough-for-production',
       }),
     ).toThrow(/APP_WEB_URL must use HTTPS/);
   });
@@ -67,8 +65,6 @@ function productionEnv(): NodeJS.ProcessEnv {
       'sb_publishable_production_key_with_sufficient_length',
     SUPABASE_SERVICE_ROLE_KEY:
       'service-role-key-with-sufficient-production-length',
-    SUPABASE_JWT_SECRET:
-      'supabase-jwt-secret-that-is-long-enough-for-production',
     DATABASE_URL:
       'postgresql://postgres.project:password@pooler.supabase.com:5432/postgres?schema=public',
     DB_SSL: 'true',

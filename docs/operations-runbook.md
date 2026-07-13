@@ -52,7 +52,6 @@ Nunca versionar:
 
 - `DATABASE_URL` y `DIRECT_URL` con contraseña real;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `SUPABASE_JWT_SECRET`;
 - `MAILERSEND_API_TOKEN`;
 - `SELLER_ACCESS_CODE_SECRET`;
 - access tokens, refresh tokens u OTP de pruebas.
@@ -76,6 +75,10 @@ Configuración recomendada en el dashboard:
 La service role se usa solo en el backend. La autorización de negocio no toma
 roles desde `user_metadata`; resuelve `usuarios`, roles, módulos y permisos en
 PostgreSQL.
+
+Supabase Auth firma los tokens con sus claves administradas (actualmente ECC)
+y la API valida sesiones mediante Supabase Auth. No se copia ni mantiene un
+secreto JWT compartido dentro de la aplicación.
 
 ## Postura RLS
 
