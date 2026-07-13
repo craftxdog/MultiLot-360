@@ -32,7 +32,19 @@ curl http://localhost:3000/api/v1/health/ready
 ```
 
 `health` comprueba el proceso. `health/ready` debe usarse para readiness del
-orquestador porque verifica dependencias.
+orquestador porque verifica dependencias y responde `503 Service Unavailable`
+si PostgreSQL, Redis o la configuración obligatoria no están disponibles.
+
+En `NODE_ENV=production` el proceso se niega a iniciar si detecta Swagger,
+signup público, HTTP/localhost en URLs públicas o CORS, secretos débiles,
+PostgreSQL sin `DB_SSL=true`, Redis sin contraseña o realtime sin Redis.
+Usar `.env.production.example` como inventario; nunca guardar sus valores reales
+en Git.
+
+El runtime activa TLS mediante el objeto `ssl` de `@prisma/adapter-pg`; por eso
+`DATABASE_URL` no debe duplicar `sslmode`. `DIRECT_URL` y
+`PRISMA_DATABASE_URL`, usados por Prisma CLI sin ese adaptador, sí deben incluir
+`sslmode=require`.
 
 ## Variables sensibles
 
@@ -93,6 +105,12 @@ requiere, pero no se registran en logs. El enlace de recuperación incluye solo
 el correo normalizado; el OTP no viaja en la URL.
 
 ## Base de datos y Prisma
+
+Cada entorno nuevo debe comenzar desde
+`supabase/migrations/20260713000000_production_baseline.sql` y ejecutar después
+`supabase/seed.sql`. El baseline contiene solo estructura; el seed contiene
+solo roles, módulos, permisos y parámetros idempotentes. No se copian usuarios,
+vendedores, sorteos, turnos ni ventas desde otro entorno.
 
 La base remota es la fuente de verdad del flujo introspectivo:
 

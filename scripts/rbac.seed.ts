@@ -36,7 +36,7 @@ const prisma = new PrismaClient({
   }),
 });
 
-const ADMIN_ROLE_NAME = process.env.AUTH_ADMIN_ROLE_NAME ?? 'admin';
+const ADMIN_ROLE_NAME = process.env.AUTH_ADMIN_ROLE_NAME ?? 'ADMIN';
 
 const MODULES: ModuleSeed[] = [
   { code: 'USUARIOS', description: 'Gestion de usuarios' },

@@ -26,7 +26,7 @@ const resetCodeExpiryMinutes = makeValidator<number>((input) => {
 });
 
 export function validateEnv(env: NodeJS.ProcessEnv) {
-  return cleanEnv(env, {
+  const validated = cleanEnv(env, {
     APP_NAME: str({ default: 'MultiLot 360 API' }),
     APP_WEB_URL: url({ default: 'http://localhost:8080' }),
     NODE_ENV: str({
@@ -93,11 +93,156 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     SELLER_ACTIVATION_URL: url({ default: '' }),
 
     AUTH_SIGNUP_ENABLED: bool({ default: true }),
-    AUTH_ADMIN_ROLE_NAME: str({ default: 'admin' }),
+    AUTH_ADMIN_ROLE_NAME: str({ default: 'ADMIN' }),
     ACCOUNT_CONFIRMATION_URL: url({ default: '' }),
     PASSWORD_RESET_URL: url({ default: '' }),
     PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES: resetCodeExpiryMinutes({
       default: 60,
     }),
   });
+
+  if (validated.NODE_ENV === 'production') {
+    validateProductionEnv(validated);
+  }
+
+  return validated;
+}
+
+type ProductionEnv = {
+  APP_WEB_URL: string;
+  AUTH_SIGNUP_ENABLED: boolean;
+  CORS_ORIGINS: string[];
+  DATABASE_URL: string;
+  DB_SSL: boolean;
+  LOG_LEVEL: string;
+  MAILERSEND_API_TOKEN: string;
+  MAILERSEND_ENABLED: boolean;
+  MAILERSEND_FROM_EMAIL: string;
+  MAILERSEND_REPLY_TO_EMAIL: string;
+  MAILERSEND_SMTP_PASSWORD: string;
+  MAILERSEND_SMTP_USER: string;
+  REALTIME_ENABLED: boolean;
+  REALTIME_REDIS_ENABLED: boolean;
+  REDIS_KEY_PREFIX: string;
+  REDIS_PASSWORD: string;
+  SELLER_ACCESS_CODE_SECRET: string;
+  SUPABASE_JWT_SECRET: string;
+  SUPABASE_PROJECT_REF: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_URL: string;
+  SWAGGER_ENABLED: boolean;
+};
+
+function validateProductionEnv(env: ProductionEnv): void {
+  const errors: string[] = [];
+  const requireLength = (name: string, value: string, minimum: number) => {
+    if (value.trim().length < minimum) {
+      errors.push(`${name} must contain at least ${minimum} characters`);
+    }
+  };
+
+  validateHttpsUrl('APP_WEB_URL', env.APP_WEB_URL, errors);
+  for (const origin of env.CORS_ORIGINS) {
+    validateHttpsOrigin(origin, errors);
+  }
+
+  if (env.SWAGGER_ENABLED) {
+    errors.push('SWAGGER_ENABLED must be false');
+  }
+  if (env.AUTH_SIGNUP_ENABLED) {
+    errors.push('AUTH_SIGNUP_ENABLED must be false');
+  }
+  if (['debug', 'verbose'].includes(env.LOG_LEVEL)) {
+    errors.push('LOG_LEVEL cannot be debug or verbose');
+  }
+
+  requireLength('SUPABASE_PROJECT_REF', env.SUPABASE_PROJECT_REF, 10);
+  requireLength('SUPABASE_PUBLISHABLE_KEY', env.SUPABASE_PUBLISHABLE_KEY, 20);
+  requireLength('SUPABASE_SERVICE_ROLE_KEY', env.SUPABASE_SERVICE_ROLE_KEY, 32);
+  requireLength('SUPABASE_JWT_SECRET', env.SUPABASE_JWT_SECRET, 32);
+  requireLength('SELLER_ACCESS_CODE_SECRET', env.SELLER_ACCESS_CODE_SECRET, 32);
+  requireLength('REDIS_PASSWORD', env.REDIS_PASSWORD, 16);
+
+  const expectedSupabaseUrl = `https://${env.SUPABASE_PROJECT_REF}.supabase.co`;
+  if (env.SUPABASE_URL !== expectedSupabaseUrl) {
+    errors.push(`SUPABASE_URL must equal ${expectedSupabaseUrl}`);
+  }
+  if (
+    env.SELLER_ACCESS_CODE_SECRET &&
+    env.SELLER_ACCESS_CODE_SECRET === env.SUPABASE_JWT_SECRET
+  ) {
+    errors.push('SELLER_ACCESS_CODE_SECRET must be independent');
+  }
+
+  validateProductionDatabaseUrl(env.DATABASE_URL, errors);
+  if (!env.DB_SSL) {
+    errors.push('DB_SSL must be true');
+  }
+
+  if (!env.REDIS_KEY_PREFIX.toLowerCase().includes('production')) {
+    errors.push('REDIS_KEY_PREFIX must identify the production environment');
+  }
+  if (env.REALTIME_ENABLED && !env.REALTIME_REDIS_ENABLED) {
+    errors.push('REALTIME_REDIS_ENABLED must be true when realtime is enabled');
+  }
+
+  if (env.MAILERSEND_ENABLED) {
+    requireLength('MAILERSEND_API_TOKEN', env.MAILERSEND_API_TOKEN, 20);
+    requireLength('MAILERSEND_SMTP_USER', env.MAILERSEND_SMTP_USER, 3);
+    requireLength('MAILERSEND_SMTP_PASSWORD', env.MAILERSEND_SMTP_PASSWORD, 12);
+    validateEmail('MAILERSEND_FROM_EMAIL', env.MAILERSEND_FROM_EMAIL, errors);
+    validateEmail(
+      'MAILERSEND_REPLY_TO_EMAIL',
+      env.MAILERSEND_REPLY_TO_EMAIL,
+      errors,
+    );
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Unsafe production configuration:\n- ${errors.join('\n- ')}`,
+    );
+  }
+}
+
+function validateHttpsUrl(name: string, value: string, errors: string[]): void {
+  try {
+    if (new URL(value).protocol !== 'https:') {
+      errors.push(`${name} must use HTTPS`);
+    }
+  } catch {
+    errors.push(`${name} must be a valid URL`);
+  }
+}
+
+function validateHttpsOrigin(origin: string, errors: string[]): void {
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== 'https:' || parsed.origin !== origin) {
+      errors.push(`CORS origin must be an exact HTTPS origin: ${origin}`);
+    }
+  } catch {
+    errors.push(`CORS origin is invalid: ${origin}`);
+  }
+}
+
+function validateProductionDatabaseUrl(value: string, errors: string[]): void {
+  try {
+    const parsed = new URL(value);
+    if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+      errors.push('DATABASE_URL must use PostgreSQL');
+    }
+    if (['localhost', '127.0.0.1', '::1'].includes(parsed.hostname)) {
+      errors.push('DATABASE_URL cannot target localhost');
+    }
+  } catch {
+    errors.push('DATABASE_URL must be a valid PostgreSQL URL');
+  }
+}
+
+function validateEmail(name: string, value: string, errors: string[]): void {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    errors.push(`${name} must be a valid email address`);
+  }
 }

@@ -50,7 +50,7 @@ import {
     DatabaseModule,
     AuditLogsModule,
     JwtModule.register({}),
-    ThrottlerModule.forRoot([{ name: 'passwordReset', ttl: 60_000, limit: 3 }]),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
   ],
   controllers: [AuthController, AuthMeController, SellerOnboardingController],
   providers: [
