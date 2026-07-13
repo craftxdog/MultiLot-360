@@ -38,6 +38,7 @@ services:
 
   api:
     image: ${API_IMAGE:-multilot-api360:smoke}
+    platform: ${API_IMAGE_PLATFORM}
     depends_on:
       postgres:
         condition: service_healthy

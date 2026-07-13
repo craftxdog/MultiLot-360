@@ -6,20 +6,40 @@ compose_file="docker-compose.smoke.yaml"
 image="${1:-multilot-api360:smoke}"
 port="${API_SMOKE_PORT:-3100}"
 
+docker_arch="$(docker info --format '{{.Architecture}}')"
+case "$docker_arch" in
+  amd64 | x86_64)
+    host_platform="linux/amd64"
+    ;;
+  arm64 | aarch64)
+    host_platform="linux/arm64"
+    ;;
+  *)
+    echo "Unsupported Docker architecture: $docker_arch" >&2
+    exit 1
+    ;;
+esac
+
+if [[ $# -eq 0 ]]; then
+  platform="${API_IMAGE_PLATFORM:-$host_platform}"
+else
+  platform="${API_IMAGE_PLATFORM:-linux/amd64}"
+fi
+
 cleanup() {
-  API_IMAGE="$image" API_SMOKE_PORT="$port" \
+  API_IMAGE="$image" API_IMAGE_PLATFORM="$platform" API_SMOKE_PORT="$port" \
     docker compose --file "$compose_file" down --volumes --remove-orphans
 }
 
 trap cleanup EXIT
 
 if [[ $# -eq 0 ]]; then
-  docker build --target runner --tag "$image" .
+  docker build --platform "$platform" --target runner --tag "$image" .
 else
-  docker pull "$image"
+  docker pull --platform "$platform" "$image"
 fi
 
-API_IMAGE="$image" API_SMOKE_PORT="$port" \
+API_IMAGE="$image" API_IMAGE_PLATFORM="$platform" API_SMOKE_PORT="$port" \
   docker compose --file "$compose_file" up --detach --no-build --wait
 
 base_url="http://127.0.0.1:${port}"
@@ -47,4 +67,3 @@ if [[ "$docs_status" != "404" ]]; then
 fi
 
 echo "Docker smoke passed for $image"
-

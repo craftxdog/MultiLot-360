@@ -342,6 +342,11 @@ yarn docker:smoke:image ghcr.io/craftxdog/multilot-api360:development
 yarn docker:smoke:image ghcr.io/craftxdog/multilot-api360:production
 ```
 
+Las imágenes publicadas por el pipeline están orientadas al VPS
+`linux/amd64`. El script detecta la arquitectura de Docker y, en Macs Apple
+Silicon, ejecuta esa imagen mediante emulación. Para probar otro destino se
+puede declarar `API_IMAGE_PLATFORM`, por ejemplo `linux/arm64`.
+
 Para evitar colisión de puerto:
 
 ```bash
@@ -376,4 +381,3 @@ Además:
 - Revisar mensualmente imágenes y build cache.
 - En Supabase Free, mantener exportaciones verificadas porque las opciones de
   backup gestionado son más limitadas que en Pro.
-
