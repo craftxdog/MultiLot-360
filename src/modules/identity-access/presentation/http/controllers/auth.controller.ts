@@ -64,6 +64,8 @@ export class AuthController {
 
   @Public()
   @Post('signup')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
   @ApiCreatedResponse({ type: AuthSessionResponseDto })
   signup(@Body() body: SignupAdminDto) {
     return this.signupAdmin.execute({
@@ -77,6 +79,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOkResponse({ type: AuthSessionResponseDto })
   signIn(@Body() body: LoginDto) {
     return this.login.execute({
@@ -88,6 +92,8 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOkResponse({ type: AuthSessionResponseDto })
   refresh(@Body() body: RefreshSessionDto) {
     return this.refreshSession.execute({
@@ -99,7 +105,7 @@ export class AuthController {
   @Post('password/reset/request')
   @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ passwordReset: { limit: 3, ttl: 60_000 } })
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @ApiAcceptedResponse({ type: RequestPasswordResetResponseDto })
   requestPasswordResetEmail(@Body() body: RequestPasswordResetDto) {
     return this.requestPasswordReset.execute({ email: body.email });
@@ -109,7 +115,7 @@ export class AuthController {
   @Post('password/reset/confirm')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ passwordReset: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOkResponse({ type: ConfirmPasswordResetResponseDto })
   confirmPasswordResetSession(@Body() body: ConfirmPasswordResetDto) {
     return this.confirmPasswordReset.execute({
@@ -127,7 +133,7 @@ export class AuthController {
   @RequireModules(SYSTEM_MODULES.usuarios)
   @Permissions('usuarios.update')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ passwordReset: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOkResponse({ type: AdminResetPasswordResponseDto })
   resetPasswordAsAdmin(
     @CurrentUser() admin: AuthenticatedUserContext,

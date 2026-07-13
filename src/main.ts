@@ -2,6 +2,7 @@ import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import {
@@ -15,11 +16,15 @@ import { EnvConfigService } from './config/env-config.service';
 import { RedisSocketIoAdapter } from './infrastructure/realtime';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   const env = app.get(EnvConfigService);
   const logger = app.get(AppLoggerService);
 
   app.useLogger(logger);
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
   app.enableShutdownHooks();
   app.setGlobalPrefix(env.app.apiPrefix);
 

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { createConnection } from 'node:net';
+import { Injectable, Logger } from '@nestjs/common';
+import Redis from 'ioredis';
 import { EnvConfigService } from '../../../config/env-config.service';
 import { PrismaService } from '../../../infrastructure/database/prisma';
 
@@ -19,6 +19,8 @@ export type HealthResponse = {
 
 @Injectable()
 export class HealthService {
+  private readonly logger = new Logger(HealthService.name);
+
   constructor(
     private readonly envConfig: EnvConfigService,
     private readonly prisma: PrismaService,
@@ -75,36 +77,54 @@ export class HealthService {
       await this.prisma.$queryRaw`SELECT 1`;
       return { status: 'ok' };
     } catch (error) {
+      this.logger.warn(
+        `Database readiness check failed: ${this.errorMessage(error)}`,
+      );
       return {
         status: 'error',
-        details:
-          error instanceof Error ? error.message : 'Database unavailable',
+        details: this.publicDependencyError('Database', error),
       };
     }
   }
 
   private async checkRedis(): Promise<HealthCheck> {
-    return new Promise((resolve) => {
-      const socket = createConnection({
-        host: this.envConfig.redis.host,
-        port: this.envConfig.redis.port,
-      });
-      const timeout = setTimeout(() => {
-        socket.destroy();
-        resolve({ status: 'error', details: 'Redis connection timed out' });
-      }, 1500);
-
-      socket.once('connect', () => {
-        clearTimeout(timeout);
-        socket.end();
-        resolve({ status: 'ok' });
-      });
-
-      socket.once('error', (error: Error) => {
-        clearTimeout(timeout);
-        socket.destroy();
-        resolve({ status: 'error', details: error.message });
-      });
+    const redis = new Redis({
+      host: this.envConfig.redis.host,
+      port: this.envConfig.redis.port,
+      password: this.envConfig.redis.password || undefined,
+      db: this.envConfig.redis.db,
+      connectTimeout: 1500,
+      enableOfflineQueue: false,
+      lazyConnect: true,
+      maxRetriesPerRequest: 0,
     });
+
+    try {
+      await redis.connect();
+      const response = await redis.ping();
+      return response === 'PONG'
+        ? { status: 'ok' }
+        : { status: 'error', details: 'Redis did not respond with PONG' };
+    } catch (error) {
+      this.logger.warn(
+        `Redis readiness check failed: ${this.errorMessage(error)}`,
+      );
+      return {
+        status: 'error',
+        details: this.publicDependencyError('Redis', error),
+      };
+    } finally {
+      redis.disconnect();
+    }
+  }
+
+  private publicDependencyError(dependency: string, error: unknown): string {
+    return this.envConfig.app.env === 'production'
+      ? `${dependency} unavailable`
+      : this.errorMessage(error);
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown dependency error';
   }
 }
