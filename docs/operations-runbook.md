@@ -195,6 +195,11 @@ y publicar solo después de pasar la matriz de validación.
 
 ## Despliegue y rollback
 
+El modelo preferido es construir en GitHub Actions y ejecutar en Dokploy la
+imagen GHCR ya validada. La comparación con builds dentro del VPS, los perfiles
+de recursos y el procedimiento exacto están en
+`docs/deployment-strategies.md`.
+
 Orden recomendado:
 
 1. Respaldar y aplicar cambio SQL compatible hacia atrás.

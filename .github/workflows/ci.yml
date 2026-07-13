@@ -71,10 +71,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
@@ -147,18 +147,37 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   image:
-    name: Build production image
+    name: Build deployment image
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: quality
-    if: github.event_name == 'push' && github.ref_name == 'master'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref_name == 'develop' || github.ref_name == 'master')
     permissions:
       contents: read
       packages: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Select deployment channel
+        id: channel
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            develop)
+              echo "name=development" >> "$GITHUB_OUTPUT"
+              ;;
+            master)
+              echo "name=production" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported deployment branch: ${GITHUB_REF_NAME}"
+              exit 1
+              ;;
+          esac
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -170,25 +189,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and publish immutable production image
+      - name: Build and publish deployment image
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: runner
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/multilot-api360:production
+            ghcr.io/${{ github.repository_owner }}/multilot-api360:${{ steps.channel.outputs.name }}
             ghcr.io/${{ github.repository_owner }}/multilot-api360:${{ github.sha }}
-          cache-from: type=gha,scope=production-image
-          cache-to: type=gha,mode=max,scope=production-image
+          cache-from: type=gha,scope=${{ steps.channel.outputs.name }}-image
+          cache-to: type=gha,mode=max,scope=${{ steps.channel.outputs.name }}-image
           provenance: mode=max
           sbom: true
 
       - name: Publish image summary
         run: |
           {
-            echo "## Production image published"
+            echo "## Deployment image published"
             echo ""
-            echo "- Mutable deployment tag: \`ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multilot-api360:production\`"
+            echo "- Environment: \`${{ steps.channel.outputs.name }}\`"
+            echo "- Mutable deployment tag: \`ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multilot-api360:${{ steps.channel.outputs.name }}\`"
             echo "- Immutable release tag: \`ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multilot-api360:${GITHUB_SHA}\`"
             echo "- The VPS only needs to pull and run this image; it does not build application sources."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -204,9 +225,9 @@ jobs:
       always() &&
       github.event_name == 'push' &&
       needs.quality.result == 'success' &&
-      (github.ref_name != 'master' || needs.image.result == 'success')
+      needs.image.result == 'success'
     environment:
-      name: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
+      name: ${{ github.ref_name == 'master' && 'production' || 'development' }}
     concurrency:
       group: deploy-${{ github.ref_name }}
       cancel-in-progress: false
@@ -232,11 +253,20 @@ jobs:
 
       - name: Trigger deployment webhook
         if: env.DEPLOY_WEBHOOK_URL != ''
+        shell: bash
         run: |
-          curl --fail-with-body --request POST "$DEPLOY_WEBHOOK_URL" \
-            --header "content-type: application/json" \
-            --header "authorization: Bearer $DEPLOY_WEBHOOK_TOKEN" \
-            --data "{\"repository\":\"${GITHUB_REPOSITORY}\",\"branch\":\"${GITHUB_REF_NAME}\",\"commit\":\"${GITHUB_SHA}\",\"environment\":\"${{ github.ref_name == 'master' && 'production' || 'staging' }}\"}"
+          curl_args=(
+            --fail-with-body
+            --request POST
+            --header "content-type: application/json"
+            --data "{\"repository\":\"${GITHUB_REPOSITORY}\",\"branch\":\"${GITHUB_REF_NAME}\",\"commit\":\"${GITHUB_SHA}\",\"environment\":\"${{ github.ref_name == 'master' && 'production' || 'development' }}\"}"
+          )
+
+          if [[ -n "$DEPLOY_WEBHOOK_TOKEN" ]]; then
+            curl_args+=(--header "authorization: Bearer $DEPLOY_WEBHOOK_TOKEN")
+          fi
+
+          curl "${curl_args[@]}" "$DEPLOY_WEBHOOK_URL"
 
       - name: Deployment provider not configured
         if: env.DEPLOY_WEBHOOK_URL == ''

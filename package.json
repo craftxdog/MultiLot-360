@@ -15,6 +15,8 @@
     "start:prod": "node dist/src/main",
     "docker:up": "docker compose up -d redis",
     "docker:down": "docker compose down",
+    "docker:smoke": "bash scripts/docker-smoke.sh",
+    "docker:smoke:image": "bash scripts/docker-smoke.sh",
     "docs:check": "ts-node scripts/check-api-reference.ts",
     "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\"",
