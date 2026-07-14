@@ -1,5 +1,24 @@
 export const MAILER_PORT = Symbol('MAILER_PORT');
 
+export type MailDeliveryFailureReason =
+  | 'AUTHENTICATION'
+  | 'CONFIGURATION'
+  | 'REJECTED'
+  | 'UNAVAILABLE';
+
+export class MailDeliveryError extends Error {
+  override readonly name = 'MailDeliveryError';
+
+  constructor(
+    message: string,
+    readonly reason: MailDeliveryFailureReason,
+    readonly retryable: boolean,
+    readonly originalError?: Error,
+  ) {
+    super(message);
+  }
+}
+
 export type MailRecipient = {
   email: string;
   name?: string;

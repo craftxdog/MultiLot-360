@@ -1,5 +1,5 @@
 import { SellerOnboardingRepository } from '../../domain';
-import { MailerPort } from '../../domain/ports';
+import { MailDeliveryError, MailerPort } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
 import { ResendSellerAccessCodeUseCase } from './resend-seller-access-code.use-case';
 
@@ -82,5 +82,27 @@ describe('ResendSellerAccessCodeUseCase', () => {
 
     expect(result.isFailure).toBe(true);
     expect(mailer.sendSellerAccessCode.mock.calls).toHaveLength(0);
+  });
+
+  it('returns a sanitized infrastructure error when delivery fails', async () => {
+    mailer.sendSellerAccessCode.mockRejectedValue(
+      new MailDeliveryError(
+        'MailerSend SMTP authentication failed',
+        'AUTHENTICATION',
+        false,
+      ),
+    );
+
+    const result = await useCase.execute({ email: 'seller@example.com' });
+
+    expect(result.isFailure).toBe(true);
+    if (result.isSuccess) throw new Error('Expected resend to fail');
+    expect(result.error).toMatchObject({
+      statusCode: 502,
+      code: 'INFRASTRUCTURE_ERROR',
+      retryable: false,
+      message: 'No se pudo enviar el código de acceso. Intenta nuevamente.',
+    });
+    expect(result.error.message).not.toContain('MailerSend');
   });
 });

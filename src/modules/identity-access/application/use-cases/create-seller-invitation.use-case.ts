@@ -8,6 +8,7 @@ import {
 import { SellerInvitation } from '../../domain/entities';
 import {
   MAILER_PORT,
+  MailDeliveryError,
   MailerPort,
   SELLER_ONBOARDING_REPOSITORY,
   SellerOnboardingRepository,
@@ -71,6 +72,15 @@ export class CreateSellerInvitationUseCase extends UseCase<
 
       return Result.success(invitation);
     } catch (error) {
+      if (error instanceof MailDeliveryError) {
+        return ErrorFactory.infrastructure(
+          'No se pudo enviar el correo de invitación. Intenta nuevamente.',
+          error,
+          error.retryable ? 503 : 502,
+          error.retryable,
+        );
+      }
+
       return ErrorFactory.useCase(
         error instanceof Error
           ? error.message

@@ -81,7 +81,6 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     REALTIME_REDIS_KEY: str({ default: 'multilot360:socket.io' }),
 
     MAILERSEND_ENABLED: bool({ default: false }),
-    MAILERSEND_API_TOKEN: str({ default: '' }),
     MAILERSEND_SMTP_HOST: str({ default: 'smtp.mailersend.net' }),
     MAILERSEND_SMTP_PORT: port({ default: 587 }),
     MAILERSEND_SMTP_USER: str({ default: '' }),
@@ -120,10 +119,11 @@ type ProductionEnv = {
   DB_POOL_MAX: number;
   DB_SSL: boolean;
   LOG_LEVEL: string;
-  MAILERSEND_API_TOKEN: string;
   MAILERSEND_ENABLED: boolean;
   MAILERSEND_FROM_EMAIL: string;
   MAILERSEND_REPLY_TO_EMAIL: string;
+  MAILERSEND_SMTP_HOST: string;
+  MAILERSEND_SMTP_PORT: number;
   MAILERSEND_SMTP_PASSWORD: string;
   MAILERSEND_SMTP_USER: string;
   REALTIME_ENABLED: boolean;
@@ -199,9 +199,12 @@ function validateProductionEnv(env: ProductionEnv): void {
   }
 
   if (env.MAILERSEND_ENABLED) {
-    requireLength('MAILERSEND_API_TOKEN', env.MAILERSEND_API_TOKEN, 20);
+    requireLength('MAILERSEND_SMTP_HOST', env.MAILERSEND_SMTP_HOST, 3);
     requireLength('MAILERSEND_SMTP_USER', env.MAILERSEND_SMTP_USER, 3);
     requireLength('MAILERSEND_SMTP_PASSWORD', env.MAILERSEND_SMTP_PASSWORD, 12);
+    if (env.MAILERSEND_SMTP_PORT !== 587) {
+      errors.push('MAILERSEND_SMTP_PORT must be 587 for MailerSend TLS');
+    }
     validateEmail('MAILERSEND_FROM_EMAIL', env.MAILERSEND_FROM_EMAIL, errors);
     validateEmail(
       'MAILERSEND_REPLY_TO_EMAIL',

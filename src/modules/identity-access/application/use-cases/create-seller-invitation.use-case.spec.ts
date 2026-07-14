@@ -1,5 +1,5 @@
 import { SellerOnboardingRepository } from '../../domain';
-import { MailerPort } from '../../domain/ports';
+import { MailDeliveryError, MailerPort } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
 import { CreateSellerInvitationUseCase } from './create-seller-invitation.use-case';
 
@@ -67,5 +67,55 @@ describe('CreateSellerInvitationUseCase', () => {
       accessCodeHash: 'hashed-code',
     });
     expect(mailer.sendSellerInvitation.mock.calls).toHaveLength(1);
+  });
+
+  it('returns a sanitized 502 when SMTP credentials are rejected', async () => {
+    mailer.sendSellerInvitation.mockRejectedValue(
+      new MailDeliveryError(
+        'MailerSend SMTP authentication failed',
+        'AUTHENTICATION',
+        false,
+      ),
+    );
+
+    const result = await useCase.execute({
+      email: 'seller@example.com',
+      username: 'seller.01',
+      sellerName: 'Seller',
+      documentId: '001-010190-0001A',
+      adminName: 'Admin',
+    });
+
+    expect(result.isFailure).toBe(true);
+    if (result.isSuccess) throw new Error('Expected invitation to fail');
+    expect(result.error).toMatchObject({
+      statusCode: 502,
+      code: 'INFRASTRUCTURE_ERROR',
+      retryable: false,
+      message: 'No se pudo enviar el correo de invitación. Intenta nuevamente.',
+    });
+    expect(result.error.message).not.toContain('MailerSend');
+  });
+
+  it('returns a retryable 503 when SMTP is temporarily unavailable', async () => {
+    mailer.sendSellerInvitation.mockRejectedValue(
+      new MailDeliveryError(
+        'MailerSend SMTP is temporarily unavailable',
+        'UNAVAILABLE',
+        true,
+      ),
+    );
+
+    const result = await useCase.execute({
+      email: 'seller@example.com',
+      username: 'seller.01',
+      sellerName: 'Seller',
+      documentId: '001-010190-0001A',
+      adminName: 'Admin',
+    });
+
+    expect(result.isFailure).toBe(true);
+    if (result.isSuccess) throw new Error('Expected invitation to fail');
+    expect(result.error).toMatchObject({ statusCode: 503, retryable: true });
   });
 });

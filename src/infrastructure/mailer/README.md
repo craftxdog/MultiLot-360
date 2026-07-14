@@ -8,7 +8,7 @@ implements that contract; use cases should not import from `infrastructure`.
 
 Current provider:
 
-- MailerSend official Node.js SDK.
+- MailerSend SMTP relay over STARTTLS on port `587` using Nodemailer.
 
 Template renderer:
 
@@ -37,5 +37,6 @@ them automatically without confirming the account on link click.
 The web application must still submit the code to the corresponding API
 endpoint. Opening an email link never consumes the code by itself.
 
-The API token must stay in ignored env files as `MAILERSEND_API_TOKEN`. Never
-commit the real token.
+The SMTP username and password must stay in ignored env files as
+`MAILERSEND_SMTP_USER` and `MAILERSEND_SMTP_PASSWORD`. Never commit real
+credentials. MailerSend must have SMTP enabled for the verified sender domain.

@@ -52,7 +52,7 @@ Nunca versionar:
 
 - `DATABASE_URL` y `DIRECT_URL` con contraseña real;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `MAILERSEND_API_TOKEN`;
+- `MAILERSEND_SMTP_USER` y `MAILERSEND_SMTP_PASSWORD`;
 - `SELLER_ACCESS_CODE_SECRET`;
 - access tokens, refresh tokens u OTP de pruebas.
 
@@ -98,7 +98,8 @@ Si en el futuro se expone una tabla por Data API:
 Antes de habilitar `MAILERSEND_ENABLED=true`:
 
 1. Verificar el dominio de `MAILERSEND_FROM_EMAIL`.
-2. Confirmar token API y remitente.
+2. Confirmar usuario SMTP, contraseña y remitente; el relay usa STARTTLS en el
+   puerto `587`.
 3. Configurar `PASSWORD_RESET_URL` y `SELLER_ACTIVATION_URL` con HTTPS.
 4. Ejecutar un smoke autorizado con una cuenta de prueba.
 5. Revisar entrega, rebotes y spam en MailerSend.

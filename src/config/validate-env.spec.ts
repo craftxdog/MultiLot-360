@@ -59,6 +59,29 @@ describe('validateEnv realtime configuration', () => {
       }),
     ).toThrow(/DB_POOL_MAX must be an integer between 1 and 10/);
   });
+
+  it('requires complete SMTP credentials when production email is enabled', () => {
+    expect(() =>
+      validateEnv({
+        ...productionEnv(),
+        MAILERSEND_ENABLED: 'true',
+        MAILERSEND_SMTP_USER: 'smtp-user',
+      }),
+    ).toThrow(/MAILERSEND_SMTP_PASSWORD must contain at least 12 characters/);
+  });
+
+  it('requires MailerSend STARTTLS port 587 in production', () => {
+    expect(() =>
+      validateEnv({
+        ...productionEnv(),
+        MAILERSEND_ENABLED: 'true',
+        MAILERSEND_SMTP_USER: 'smtp-user',
+        MAILERSEND_SMTP_PASSWORD: 'smtp-password',
+        MAILERSEND_FROM_EMAIL: 'no-reply@alphaby.cloud',
+        MAILERSEND_SMTP_PORT: '2525',
+      }),
+    ).toThrow(/MAILERSEND_SMTP_PORT must be 587/);
+  });
 });
 
 function productionEnv(): NodeJS.ProcessEnv {
