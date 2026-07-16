@@ -154,9 +154,9 @@ POST /api/v1/identity-access/sellers/invitations
   -> requires usuarios.create
   -> creates inactive usuarios + vendedores
   -> revokes previous pending codes for the same seller/email
-  -> stores a new hashed access code with expiration
+  -> stores the hashed access code and opaque-link digest with expiration
   -> sends the code by email
-  -> includes an activation button with email and code preloaded
+  -> includes an activation button containing no email or access code
 ```
 
 ```json
@@ -176,7 +176,7 @@ POST /api/v1/identity-access/sellers/access-code/resend
   -> finds the latest invitation by email
   -> rejects when the seller account is already active
   -> revokes previous pending codes
-  -> stores a new hashed code with a new expiration
+  -> stores a new hashed code and link-token digest with a new expiration
   -> sends the fresh code by email
 ```
 
@@ -202,20 +202,42 @@ Example query:
 GET /api/v1/identity-access/sellers/invitations?status=PENDIENTE&page=1&limit=25
 ```
 
-Seller confirms the code and sets a password:
+Seller follows the secure link and sets a password:
 
 ```txt
 POST /api/v1/identity-access/sellers/access-code/confirm
-  -> validates email + accessCode
+  -> validates actionToken, or email + accessCode for manual entry
   -> creates a Supabase Auth user with the provided password
   -> links usuarios.auth_user_id to the Supabase user id
   -> activates usuarios and vendedores
 ```
 
-The activation email points to `SELLER_ACTIVATION_URL` and adds `email` and
-`code` query parameters. The frontend reads those values and submits them,
-together with the password chosen by the seller, to the public confirmation
-endpoint. The link does not activate the account automatically.
+The activation email points to `SELLER_ACTIVATION_URL` and adds only a random
+256-bit `token` query parameter. The API stores only its SHA-256 digest. The
+frontend submits it as `actionToken`, together with the password chosen by the
+seller, to the public confirmation endpoint. The email and six-digit code are
+not exposed in the URL. The code remains available as a manual fallback. Both
+paths expire and consume the same invitation exactly once; resending revokes
+the previous link and code. The link does not activate the account by itself.
+
+Secure-link request body:
+
+```json
+{
+  "actionToken": "Zfng2QyJ2ZCtwS4fdE5jH5Y68k0W1VnMIkYcMfeqPjE",
+  "password": "Sup3rSecret2026!"
+}
+```
+
+Manual fallback body:
+
+```json
+{
+  "email": "seller@example.com",
+  "accessCode": "123456",
+  "password": "Sup3rSecret2026!"
+}
+```
 
 Seller signs in normally:
 

@@ -20,6 +20,7 @@ describe('AuditHttpInterceptor', () => {
       params: {},
       query: {},
       body: {
+        actionToken: 'opaque-invitation-token',
         refreshToken: 'recovery-refresh-token',
         newPassword: 'NewSup3rSecret2026!',
         confirmPassword: 'NewSup3rSecret2026!',
@@ -40,6 +41,7 @@ describe('AuditHttpInterceptor', () => {
     expect(command.event).toBe('http.request.completed');
     expect(command.payload).toMatchObject({
       body: {
+        actionToken: '[REDACTED]',
         refreshToken: '[REDACTED]',
         newPassword: '[REDACTED]',
         confirmPassword: '[REDACTED]',

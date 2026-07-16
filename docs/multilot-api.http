@@ -140,10 +140,17 @@ POST {{baseUrl}}/identity-access/sellers/access-code/confirm
 Content-Type: application/json
 
 {
-  "email": "vendedor@example.com",
-  "accessCode": "123456",
+  "actionToken": "Zfng2QyJ2ZCtwS4fdE5jH5Y68k0W1VnMIkYcMfeqPjE",
   "password": "Sup3rSecret2026!"
 }
+
+###
+# Alternative manual confirmation body:
+# {
+#   "email": "vendedor@example.com",
+#   "accessCode": "123456",
+#   "password": "Sup3rSecret2026!"
+# }
 
 ###
 # ROUTE: POST /identity-access/sellers/access-code/resend

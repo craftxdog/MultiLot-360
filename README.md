@@ -86,10 +86,13 @@ PASSWORD_RESET_URL=http://localhost:8080/restablecer-contrasena
 PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES=60
 ```
 
-`SELLER_ACTIVATION_URL` recibe `email` y `code` como query parameters. El
-frontend debe precargarlos y enviar el código, junto con la contraseña elegida,
-a `POST /api/v1/identity-access/sellers/access-code/confirm`. Abrir el enlace no
-consume ni confirma el código automáticamente.
+`SELLER_ACTIVATION_URL` recibe únicamente `token`, un valor aleatorio opaco de
+256 bits. La base almacena solo su hash SHA-256. El frontend debe enviar
+`actionToken` y la contraseña elegida a
+`POST /api/v1/identity-access/sellers/access-code/confirm`. Como alternativa
+manual, el endpoint conserva `email + accessCode + password`. Abrir el enlace
+no consume ni confirma la invitación automáticamente; el token expira, es de un
+solo uso y queda revocado cuando se reenvía la invitación.
 
 La API genera un OTP de recuperación de Supabase y lo entrega con MailerSend.
 El botón abre `PASSWORD_RESET_URL` con el correo precargado, pero el código no

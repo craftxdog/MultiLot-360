@@ -17,6 +17,7 @@ const SENSITIVE_KEYS = new Set([
   'confirmPassword',
   'token',
   'accessToken',
+  'actionToken',
   'refreshToken',
   'apiKey',
   'secret',

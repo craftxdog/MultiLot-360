@@ -57,7 +57,6 @@ export interface AppConfig {
 
   mailer: {
     enabled: boolean;
-    apiToken: string;
     smtpHost: string;
     smtpPort: number;
     smtpUser: string;
@@ -135,7 +134,6 @@ export default (): AppConfig => {
     },
     mailer: {
       enabled: env.MAILERSEND_ENABLED,
-      apiToken: env.MAILERSEND_API_TOKEN,
       smtpHost: env.MAILERSEND_SMTP_HOST,
       smtpPort: env.MAILERSEND_SMTP_PORT,
       smtpUser: env.MAILERSEND_SMTP_USER,

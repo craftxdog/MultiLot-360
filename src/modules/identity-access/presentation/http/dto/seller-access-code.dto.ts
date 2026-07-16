@@ -6,6 +6,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -87,16 +88,38 @@ export class SellerInvitationResponseDto {
 }
 
 export class ConfirmSellerAccessCodeDto {
-  @ApiProperty({ example: 'vendedor@example.com' })
+  @ApiPropertyOptional({ example: 'vendedor@example.com' })
+  @ValidateIf(
+    (dto: ConfirmSellerAccessCodeDto) =>
+      !dto.actionToken || dto.email !== undefined,
+  )
   @Transform(({ value }) => trimLowercaseString(value))
   @IsEmail()
-  email: string;
+  email?: string;
 
-  @ApiProperty({ example: '123456' })
+  @ApiPropertyOptional({ example: '123456' })
+  @ValidateIf(
+    (dto: ConfirmSellerAccessCodeDto) =>
+      !dto.actionToken || dto.accessCode !== undefined,
+  )
   @Transform(({ value }) => trimString(value))
   @IsString()
   @Matches(/^\d{6}$/)
-  accessCode: string;
+  accessCode?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Opaque, single-use token from the invitation link. Use this instead of email and accessCode.',
+    example: 'Zfng2QyJ2ZCtwS4fdE5jH5Y68k0W1VnMIkYcMfeqPjE',
+  })
+  @ValidateIf(
+    (dto: ConfirmSellerAccessCodeDto) =>
+      !dto.email || !dto.accessCode || dto.actionToken !== undefined,
+  )
+  @Transform(({ value }) => trimString(value))
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{43}$/)
+  actionToken?: string;
 
   @ApiProperty({ example: 'Sup3rSecret2026!' })
   @IsString()

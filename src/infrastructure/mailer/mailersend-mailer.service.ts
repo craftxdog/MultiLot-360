@@ -1,7 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { EmailParams, MailerSend, Recipient, Sender } from 'mailersend';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+import { type Transporter } from 'nodemailer';
 import { EnvConfigService } from '../../config/env-config.service';
 import {
+  MailDeliveryError,
   MailRecipient,
   MailerPort,
   SendAccountConfirmationInput,
@@ -18,25 +20,107 @@ type SendTemplateEmailInput = {
   context: Record<string, unknown>;
 };
 
-type MailerSendApiError = {
-  statusCode?: number;
-  body?: {
-    message?: string;
-    errors?: Record<string, string[]>;
-  };
+type SmtpError = Error & {
+  code?: string;
+  command?: string;
+  response?: string;
+  responseCode?: number;
+};
+
+type SmtpSendResult = {
+  accepted?: string[];
+  messageId?: string;
+  rejected?: string[];
+  response?: string;
+};
+
+type MailerSendTransport = Pick<
+  Transporter<SmtpSendResult>,
+  'close' | 'sendMail' | 'verify'
+>;
+
+const SMTP_CONNECTION_TIMEOUT_MS = 10_000;
+const SMTP_GREETING_TIMEOUT_MS = 10_000;
+const SMTP_SOCKET_TIMEOUT_MS = 20_000;
+
+const RETRYABLE_SMTP_CODES = new Set([
+  'ECONNECTION',
+  'ECONNRESET',
+  'EDNS',
+  'ESOCKET',
+  'ETIMEDOUT',
+]);
+
+const AUTHENTICATION_SMTP_CODES = new Set(['EAUTH']);
+
+const isSmtpError = (error: unknown): error is SmtpError =>
+  error instanceof Error;
+
+const smtpResponseCode = (error: SmtpError): number | undefined =>
+  typeof error.responseCode === 'number' ? error.responseCode : undefined;
+
+const isAuthenticationFailure = (error: SmtpError): boolean =>
+  AUTHENTICATION_SMTP_CODES.has(error.code ?? '') ||
+  smtpResponseCode(error) === 530 ||
+  smtpResponseCode(error) === 535;
+
+const isRetryableFailure = (error: SmtpError): boolean => {
+  const responseCode = smtpResponseCode(error);
+  return (
+    RETRYABLE_SMTP_CODES.has(error.code ?? '') ||
+    (responseCode !== undefined && responseCode >= 400 && responseCode < 500)
+  );
+};
+
+type MailerSendSmtpConfig = {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+};
+
+const createMailerSendTransport = (
+  config: MailerSendSmtpConfig,
+): MailerSendTransport => {
+  const usesImplicitTls = config.port === 465;
+
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: usesImplicitTls,
+    requireTLS: !usesImplicitTls,
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 50,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
+    auth: {
+      user: config.user,
+      pass: config.password,
+    },
+    tls: {
+      minVersion: 'TLSv1.2',
+    },
+  });
 };
 
 @Injectable()
-export class MailerSendMailerService implements MailerPort {
+export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
   private readonly logger = new Logger(MailerSendMailerService.name);
-  private readonly client: MailerSend | null;
+  private readonly transport: MailerSendTransport | null;
 
   constructor(
     private readonly envConfig: EnvConfigService,
     private readonly templateRenderer: TemplateRendererService,
   ) {
-    this.client = envConfig.mailer.apiToken
-      ? new MailerSend({ apiKey: envConfig.mailer.apiToken })
+    this.transport = envConfig.mailer.enabled
+      ? createMailerSendTransport({
+          host: envConfig.mailer.smtpHost,
+          port: envConfig.mailer.smtpPort,
+          user: envConfig.mailer.smtpUser,
+          password: envConfig.mailer.smtpPassword,
+        })
       : null;
   }
 
@@ -50,10 +134,7 @@ export class MailerSendMailerService implements MailerPort {
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
-        activationUrl: this.buildSellerActivationUrl(
-          input.recipient.email,
-          input.accessCode,
-        ),
+        activationUrl: this.buildSellerActivationUrl(input.actionToken),
       },
     });
   }
@@ -67,10 +148,7 @@ export class MailerSendMailerService implements MailerPort {
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
-        activationUrl: this.buildSellerActivationUrl(
-          input.recipient.email,
-          input.accessCode,
-        ),
+        activationUrl: this.buildSellerActivationUrl(input.actionToken),
       },
     });
   }
@@ -111,12 +189,10 @@ export class MailerSendMailerService implements MailerPort {
     });
   }
 
-  private buildSellerActivationUrl(email: string, accessCode: string): string {
-    return this.buildActionUrl(
-      this.envConfig.sellerAccess.activationUrl,
-      email,
-      accessCode,
-    );
+  private buildSellerActivationUrl(actionToken: string): string {
+    const actionUrl = new URL(this.envConfig.sellerAccess.activationUrl);
+    actionUrl.searchParams.set('token', actionToken);
+    return actionUrl.toString();
   }
 
   private buildPasswordResetUrl(email: string): string {
@@ -142,15 +218,19 @@ export class MailerSendMailerService implements MailerPort {
       return;
     }
 
-    if (!this.client) {
-      throw new Error(
-        'MAILERSEND_API_TOKEN is required when mailer is enabled',
+    if (!this.transport) {
+      throw new MailDeliveryError(
+        'MailerSend SMTP transport is not configured',
+        'CONFIGURATION',
+        false,
       );
     }
 
     if (!this.envConfig.mailer.fromEmail) {
-      throw new Error(
+      throw new MailDeliveryError(
         'MAILERSEND_FROM_EMAIL is required when mailer is enabled',
+        'CONFIGURATION',
+        false,
       );
     }
 
@@ -162,71 +242,103 @@ export class MailerSendMailerService implements MailerPort {
         this.envConfig.mailer.replyToEmail || this.envConfig.mailer.fromEmail,
       currentYear: new Date().getFullYear(),
     });
-    const sentFrom = new Sender(
-      this.envConfig.mailer.fromEmail,
-      this.envConfig.mailer.fromName,
-    );
-    const recipient = new Recipient(input.to.email, input.to.name);
-    const emailParams = new EmailParams()
-      .setFrom(sentFrom)
-      .setTo([recipient])
-      .setReplyTo(
-        new Sender(
-          this.envConfig.mailer.replyToEmail || this.envConfig.mailer.fromEmail,
-          this.envConfig.mailer.fromName,
-        ),
-      )
-      .setSubject(input.subject)
-      .setHtml(rendered.html)
-      .setText(rendered.text);
 
     try {
-      await this.client.email.send(emailParams);
+      const result = await this.transport.sendMail({
+        from: {
+          address: this.envConfig.mailer.fromEmail,
+          name: this.envConfig.mailer.fromName,
+        },
+        to: [
+          {
+            address: input.to.email,
+            name: input.to.name ?? input.to.email,
+          },
+        ],
+        replyTo: {
+          address:
+            this.envConfig.mailer.replyToEmail ||
+            this.envConfig.mailer.fromEmail,
+          name: this.envConfig.mailer.fromName,
+        },
+        subject: input.subject,
+        html: rendered.html,
+        text: rendered.text,
+      });
+
+      if (result.rejected?.length) {
+        throw new MailDeliveryError(
+          'MailerSend SMTP rejected one or more recipients',
+          'REJECTED',
+          false,
+        );
+      }
     } catch (error) {
-      const mailerError = this.toMailerSendError(error);
+      const mailerError = this.toMailDeliveryError(error);
       this.logger.warn(mailerError.message);
       throw mailerError;
     }
   }
 
-  private toMailerSendError(error: unknown): Error {
-    if (this.isMailerSendApiError(error)) {
-      const status = error.statusCode ? ` status=${error.statusCode}` : '';
-      const message =
-        error.body?.message ?? this.firstValidationMessage(error.body?.errors);
-
-      return new Error(
-        `MailerSend rejected email${status}: ${
-          message ?? 'unknown provider error'
-        }`,
+  async verifyConnection(): Promise<void> {
+    if (!this.envConfig.mailer.enabled) return;
+    if (!this.transport) {
+      throw new MailDeliveryError(
+        'MailerSend SMTP transport is not configured',
+        'CONFIGURATION',
+        false,
       );
     }
 
-    if (error instanceof Error) {
-      return new Error(`MailerSend failed to send email: ${error.message}`);
+    try {
+      await this.transport.verify();
+    } catch (error) {
+      throw this.toMailDeliveryError(error);
     }
-
-    return new Error('MailerSend failed to send email');
   }
 
-  private isMailerSendApiError(error: unknown): error is MailerSendApiError {
-    return Boolean(
-      error &&
-      typeof error === 'object' &&
-      ('statusCode' in error || 'body' in error),
+  private toMailDeliveryError(error: unknown): MailDeliveryError {
+    if (error instanceof MailDeliveryError) return error;
+
+    if (!isSmtpError(error)) {
+      return new MailDeliveryError(
+        'MailerSend SMTP failed with an unknown error',
+        'UNAVAILABLE',
+        true,
+      );
+    }
+
+    if (isAuthenticationFailure(error)) {
+      return new MailDeliveryError(
+        'MailerSend SMTP authentication failed',
+        'AUTHENTICATION',
+        false,
+        error,
+      );
+    }
+
+    if (isRetryableFailure(error)) {
+      return new MailDeliveryError(
+        `MailerSend SMTP is temporarily unavailable${
+          error.code ? ` (${error.code})` : ''
+        }`,
+        'UNAVAILABLE',
+        true,
+        error,
+      );
+    }
+
+    return new MailDeliveryError(
+      `MailerSend SMTP rejected the email${
+        smtpResponseCode(error) ? ` (status=${smtpResponseCode(error)})` : ''
+      }`,
+      'REJECTED',
+      false,
+      error,
     );
   }
 
-  private firstValidationMessage(
-    errors?: Record<string, string[]>,
-  ): string | undefined {
-    if (!errors) return undefined;
-
-    for (const messages of Object.values(errors)) {
-      const [message] = messages;
-      if (message) return message;
-    }
-
-    return undefined;
+  onModuleDestroy(): void {
+    this.transport?.close();
   }
 }

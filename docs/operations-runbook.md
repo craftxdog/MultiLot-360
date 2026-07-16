@@ -52,7 +52,7 @@ Nunca versionar:
 
 - `DATABASE_URL` y `DIRECT_URL` con contraseña real;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `MAILERSEND_API_TOKEN`;
+- `MAILERSEND_SMTP_USER` y `MAILERSEND_SMTP_PASSWORD`;
 - `SELLER_ACCESS_CODE_SECRET`;
 - access tokens, refresh tokens u OTP de pruebas.
 
@@ -93,19 +93,26 @@ Si en el futuro se expone una tabla por Data API:
 3. No basar autorización en `user_metadata`.
 4. Ejecutar advisors de seguridad antes del despliegue.
 
-## MailerSend
+## Hostinger SMTP
 
 Antes de habilitar `MAILERSEND_ENABLED=true`:
 
-1. Verificar el dominio de `MAILERSEND_FROM_EMAIL`.
-2. Confirmar token API y remitente.
+1. Verificar que `MAILERSEND_FROM_EMAIL` sea un alias del buzón autenticado.
+2. Usar `smtp.hostinger.com`, puerto `465` y TLS implícito. El usuario SMTP es
+   el buzón principal completo; la contraseña es la del buzón, nunca la de
+   hPanel.
 3. Configurar `PASSWORD_RESET_URL` y `SELLER_ACTIVATION_URL` con HTTPS.
 4. Ejecutar un smoke autorizado con una cuenta de prueba.
-5. Revisar entrega, rebotes y spam en MailerSend.
+5. Revisar entrega, rebotes y spam en los logs de Hostinger Email.
+
+El prefijo `MAILERSEND_*` se conserva temporalmente por compatibilidad con los
+despliegues existentes, aunque el relay activo sea Hostinger.
 
 Los códigos sensibles se renderizan en el cuerpo del correo cuando el flujo lo
 requiere, pero no se registran en logs. El enlace de recuperación incluye solo
-el correo normalizado; el OTP no viaja en la URL.
+el correo normalizado; el OTP no viaja en la URL. El enlace de invitación de
+vendedor incluye únicamente un token opaco de 256 bits; la base almacena su
+hash SHA-256, y auditoría redacta `actionToken`.
 
 ## Base de datos y Prisma
 
@@ -128,6 +135,12 @@ yarn prisma:validate
 Los SQL bajo `prisma/migrations/` documentan y permiten reproducir cambios
 aplicados de forma controlada. No ejecutar un archivo nuevamente sin revisar su
 estado en el entorno objetivo.
+
+La migración
+`20260715160000_add_seller_invitation_action_token` agrega una columna nullable
+para conservar compatibilidad con invitaciones anteriores y un índice único
+sobre el hash. Debe aplicarse antes de desplegar la versión de API que emite
+enlaces opacos.
 
 El proyecto Supabase original fue creado antes del historial de Prisma Migrate.
 Si `prisma migrate deploy` devuelve `P3005`, no marcar migraciones ni baselinar

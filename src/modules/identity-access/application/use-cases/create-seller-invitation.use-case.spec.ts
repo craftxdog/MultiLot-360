@@ -1,5 +1,5 @@
 import { SellerOnboardingRepository } from '../../domain';
-import { MailerPort } from '../../domain/ports';
+import { MailDeliveryError, MailerPort } from '../../domain/ports';
 import { SellerAccessCodeService } from '../services';
 import { CreateSellerInvitationUseCase } from './create-seller-invitation.use-case';
 
@@ -25,6 +25,8 @@ describe('CreateSellerInvitationUseCase', () => {
   const accessCodeService = {
     generate: jest.fn(),
     hash: jest.fn(),
+    generateActionToken: jest.fn(),
+    hashActionToken: jest.fn(),
     expiresAt: jest.fn(),
   } as unknown as jest.Mocked<SellerAccessCodeService>;
 
@@ -34,6 +36,8 @@ describe('CreateSellerInvitationUseCase', () => {
     jest.clearAllMocks();
     accessCodeService.generate.mockReturnValue('123456');
     accessCodeService.hash.mockReturnValue('hashed-code');
+    accessCodeService.generateActionToken.mockReturnValue('opaque-token');
+    accessCodeService.hashActionToken.mockReturnValue('hashed-action-token');
     accessCodeService.expiresAt.mockReturnValue(
       new Date('2026-06-21T08:15:00.000Z'),
     );
@@ -65,7 +69,61 @@ describe('CreateSellerInvitationUseCase', () => {
       email: 'seller@example.com',
       username: 'seller.01',
       accessCodeHash: 'hashed-code',
+      actionTokenHash: 'hashed-action-token',
     });
-    expect(mailer.sendSellerInvitation.mock.calls).toHaveLength(1);
+    expect(mailer.sendSellerInvitation.mock.calls[0][0]).toMatchObject({
+      accessCode: '123456',
+      actionToken: 'opaque-token',
+    });
+  });
+
+  it('returns a sanitized 502 when SMTP credentials are rejected', async () => {
+    mailer.sendSellerInvitation.mockRejectedValue(
+      new MailDeliveryError(
+        'MailerSend SMTP authentication failed',
+        'AUTHENTICATION',
+        false,
+      ),
+    );
+
+    const result = await useCase.execute({
+      email: 'seller@example.com',
+      username: 'seller.01',
+      sellerName: 'Seller',
+      documentId: '001-010190-0001A',
+      adminName: 'Admin',
+    });
+
+    expect(result.isFailure).toBe(true);
+    if (result.isSuccess) throw new Error('Expected invitation to fail');
+    expect(result.error).toMatchObject({
+      statusCode: 502,
+      code: 'INFRASTRUCTURE_ERROR',
+      retryable: false,
+      message: 'No se pudo enviar el correo de invitación. Intenta nuevamente.',
+    });
+    expect(result.error.message).not.toContain('MailerSend');
+  });
+
+  it('returns a retryable 503 when SMTP is temporarily unavailable', async () => {
+    mailer.sendSellerInvitation.mockRejectedValue(
+      new MailDeliveryError(
+        'MailerSend SMTP is temporarily unavailable',
+        'UNAVAILABLE',
+        true,
+      ),
+    );
+
+    const result = await useCase.execute({
+      email: 'seller@example.com',
+      username: 'seller.01',
+      sellerName: 'Seller',
+      documentId: '001-010190-0001A',
+      adminName: 'Admin',
+    });
+
+    expect(result.isFailure).toBe(true);
+    if (result.isSuccess) throw new Error('Expected invitation to fail');
+    expect(result.error).toMatchObject({ statusCode: 503, retryable: true });
   });
 });
