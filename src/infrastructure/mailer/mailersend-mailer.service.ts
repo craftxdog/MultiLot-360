@@ -81,12 +81,14 @@ type MailerSendSmtpConfig = {
 
 const createMailerSendTransport = (
   config: MailerSendSmtpConfig,
-): MailerSendTransport =>
-  nodemailer.createTransport({
+): MailerSendTransport => {
+  const usesImplicitTls = config.port === 465;
+
+  return nodemailer.createTransport({
     host: config.host,
     port: config.port,
-    secure: false,
-    requireTLS: true,
+    secure: usesImplicitTls,
+    requireTLS: !usesImplicitTls,
     pool: true,
     maxConnections: 1,
     maxMessages: 50,
@@ -101,6 +103,7 @@ const createMailerSendTransport = (
       minVersion: 'TLSv1.2',
     },
   });
+};
 
 @Injectable()
 export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
@@ -131,10 +134,7 @@ export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
-        activationUrl: this.buildSellerActivationUrl(
-          input.recipient.email,
-          input.accessCode,
-        ),
+        activationUrl: this.buildSellerActivationUrl(input.actionToken),
       },
     });
   }
@@ -148,10 +148,7 @@ export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
         sellerName: input.sellerName,
         accessCode: input.accessCode,
         expiresInMinutes: input.expiresInMinutes,
-        activationUrl: this.buildSellerActivationUrl(
-          input.recipient.email,
-          input.accessCode,
-        ),
+        activationUrl: this.buildSellerActivationUrl(input.actionToken),
       },
     });
   }
@@ -192,12 +189,10 @@ export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
     });
   }
 
-  private buildSellerActivationUrl(email: string, accessCode: string): string {
-    return this.buildActionUrl(
-      this.envConfig.sellerAccess.activationUrl,
-      email,
-      accessCode,
-    );
+  private buildSellerActivationUrl(actionToken: string): string {
+    const actionUrl = new URL(this.envConfig.sellerAccess.activationUrl);
+    actionUrl.searchParams.set('token', actionToken);
+    return actionUrl.toString();
   }
 
   private buildPasswordResetUrl(email: string): string {

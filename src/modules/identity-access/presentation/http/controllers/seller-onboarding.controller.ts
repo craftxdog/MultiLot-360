@@ -109,6 +109,7 @@ export class SellerOnboardingController {
     return this.confirmSellerAccessCode.execute({
       email: body.email,
       accessCode: body.accessCode,
+      actionToken: body.actionToken,
       password: body.password,
     });
   }

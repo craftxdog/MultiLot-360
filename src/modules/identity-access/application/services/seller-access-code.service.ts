@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHmac, randomInt } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
 import { EnvConfigService } from '../../../../config/env-config.service';
 
 @Injectable()
@@ -18,6 +18,14 @@ export class SellerAccessCodeService {
     }
 
     return createHmac('sha256', secret).update(code.trim()).digest('hex');
+  }
+
+  generateActionToken(): string {
+    return randomBytes(32).toString('base64url');
+  }
+
+  hashActionToken(token: string): string {
+    return createHash('sha256').update(token.trim()).digest('hex');
   }
 
   expiresAt(): Date {

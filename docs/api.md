@@ -84,7 +84,7 @@ DTOs de entrada principales:
 | `ConfirmPasswordResetDto` | `email`, `code`, `newPassword`, `confirmPassword` | OTP de 6 dígitos; contraseñas iguales, 8..72; máximo 5 intentos/minuto. |
 | `AdminResetPasswordDto` | `targetUserId`, `newPassword`, `confirmPassword` | Solo ADMIN con `usuarios.update`; usuario activo y enlazado a Supabase. |
 | `CreateSellerInvitationDto` | `email`, `username`, `sellerName`, `documentId`, `phone?`, `address?`, `roleName?` | Cédula y teléfono nicaragüense normalizados; código de acceso de un solo uso. |
-| `ConfirmSellerAccessCodeDto` | `email`, `accessCode`, `password` | Código de 6 dígitos y contraseña 8..72. |
+| `ConfirmSellerAccessCodeDto` | `actionToken` o (`email`, `accessCode`), `password` | Token opaco URL-safe de 43 caracteres o código manual de 6 dígitos; contraseña 8..72. |
 | `ListSellersQueryDto` | `search?`, `username?`, `documentId?`, `active?`, `roleId?`, `createdFrom?`, `createdTo?` | Directorio paginado; búsqueda por nombre, usuario, documento o teléfono. |
 | `CreateAccessRoleDto` | `name` | Nombre único de 2..80 caracteres. |
 | `ReplaceAccessRolePermissionsDto` | `permissions[]` | Reemplazo completo de la matriz; cada módulo define `canRead`, `canCreate`, `canUpdate`, `canDelete`. |
@@ -156,8 +156,9 @@ migraciones recientes están en:
 
 - `prisma/migrations/20260701213000_support_decimal_sales_and_matrix/`;
 - `prisma/migrations/20260706181532_add_notifications_and_rbac_defaults/`;
-- `prisma/migrations/20260706221047_add_seller_deletion_metadata/`.
-- `prisma/migrations/20260707110000_draws_reports_notifications_backend/`.
+- `prisma/migrations/20260706221047_add_seller_deletion_metadata/`;
+- `prisma/migrations/20260707110000_draws_reports_notifications_backend/`;
+- `prisma/migrations/20260715160000_add_seller_invitation_action_token/`.
 
 ## Sistema y salud
 
@@ -219,15 +220,17 @@ contraseñas, service role keys ni tokens completos.
 | GET | `/identity-access/sellers` | `vendedores.read` | Lista vendedores activos/inactivos con búsqueda, filtros, orden y paginación. |
 | GET | `/identity-access/sellers/invitations` | `usuarios.read` | Lista invitaciones con filtros y paginación. |
 | POST | `/identity-access/sellers/invitations` | `usuarios.create` | Crea usuario/vendedor, emite código temporal y envía invitación. |
-| POST | `/identity-access/sellers/access-code/confirm` | Público | Consume el código, establece contraseña y activa la cuenta. |
+| POST | `/identity-access/sellers/access-code/confirm` | Público | Consume el token opaco o código manual, establece contraseña y activa la cuenta. |
 | POST | `/identity-access/sellers/access-code/resend` | `usuarios.create` | Invalida el código anterior y envía uno nuevo. |
 | PATCH | `/identity-access/sellers/invitations/:invitationId/revoke` | `usuarios.update` o `usuarios.create` | Revoca una invitación pendiente. |
 | PATCH | `/identity-access/sellers/:sellerId/soft-delete` | `usuarios.delete` | Eliminación lógica: desactiva usuario/vendedor, marca metadata de baja, revoca invitaciones pendientes y audita la acción. |
 | DELETE | `/identity-access/sellers/:sellerId` | `usuarios.delete` | Eliminación física: borra Auth Supabase, ventas, detalles, pagos, límites, códigos, notificaciones y el perfil usuario/vendedor; conserva auditoría administrativa. |
 
-El código de acceso es de un solo uso, cambia al reenviarse y tiene vencimiento.
-La confirmación pública exige correo, código y contraseña; no acepta un JWT de
-administrador como sustituto.
+El token del enlace y el código manual comparten una invitación de un solo uso,
+cambian al reenviarse y tienen vencimiento. La base solo conserva sus hashes.
+La confirmación pública exige `actionToken + password` o
+`email + accessCode + password`; no acepta un JWT de administrador como
+sustituto.
 
 Filtros del directorio: `search`, `username`, `documentId`, `active`, `roleId`,
 `createdFrom`, `createdTo`, `page`, `limit`, `sortBy` y `sortDirection`.

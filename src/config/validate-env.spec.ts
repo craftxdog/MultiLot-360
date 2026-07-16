@@ -70,7 +70,22 @@ describe('validateEnv realtime configuration', () => {
     ).toThrow(/MAILERSEND_SMTP_PASSWORD must contain at least 12 characters/);
   });
 
-  it('requires MailerSend STARTTLS port 587 in production', () => {
+  it('accepts Hostinger SMTP over implicit TLS on port 465', () => {
+    const env = validateEnv({
+      ...productionEnv(),
+      MAILERSEND_ENABLED: 'true',
+      MAILERSEND_SMTP_HOST: 'smtp.hostinger.com',
+      MAILERSEND_SMTP_PORT: '465',
+      MAILERSEND_SMTP_USER: 'craftzdog@alphaby.cloud',
+      MAILERSEND_SMTP_PASSWORD: 'smtp-password',
+      MAILERSEND_FROM_EMAIL: 'no-reply@alphaby.cloud',
+      MAILERSEND_REPLY_TO_EMAIL: 'soporte@alphaby.cloud',
+    });
+
+    expect(env.MAILERSEND_SMTP_PORT).toBe(465);
+  });
+
+  it('rejects unsupported SMTP ports in production', () => {
     expect(() =>
       validateEnv({
         ...productionEnv(),
@@ -80,7 +95,7 @@ describe('validateEnv realtime configuration', () => {
         MAILERSEND_FROM_EMAIL: 'no-reply@alphaby.cloud',
         MAILERSEND_SMTP_PORT: '2525',
       }),
-    ).toThrow(/MAILERSEND_SMTP_PORT must be 587/);
+    ).toThrow(/MAILERSEND_SMTP_PORT must be 465.*587/);
   });
 });
 

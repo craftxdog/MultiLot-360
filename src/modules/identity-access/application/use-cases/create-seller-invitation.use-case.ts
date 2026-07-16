@@ -48,12 +48,14 @@ export class CreateSellerInvitationUseCase extends UseCase<
   ): Promise<Result<SellerInvitation, AppError>> {
     try {
       const accessCode = this.accessCodeService.generate();
+      const actionToken = this.accessCodeService.generateActionToken();
       const invitation = await this.sellerOnboardingRepository.createInvitation(
         {
           ...input,
           email: input.email.trim().toLowerCase(),
           username: input.username.trim().toLowerCase(),
           accessCodeHash: this.accessCodeService.hash(accessCode),
+          actionTokenHash: this.accessCodeService.hashActionToken(actionToken),
           expiresAt: this.accessCodeService.expiresAt(),
         },
       );
@@ -66,6 +68,7 @@ export class CreateSellerInvitationUseCase extends UseCase<
         adminName: input.adminName,
         sellerName: invitation.sellerName,
         accessCode,
+        actionToken,
         expiresInMinutes:
           Math.ceil((invitation.expiresAt.getTime() - Date.now()) / 60000) || 1,
       });

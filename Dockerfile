@@ -44,7 +44,7 @@ RUN --mount=type=cache,id=multilot-yarn-production,target=/yarn-cache,sharing=lo
 FROM node:22-bookworm-slim AS runner
 
 ENV NODE_ENV=production \
-    PORT=3000
+  PORT=3000
 WORKDIR /app
 
 RUN apt-get update \

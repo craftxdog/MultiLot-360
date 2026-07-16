@@ -81,8 +81,8 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     REALTIME_REDIS_KEY: str({ default: 'multilot360:socket.io' }),
 
     MAILERSEND_ENABLED: bool({ default: false }),
-    MAILERSEND_SMTP_HOST: str({ default: 'smtp.mailersend.net' }),
-    MAILERSEND_SMTP_PORT: port({ default: 587 }),
+    MAILERSEND_SMTP_HOST: str({ default: 'smtp.hostinger.com' }),
+    MAILERSEND_SMTP_PORT: port({ default: 465 }),
     MAILERSEND_SMTP_USER: str({ default: '' }),
     MAILERSEND_SMTP_PASSWORD: str({ default: '' }),
     MAILERSEND_FROM_EMAIL: str({ default: '' }),
@@ -202,8 +202,10 @@ function validateProductionEnv(env: ProductionEnv): void {
     requireLength('MAILERSEND_SMTP_HOST', env.MAILERSEND_SMTP_HOST, 3);
     requireLength('MAILERSEND_SMTP_USER', env.MAILERSEND_SMTP_USER, 3);
     requireLength('MAILERSEND_SMTP_PASSWORD', env.MAILERSEND_SMTP_PASSWORD, 12);
-    if (env.MAILERSEND_SMTP_PORT !== 587) {
-      errors.push('MAILERSEND_SMTP_PORT must be 587 for MailerSend TLS');
+    if (![465, 587].includes(env.MAILERSEND_SMTP_PORT)) {
+      errors.push(
+        'MAILERSEND_SMTP_PORT must be 465 for implicit TLS or 587 for STARTTLS',
+      );
     }
     validateEmail('MAILERSEND_FROM_EMAIL', env.MAILERSEND_FROM_EMAIL, errors);
     validateEmail(

@@ -49,12 +49,14 @@ export type PersistSellerInvitationInput = {
   roleName?: string;
   adminUserId?: string;
   accessCodeHash: string;
+  actionTokenHash: string;
   expiresAt: Date;
 };
 
 export type ConfirmSellerAccessInput = {
-  email: string;
-  accessCodeHash: string;
+  email?: string;
+  accessCodeHash?: string;
+  actionTokenHash?: string;
   authUserId: string;
 };
 
@@ -62,6 +64,7 @@ export type PersistResendSellerAccessCodeInput = {
   email: string;
   adminUserId?: string;
   accessCodeHash: string;
+  actionTokenHash: string;
   expiresAt: Date;
 };
 
@@ -107,8 +110,9 @@ export interface SellerOnboardingRepository {
     input: DeleteSellerInput & { authUserDeleted: boolean },
   ): Promise<SellerDeletionResult | null>;
   findPendingAccessCode(
-    email: string,
-    accessCodeHash: string,
+    email?: string,
+    accessCodeHash?: string,
+    actionTokenHash?: string,
   ): Promise<PendingSellerAccess | null>;
   confirmAccessCode(
     input: ConfirmSellerAccessInput,

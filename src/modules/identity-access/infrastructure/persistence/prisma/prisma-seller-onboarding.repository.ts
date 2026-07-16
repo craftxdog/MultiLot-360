@@ -401,6 +401,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
             vendedor_id: seller.id,
             email: input.email,
             codigo_hash: input.accessCodeHash,
+            enlace_token_hash: input.actionTokenHash,
             expira_en: input.expiresAt,
             creado_por: input.adminUserId,
           },
@@ -701,6 +702,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
             vendedor_id: latestAccessCode.vendedor_id,
             email: input.email,
             codigo_hash: input.accessCodeHash,
+            enlace_token_hash: input.actionTokenHash,
             expira_en: input.expiresAt,
             creado_por: input.adminUserId,
           },
@@ -773,13 +775,23 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
   }
 
   async findPendingAccessCode(
-    email: string,
-    accessCodeHash: string,
+    email?: string,
+    accessCodeHash?: string,
+    actionTokenHash?: string,
   ): Promise<PendingSellerAccess | null> {
+    const credentialWhere = this.buildAccessCredentialWhere(
+      email,
+      accessCodeHash,
+      actionTokenHash,
+    );
+
+    if (!credentialWhere) {
+      return null;
+    }
+
     const accessCode = await this.prisma.codigos_acceso_vendedor.findFirst({
       where: {
-        email,
-        codigo_hash: accessCodeHash,
+        ...credentialWhere,
         estado: codigo_acceso_estado.PENDIENTE,
         expira_en: {
           gt: new Date(),
@@ -808,10 +820,19 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
   async confirmAccessCode(
     input: ConfirmSellerAccessInput,
   ): Promise<ConfirmedSellerAccess | null> {
+    const credentialWhere = this.buildAccessCredentialWhere(
+      input.email,
+      input.accessCodeHash,
+      input.actionTokenHash,
+    );
+
+    if (!credentialWhere) {
+      return null;
+    }
+
     const accessCode = await this.prisma.codigos_acceso_vendedor.findFirst({
       where: {
-        email: input.email,
-        codigo_hash: input.accessCodeHash,
+        ...credentialWhere,
         estado: codigo_acceso_estado.PENDIENTE,
         expira_en: {
           gt: new Date(),
@@ -831,13 +852,22 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.codigos_acceso_vendedor.update({
-        where: { id: accessCode.id },
+      const consumed = await tx.codigos_acceso_vendedor.updateMany({
+        where: {
+          id: accessCode.id,
+          estado: codigo_acceso_estado.PENDIENTE,
+          expira_en: { gt: new Date() },
+        },
         data: {
           estado: codigo_acceso_estado.USADO,
           usado_en: new Date(),
         },
       });
+
+      if (consumed.count !== 1) {
+        return null;
+      }
+
       const user = await tx.usuarios.update({
         where: { id: accessCode.usuario_id },
         data: {
@@ -855,8 +885,24 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       return {
         userId: user.id,
         sellerId: seller.id,
-        email: input.email,
+        email: accessCode.email,
       };
     });
+  }
+
+  private buildAccessCredentialWhere(
+    email?: string,
+    accessCodeHash?: string,
+    actionTokenHash?: string,
+  ): Prisma.codigos_acceso_vendedorWhereInput | null {
+    if (actionTokenHash) {
+      return { enlace_token_hash: actionTokenHash };
+    }
+
+    if (email && accessCodeHash) {
+      return { email, codigo_hash: accessCodeHash };
+    }
+
+    return null;
   }
 }

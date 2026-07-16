@@ -25,6 +25,8 @@ describe('CreateSellerInvitationUseCase', () => {
   const accessCodeService = {
     generate: jest.fn(),
     hash: jest.fn(),
+    generateActionToken: jest.fn(),
+    hashActionToken: jest.fn(),
     expiresAt: jest.fn(),
   } as unknown as jest.Mocked<SellerAccessCodeService>;
 
@@ -34,6 +36,8 @@ describe('CreateSellerInvitationUseCase', () => {
     jest.clearAllMocks();
     accessCodeService.generate.mockReturnValue('123456');
     accessCodeService.hash.mockReturnValue('hashed-code');
+    accessCodeService.generateActionToken.mockReturnValue('opaque-token');
+    accessCodeService.hashActionToken.mockReturnValue('hashed-action-token');
     accessCodeService.expiresAt.mockReturnValue(
       new Date('2026-06-21T08:15:00.000Z'),
     );
@@ -65,8 +69,12 @@ describe('CreateSellerInvitationUseCase', () => {
       email: 'seller@example.com',
       username: 'seller.01',
       accessCodeHash: 'hashed-code',
+      actionTokenHash: 'hashed-action-token',
     });
-    expect(mailer.sendSellerInvitation.mock.calls).toHaveLength(1);
+    expect(mailer.sendSellerInvitation.mock.calls[0][0]).toMatchObject({
+      accessCode: '123456',
+      actionToken: 'opaque-token',
+    });
   });
 
   it('returns a sanitized 502 when SMTP credentials are rejected', async () => {

@@ -42,11 +42,13 @@ export class ResendSellerAccessCodeUseCase extends UseCase<
     try {
       const email = input.email.trim().toLowerCase();
       const accessCode = this.accessCodeService.generate();
+      const actionToken = this.accessCodeService.generateActionToken();
       const invitation = await this.sellerOnboardingRepository.resendAccessCode(
         {
           ...input,
           email,
           accessCodeHash: this.accessCodeService.hash(accessCode),
+          actionTokenHash: this.accessCodeService.hashActionToken(actionToken),
           expiresAt: this.accessCodeService.expiresAt(),
         },
       );
@@ -66,6 +68,7 @@ export class ResendSellerAccessCodeUseCase extends UseCase<
         },
         sellerName: invitation.sellerName,
         accessCode,
+        actionToken,
         expiresInMinutes:
           Math.ceil((invitation.expiresAt.getTime() - Date.now()) / 60000) || 1,
       });

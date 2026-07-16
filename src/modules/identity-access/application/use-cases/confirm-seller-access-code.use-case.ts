@@ -15,8 +15,9 @@ import {
 import { SellerAccessCodeService } from '../services';
 
 export type ConfirmSellerAccessCodeCommand = {
-  email: string;
-  accessCode: string;
+  email?: string;
+  accessCode?: string;
+  actionToken?: string;
   password: string;
 };
 
@@ -39,8 +40,13 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
   async execute(
     input: ConfirmSellerAccessCodeCommand,
   ): Promise<Result<ConfirmedSellerAccess, AppError>> {
-    const email = input.email.trim().toLowerCase();
-    const accessCodeHash = this.accessCodeService.hash(input.accessCode);
+    const email = input.email?.trim().toLowerCase();
+    const accessCodeHash = input.accessCode
+      ? this.accessCodeService.hash(input.accessCode)
+      : undefined;
+    const actionTokenHash = input.actionToken
+      ? this.accessCodeService.hashActionToken(input.actionToken)
+      : undefined;
     let authUserId: string | undefined;
 
     try {
@@ -48,6 +54,7 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
         await this.sellerOnboardingRepository.findPendingAccessCode(
           email,
           accessCodeHash,
+          actionTokenHash,
         );
 
       if (!pending) {
@@ -59,7 +66,7 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
       }
 
       const authUser = await this.authProvider.createUser({
-        email,
+        email: pending.email,
         password: input.password,
         name: pending.sellerName,
         emailConfirmed: true,
@@ -70,6 +77,7 @@ export class ConfirmSellerAccessCodeUseCase extends UseCase<
         {
           email,
           accessCodeHash,
+          actionTokenHash,
           authUserId: authUser.id,
         },
       );

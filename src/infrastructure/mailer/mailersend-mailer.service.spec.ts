@@ -4,6 +4,7 @@ import { MailerSendMailerService } from './mailersend-mailer.service';
 import { TemplateRendererService } from './template-renderer.service';
 
 describe('MailerSendMailerService', () => {
+  const actionToken = 'A'.repeat(43);
   const envConfig = {
     app: {
       name: 'MultiLot 360 API',
@@ -55,6 +56,7 @@ describe('MailerSendMailerService', () => {
         recipient: { email: 'seller@example.com', name: 'Seller' },
         sellerName: 'Seller',
         accessCode: '123456',
+        actionToken,
         expiresInMinutes: 10,
       }),
     ).resolves.toBeUndefined();
@@ -81,6 +83,7 @@ describe('MailerSendMailerService', () => {
       adminName: 'Admin',
       sellerName: 'Seller',
       accessCode: '123456',
+      actionToken,
       expiresInMinutes: 10,
     });
 
@@ -112,6 +115,7 @@ describe('MailerSendMailerService', () => {
         recipient: { email: 'seller@example.com', name: 'Seller' },
         sellerName: 'Seller',
         accessCode: '123456',
+        actionToken,
         expiresInMinutes: 10,
       }),
     ).rejects.toMatchObject({ reason: 'UNAVAILABLE', retryable: true });
@@ -136,12 +140,13 @@ describe('MailerSendMailerService', () => {
         recipient: { email: 'seller@example.com', name: 'Seller' },
         sellerName: 'Seller',
         accessCode: '123456',
+        actionToken,
         expiresInMinutes: 10,
       }),
     ).rejects.toMatchObject({ reason: 'REJECTED', retryable: false });
   });
 
-  it('adds the normalized email and one-time code to the activation URL', async () => {
+  it('adds only the opaque one-time token to the activation URL', async () => {
     const renderer = new TemplateRendererService();
     const renderSpy = jest.spyOn(renderer, 'render');
     const service = new MailerSendMailerService(enabledConfig, renderer);
@@ -159,16 +164,21 @@ describe('MailerSendMailerService', () => {
       adminName: 'Admin',
       sellerName: 'Seller',
       accessCode: '123456',
+      actionToken,
       expiresInMinutes: 15,
     });
 
     expect(renderSpy).toHaveBeenCalledWith(
       'seller-invitation',
       expect.objectContaining({
-        activationUrl:
-          'https://app.multilot360.com/activar-vendedor?email=seller%2Bdemo%40example.com&code=123456',
+        activationUrl: `https://app.multilot360.com/activar-vendedor?token=${actionToken}`,
       }),
     );
+    const activationUrl = String(
+      renderSpy.mock.calls.at(-1)?.[1]?.activationUrl,
+    );
+    expect(activationUrl).not.toContain('seller');
+    expect(activationUrl).not.toContain('123456');
     expect(sendMail).toHaveBeenCalledTimes(1);
   });
 

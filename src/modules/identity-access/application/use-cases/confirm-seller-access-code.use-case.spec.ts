@@ -28,12 +28,14 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
   };
   const accessCodeService = {
     hash: jest.fn(),
+    hashActionToken: jest.fn(),
   } as unknown as jest.Mocked<SellerAccessCodeService>;
   let useCase: ConfirmSellerAccessCodeUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
     accessCodeService.hash.mockReturnValue('hashed-code');
+    accessCodeService.hashActionToken.mockReturnValue('hashed-action-token');
     authProvider.createUser.mockResolvedValue({
       id: 'auth-user-id',
       email: 'seller@example.com',
@@ -87,6 +89,41 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     expect(repository.confirmAccessCode.mock.calls[0][0]).toEqual({
       email: 'seller@example.com',
       accessCodeHash: 'hashed-code',
+      authUserId: 'auth-user-id',
+    });
+  });
+
+  it('confirms from an opaque action token without receiving email or code', async () => {
+    repository.findPendingAccessCode.mockResolvedValue({
+      userId: 'user-id',
+      sellerId: 'seller-id',
+      email: 'seller@example.com',
+      sellerName: 'Seller',
+    });
+    repository.confirmAccessCode.mockResolvedValue({
+      userId: 'user-id',
+      sellerId: 'seller-id',
+      email: 'seller@example.com',
+    });
+
+    const result = await useCase.execute({
+      actionToken: 'A'.repeat(43),
+      password: 'Sup3rSecret2026!',
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.findPendingAccessCode.mock.calls[0]).toEqual([
+      undefined,
+      undefined,
+      'hashed-action-token',
+    ]);
+    expect(authProvider.createUser.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ email: 'seller@example.com' }),
+    );
+    expect(repository.confirmAccessCode.mock.calls[0][0]).toEqual({
+      email: undefined,
+      accessCodeHash: undefined,
+      actionTokenHash: 'hashed-action-token',
       authUserId: 'auth-user-id',
     });
   });

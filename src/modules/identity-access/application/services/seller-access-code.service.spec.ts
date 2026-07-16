@@ -19,4 +19,13 @@ describe('SellerAccessCodeService', () => {
     expect(hash).not.toBe('123456');
     expect(hash).toHaveLength(64);
   });
+
+  it('generates URL-safe 256-bit action tokens and stores only their digest', () => {
+    const token = service.generateActionToken();
+    const hash = service.hashActionToken(token);
+
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(hash).not.toContain(token);
+  });
 });

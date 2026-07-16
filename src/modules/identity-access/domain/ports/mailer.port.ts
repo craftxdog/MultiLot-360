@@ -29,6 +29,7 @@ export type SendSellerInvitationInput = {
   adminName: string;
   sellerName: string;
   accessCode: string;
+  actionToken: string;
   expiresInMinutes: number;
 };
 
@@ -36,6 +37,7 @@ export type SendSellerAccessCodeInput = {
   recipient: MailRecipient;
   sellerName: string;
   accessCode: string;
+  actionToken: string;
   expiresInMinutes: number;
 };
 
