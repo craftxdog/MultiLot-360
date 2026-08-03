@@ -8,14 +8,84 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   USERNAME_FORMAT_MESSAGE,
   USERNAME_PATTERN,
   trimLowercaseString,
   trimString,
 } from '../../../../../common';
-import { AuthMeResponseDto } from './auth-me-response.dto';
+
+export class AuthSessionRoleDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ example: 'ADMIN' })
+  name: string;
+}
+
+export class AuthSessionTenantDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ example: 'mi-empresa' })
+  slug: string;
+
+  @ApiProperty({ example: 'Mi Empresa' })
+  name: string;
+
+  @ApiProperty({ format: 'uuid' })
+  membershipId: string;
+
+  @ApiProperty()
+  isOwner: boolean;
+}
+
+export class AuthSessionSellerDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ format: 'uuid' })
+  userId: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  active: boolean;
+}
+
+export class AuthSessionUserDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ format: 'uuid' })
+  authUserId: string;
+
+  @ApiProperty()
+  username: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  name?: string | null;
+
+  @ApiProperty()
+  active: boolean;
+
+  @ApiProperty({ type: AuthSessionRoleDto })
+  role: AuthSessionRoleDto;
+
+  @ApiProperty({ type: [String] })
+  modules: string[];
+
+  @ApiProperty({ type: [String] })
+  permissions: string[];
+
+  @ApiPropertyOptional({ type: AuthSessionTenantDto })
+  tenant?: AuthSessionTenantDto;
+
+  @ApiPropertyOptional({ type: AuthSessionSellerDto })
+  seller?: AuthSessionSellerDto;
+}
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@example.com' })
@@ -93,8 +163,8 @@ export class AuthSessionResponseDto {
   @ApiProperty({ example: 'bearer' })
   tokenType: 'bearer';
 
-  @ApiProperty({ type: AuthMeResponseDto })
-  user: AuthMeResponseDto;
+  @ApiProperty({ type: AuthSessionUserDto })
+  user: AuthSessionUserDto;
 }
 
 export class LogoutResponseDto {

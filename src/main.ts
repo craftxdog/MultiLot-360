@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import {
   HttpExceptionFilter,
@@ -13,6 +13,7 @@ import {
 } from './common';
 import { AppLoggerService } from './config/app-logger.service';
 import { EnvConfigService } from './config/env-config.service';
+import { buildSwaggerConfig } from './config/swagger.config';
 import { RedisSocketIoAdapter } from './infrastructure/realtime';
 
 async function bootstrap() {
@@ -59,60 +60,7 @@ async function bootstrap() {
   if (env.swagger.enabled) {
     const document = SwaggerModule.createDocument(
       app,
-      new DocumentBuilder()
-        .setTitle(env.app.name)
-        .setDescription(
-          'API operacional de MultiLot 360. PostgreSQL es la fuente de verdad; Socket.IO solo notifica cambios confirmados. Todas las rutas privadas requieren un access token de Supabase y pueden exigir módulo, rol y permiso RBAC.',
-        )
-        .setVersion('1.0.0')
-        .addBearerAuth()
-        .addApiKey(
-          {
-            type: 'apiKey',
-            in: 'header',
-            name: 'x-tenant-id',
-            description:
-              'Tenant UUID or slug. Optional when the user has only one active company.',
-          },
-          'tenant',
-        )
-        .addTag('Health', 'Estado del proceso y sus dependencias.')
-        .addTag('Auth', 'Sesiones, identidad y recuperación de contraseña.')
-        .addTag(
-          'SaaS billing',
-          'Planes, alta pagada de empresas y webhooks de suscripción.',
-        )
-        .addTag(
-          'Seller onboarding',
-          'Invitación, activación y administración de vendedores.',
-        )
-        .addTag(
-          'Draws',
-          'Configuraciones recurrentes y turnos operacionales de sorteos.',
-        )
-        .addTag(
-          'Number limits',
-          'Topes globales o por vendedor, con alcance general o por sorteo.',
-        )
-        .addTag(
-          'Blocked numbers',
-          'Bloqueos temporales de números por fecha o turno.',
-        )
-        .addTag('Sales', 'Ventas multi-número, consulta, política y anulación.')
-        .addTag(
-          'Sales Matrix',
-          'Vista administrativa 00-99 de la exposición vendida.',
-        )
-        .addTag('Results', 'Resultados y ventas ganadoras por turno.')
-        .addTag('Prize payments', 'Registro de premios efectivamente pagados.')
-        .addTag('Cash cuts', 'Cierres contables por vendedor y período.')
-        .addTag('Reports', 'Resumen operacional y desempeño por vendedor.')
-        .addTag('System parameters', 'Configuración operacional administrable.')
-        .addTag(
-          'Audit events',
-          'Trazabilidad técnica y de acciones de negocio.',
-        )
-        .build(),
+      buildSwaggerConfig(env.app.name),
     );
 
     SwaggerModule.setup(env.swagger.path, app, document, {
