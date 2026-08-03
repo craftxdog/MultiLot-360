@@ -17,6 +17,15 @@ describe('AuthController password reset authorization', () => {
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, handler)).toBe(true);
   });
 
+  it('keeps secure-link confirmation public', () => {
+    const handler = Reflect.get(
+      AuthController.prototype,
+      'confirmPasswordResetLinkSession',
+    ) as object;
+
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, handler)).toBe(true);
+  });
+
   it('requires authenticated admin RBAC for direct resets', () => {
     const handler = Reflect.get(
       AuthController.prototype,

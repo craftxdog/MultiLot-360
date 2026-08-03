@@ -204,6 +204,18 @@ Content-Type: application/json
 }
 
 ###
+# ROUTE: POST /auth/password/reset/confirm-link
+# El tokenHash es opaco, de un solo uso y debe enviarse solo por HTTPS.
+POST {{baseUrl}}/auth/password/reset/confirm-link
+Content-Type: application/json
+
+{
+  "tokenHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "newPassword": "NuevaClave2026!",
+  "confirmPassword": "NuevaClave2026!"
+}
+
+###
 # ROUTE: POST /auth/password/reset/admin
 # Destructivo: cambia la contraseña y revoca sesiones del usuario objetivo.
 POST {{baseUrl}}/auth/password/reset/admin

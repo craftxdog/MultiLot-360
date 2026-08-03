@@ -34,6 +34,12 @@ export type ConfirmPasswordResetCommand = {
   confirmPassword: string;
 };
 
+export type ConfirmPasswordResetLinkCommand = {
+  tokenHash: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 export type AdminResetPasswordCommand = {
   actorUserId: string;
   targetUserId: string;

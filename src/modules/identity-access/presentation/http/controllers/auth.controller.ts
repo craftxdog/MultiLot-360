@@ -27,6 +27,7 @@ import {
 } from '../../../../../common';
 import {
   AdminResetPasswordUseCase,
+  ConfirmPasswordResetLinkUseCase,
   ConfirmPasswordResetUseCase,
   LoginUseCase,
   LogoutUseCase,
@@ -38,6 +39,7 @@ import {
   AdminResetPasswordResponseDto,
   AuthSessionResponseDto,
   ConfirmPasswordResetDto,
+  ConfirmPasswordResetLinkDto,
   ConfirmPasswordResetResponseDto,
   LoginDto,
   LogoutResponseDto,
@@ -55,6 +57,7 @@ export class AuthController {
     private readonly logout: LogoutUseCase,
     private readonly requestPasswordReset: RequestPasswordResetUseCase,
     private readonly confirmPasswordReset: ConfirmPasswordResetUseCase,
+    private readonly confirmPasswordResetLink: ConfirmPasswordResetLinkUseCase,
     private readonly adminResetPassword: AdminResetPasswordUseCase,
   ) {}
 
@@ -105,6 +108,20 @@ export class AuthController {
     return this.confirmPasswordReset.execute({
       email: body.email,
       code: body.code,
+      newPassword: body.newPassword,
+      confirmPassword: body.confirmPassword,
+    });
+  }
+
+  @Public()
+  @Post('password/reset/confirm-link')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: ConfirmPasswordResetResponseDto })
+  confirmPasswordResetLinkSession(@Body() body: ConfirmPasswordResetLinkDto) {
+    return this.confirmPasswordResetLink.execute({
+      tokenHash: body.tokenHash,
       newPassword: body.newPassword,
       confirmPassword: body.confirmPassword,
     });

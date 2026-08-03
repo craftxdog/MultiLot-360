@@ -43,6 +43,8 @@ describe('AuditHttpInterceptor', () => {
       query: {},
       body: {
         actionToken: 'opaque-invitation-token',
+        tokenHash: 'opaque-recovery-token-hash',
+        recoveryToken: 'opaque-recovery-token',
         refreshToken: 'recovery-refresh-token',
         newPassword: 'NewSup3rSecret2026!',
         confirmPassword: 'NewSup3rSecret2026!',
@@ -64,6 +66,8 @@ describe('AuditHttpInterceptor', () => {
     expect(command.payload).toMatchObject({
       body: {
         actionToken: '[REDACTED]',
+        tokenHash: '[REDACTED]',
+        recoveryToken: '[REDACTED]',
         refreshToken: '[REDACTED]',
         newPassword: '[REDACTED]',
         confirmPassword: '[REDACTED]',

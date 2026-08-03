@@ -82,6 +82,7 @@ DTOs de entrada principales:
 | `RefreshSessionDto` | `refreshToken` | Token obligatorio; nunca se audita en claro. |
 | `RequestPasswordResetDto` | `email` | Respuesta anti-enumeración; máximo 3 solicitudes/minuto. |
 | `ConfirmPasswordResetDto` | `email`, `code`, `newPassword`, `confirmPassword` | OTP de 6 dígitos; contraseñas iguales, 8..72; máximo 5 intentos/minuto. |
+| `ConfirmPasswordResetLinkDto` | `tokenHash`, `newPassword`, `confirmPassword` | Token hash opaco 32..1024; contraseñas iguales, 8..72; máximo 5 intentos/minuto. El secreto nunca se audita. |
 | `AdminResetPasswordDto` | `targetUserId`, `newPassword`, `confirmPassword` | Solo ADMIN con `usuarios.update`; usuario activo y enlazado a Supabase. |
 | `CreateSellerInvitationDto` | `email`, `username`, `sellerName`, `documentId`, `phone?`, `address?`, `roleName?` | Cédula y teléfono nicaragüense normalizados; código de acceso de un solo uso. |
 | `ConfirmSellerAccessCodeDto` | `actionToken` o (`email`, `accessCode`), `password` | Token opaco URL-safe de 43 caracteres o código manual de 6 dígitos; contraseña 8..72. |
@@ -174,8 +175,9 @@ migraciones recientes están en:
 | --- | --- | --- | --- |
 | POST | `/auth/login` | Público | Inicia sesión con correo y contraseña. |
 | POST | `/auth/refresh` | Público | Intercambia un refresh token por una sesión renovada. |
-| POST | `/auth/password/reset/request` | Público, 3/minuto | Genera un OTP de recovery y lo envía con MailerSend. Siempre responde de forma genérica para evitar enumeración de cuentas. |
+| POST | `/auth/password/reset/request` | Público, 3/minuto | Genera OTP + token hash de recovery y los envía por SMTP. Siempre responde de forma genérica para evitar enumeración de cuentas. |
 | POST | `/auth/password/reset/confirm` | Público, 5/minuto | Verifica correo + OTP, actualiza contraseña y revoca refresh sessions. |
+| POST | `/auth/password/reset/confirm-link` | Público, 5/minuto | Canjea el token hash opaco de un solo uso, actualiza contraseña y revoca refresh sessions. |
 | POST | `/auth/password/reset/admin` | ADMIN, módulo `USUARIOS`, `usuarios.update` | Restablece la contraseña de un usuario activo sin enviar correo. |
 | POST | `/auth/logout` | Bearer | Revoca las sesiones de refresh asociadas al token. |
 | GET | `/auth/me` | Bearer | Devuelve identidad interna, rol, permisos, módulos y vendedor asociado. |
@@ -262,6 +264,13 @@ ciclo de vida y las invariantes de seguridad.
   "confirmPassword": "NuevaClave2026!"
 }
 
+// POST /auth/password/reset/confirm-link
+{
+  "tokenHash": "token-hash-opaco-del-fragmento",
+  "newPassword": "NuevaClave2026!",
+  "confirmPassword": "NuevaClave2026!"
+}
+
 // POST /auth/password/reset/admin
 {
   "targetUserId": "uuid-de-usuarios",
@@ -270,9 +279,12 @@ ciclo de vida y las invariantes de seguridad.
 }
 ```
 
+El correo incluye el `tokenHash` únicamente en el fragmento `#recovery_token=...`.
+El navegador lo copia a memoria, limpia la URL y lo canjea solo al confirmar la
+nueva contraseña; el OTP de seis dígitos permanece como alternativa manual.
 Supabase invalida refresh tokens durante un cierre global, pero un access JWT
 ya emitido puede permanecer válido hasta su expiración. No se registran OTP,
-contraseñas, service role keys ni tokens completos.
+token hashes, contraseñas, service role keys ni tokens completos.
 
 ## Vendedores e invitaciones
 

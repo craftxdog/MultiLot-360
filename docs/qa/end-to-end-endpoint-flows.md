@@ -48,7 +48,8 @@ Alternativas y procesos internos:
 4. `POST /auth/logout` revoca la sesión de refresh.
 5. `POST /auth/password/reset/request` es resistente a enumeración: siempre acepta una solicitud bien formada.
 6. `POST /auth/password/reset/confirm` exige código vigente, contraseña y confirmación iguales.
-7. `POST /auth/password/reset/admin` requiere ADMIN y `usuarios.update`, revoca sesiones y nunca audita contraseñas/códigos.
+7. `POST /auth/password/reset/confirm-link` canjea el token hash opaco una sola vez, revoca sesiones y nunca lo persiste ni audita.
+8. `POST /auth/password/reset/admin` requiere ADMIN y `usuarios.update`, revoca sesiones y nunca audita contraseñas/códigos.
 
 Negativos obligatorios: credenciales inválidas `401`, JWT ausente `401`, tenant ambiguo sin selector, usuario/membresía inactivos y vendedor de empresa suspendida.
 
@@ -155,10 +156,10 @@ Las revisiones financieras no se insertan en el ledger tenant: usan `payment_rev
 
 ## Estado de evidencia al 3 de agosto de 2026
 
-- Certificación dinámica: 90/90 rutas de controladores ejecutadas; si aparece una ruta nueva sin ejercicio, el comando falla.
-- Recorrido operacional: 107 comprobaciones, 0 fallos.
+- Certificación dinámica: 91/91 rutas de controladores ejecutadas; si aparece una ruta nueva sin ejercicio, el comando falla.
+- Recorrido operacional: 108 comprobaciones, 0 fallos.
 - Recorrido SaaS completo: 30 hitos aprobados desde catálogo/alta/pago hasta logout, incluyendo venta, cierre, resultado, premio y corte.
-- Regresión unitaria: 71 suites y 233 pruebas aprobadas.
+- Regresión unitaria: 72 suites y 241 pruebas aprobadas.
 - Base de datos: 2 suites SQL transaccionales aprobadas para aislamiento RLS, funciones, triggers, facturación y revisión bancaria.
 - E2E: 1 suite aprobada; el smoke Realtime permanece condicional a sus credenciales/fixtures dedicados.
 - Supabase development: 22 migraciones locales/remotas sincronizadas hasta `20260803163000`; linter de `public` y `app_private` sin warnings.

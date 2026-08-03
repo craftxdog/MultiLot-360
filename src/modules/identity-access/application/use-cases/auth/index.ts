@@ -1,4 +1,5 @@
 export * from './confirm-password-reset.use-case';
+export * from './confirm-password-reset-link.use-case';
 export * from './login.use-case';
 export * from './logout.use-case';
 export * from './refresh-session.use-case';

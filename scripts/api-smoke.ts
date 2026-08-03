@@ -422,6 +422,18 @@ async function runAuthChecks() {
     [401],
   );
   expectStatus(
+    'password reset secure link rejects invalid recovery token hash',
+    await request('POST', '/auth/password/reset/confirm-link', {
+      auth: false,
+      body: {
+        tokenHash: 'a'.repeat(64),
+        newPassword: 'NuevaClave2026!',
+        confirmPassword: 'NuevaClave2026!',
+      },
+    }),
+    [401],
+  );
+  expectStatus(
     'auth refresh invalid token',
     await request('POST', '/auth/refresh', {
       auth: false,

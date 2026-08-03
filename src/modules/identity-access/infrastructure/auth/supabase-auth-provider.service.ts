@@ -10,6 +10,7 @@ import {
   GeneratePasswordRecoveryCodeInput,
   PasswordRecoveryCode,
   ResetPasswordWithRecoveryCodeInput,
+  ResetPasswordWithRecoveryTokenHashInput,
   SignInWithPasswordInput,
   SupabaseJwtPayload,
 } from '../../domain';
@@ -111,13 +112,18 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
       throw new Error(error.message);
     }
 
-    if (!data.properties.email_otp || !data.user.id) {
-      throw new Error('Supabase recovery code was not returned');
+    if (
+      !data.properties.email_otp ||
+      !data.properties.hashed_token ||
+      !data.user.id
+    ) {
+      throw new Error('Supabase recovery credentials were not returned');
     }
 
     return {
       authUserId: data.user.id,
       code: data.properties.email_otp,
+      tokenHash: data.properties.hashed_token,
     };
   }
 
@@ -127,6 +133,32 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
     return this.updatePasswordWithRecoveryCode(
       input.email,
       input.code,
+      input.newPassword,
+    );
+  }
+
+  async resetPasswordWithRecoveryTokenHash(
+    input: ResetPasswordWithRecoveryTokenHashInput,
+  ): Promise<{ authUserId: string }> {
+    const client = this.createRecoveryClient();
+    const { data: sessionData, error: sessionError } =
+      await client.auth.verifyOtp({
+        token_hash: input.tokenHash,
+        type: 'recovery',
+      });
+
+    const { session, user } = sessionData;
+    if (sessionError || !session || !user) {
+      throw new Error(
+        `RECOVERY_TOKEN_INVALID: ${
+          sessionError?.message ?? 'Recovery token is invalid'
+        }`,
+      );
+    }
+
+    return this.updatePasswordForRecoverySession(
+      client,
+      { session, user },
       input.newPassword,
     );
   }
@@ -165,12 +197,7 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
     newPassword: string,
     expectedAuthUserId?: string,
   ): Promise<{ authUserId: string }> {
-    const client = this.createSupabaseClient(
-      this.requireConfig(
-        this.envConfig.supabase.publishableKey,
-        'SUPABASE_PUBLISHABLE_KEY',
-      ),
-    );
+    const client = this.createRecoveryClient();
     const { data: sessionData, error: sessionError } =
       await client.auth.verifyOtp({
         email,
@@ -178,7 +205,8 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
         type: 'recovery',
       });
 
-    if (sessionError || !sessionData.session || !sessionData.user) {
+    const { session, user } = sessionData;
+    if (sessionError || !session || !user) {
       throw new Error(
         `RECOVERY_CODE_INVALID: ${
           sessionError?.message ?? 'Recovery code is invalid'
@@ -186,8 +214,25 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
       );
     }
 
+    return this.updatePasswordForRecoverySession(
+      client,
+      { session, user },
+      newPassword,
+      expectedAuthUserId,
+    );
+  }
+
+  private async updatePasswordForRecoverySession(
+    client: SupabaseClient,
+    sessionData: {
+      session: { access_token: string };
+      user: { id: string };
+    },
+    newPassword: string,
+    expectedAuthUserId?: string,
+  ): Promise<{ authUserId: string }> {
     if (expectedAuthUserId && sessionData.user.id !== expectedAuthUserId) {
-      throw new Error('Recovery code belongs to another user');
+      throw new Error('Recovery credential belongs to another user');
     }
 
     const { error: updateError } = await client.auth.updateUser({
@@ -209,6 +254,15 @@ export class SupabaseAuthProviderService implements AuthProviderPort {
     }
 
     return { authUserId: sessionData.user.id };
+  }
+
+  private createRecoveryClient(): SupabaseClient {
+    return this.createSupabaseClient(
+      this.requireConfig(
+        this.envConfig.supabase.publishableKey,
+        'SUPABASE_PUBLISHABLE_KEY',
+      ),
+    );
   }
 
   async verifyAccessToken(accessToken: string): Promise<SupabaseJwtPayload> {

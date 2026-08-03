@@ -2,12 +2,12 @@
 
 Hola {{ userName }},
 
-Tu código de recuperación es: {{ recoveryCode }}
-
-Abre este formulario para crear una nueva contraseña:
+Abre este enlace seguro para crear una nueva contraseña:
 {{ passwordResetUrl }}
 
-El código vence en {{ expiresInMinutes }} minutos, es de un solo uso y nunca debe compartirse.
+Si el enlace no funciona, usa este código manual: {{ recoveryCode }}
+
+El enlace y el código vencen en {{ expiresInMinutes }} minutos, son de un solo uso y nunca deben compartirse.
 Si no solicitaste este cambio, ignora el mensaje y avisa al administrador.
 
 Ayuda: {{ supportEmail }}

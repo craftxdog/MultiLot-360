@@ -25,11 +25,17 @@ export type GeneratePasswordRecoveryCodeInput = {
 export type PasswordRecoveryCode = {
   authUserId: string;
   code: string;
+  tokenHash: string;
 };
 
 export type ResetPasswordWithRecoveryCodeInput = {
   email: string;
   code: string;
+  newPassword: string;
+};
+
+export type ResetPasswordWithRecoveryTokenHashInput = {
+  tokenHash: string;
   newPassword: string;
 };
 
@@ -51,6 +57,9 @@ export interface AuthProviderPort {
   ): Promise<PasswordRecoveryCode>;
   resetPasswordWithRecoveryCode(
     input: ResetPasswordWithRecoveryCodeInput,
+  ): Promise<{ authUserId: string }>;
+  resetPasswordWithRecoveryTokenHash(
+    input: ResetPasswordWithRecoveryTokenHashInput,
   ): Promise<{ authUserId: string }>;
   adminResetPassword(
     input: AdminResetPasswordInput,
