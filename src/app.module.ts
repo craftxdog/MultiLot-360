@@ -18,6 +18,7 @@ import { ReportsModule } from './modules/reports';
 import { ResultsModule } from './modules/results';
 import { SalesModule } from './modules/sales';
 import { SalesMatrixModule } from './modules/sales-matrix';
+import { SaasBillingModule } from './modules/saas-billing';
 import { SystemParametersModule } from './modules/system-parameters';
 
 @Module({
@@ -27,6 +28,7 @@ import { SystemParametersModule } from './modules/system-parameters';
     CommonModule,
     AuditLogsModule,
     IdentityAccessModule,
+    SaasBillingModule,
     RealtimeModule,
     DrawsModule,
     NumberLimitsModule,

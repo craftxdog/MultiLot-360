@@ -103,10 +103,16 @@ jobs:
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --command "CREATE ROLE anon NOLOGIN"
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --command "CREATE ROLE authenticated NOLOGIN"
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --command "CREATE ROLE service_role NOLOGIN"
-          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/migrations/20260713000000_production_baseline.sql
-          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/migrations/20260713201946_revoke_public_data_api_access.sql
+          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --command "CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY, aud text, role text, email text, encrypted_password text, email_confirmed_at timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb, created_at timestamptz, updated_at timestamptz)"
+          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --command "CREATE SCHEMA storage; CREATE TABLE storage.buckets (id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false, file_size_limit bigint, allowed_mime_types text[])"
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print0 | sort -z | while IFS= read -r -d '' migration; do
+            echo "Applying ${migration}"
+            psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file "${migration}"
+          done
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/seed.sql
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/seed.sql
+          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/tests/database/multi_tenant_isolation.test.sql
+          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/tests/database/bank_transfer_billing.test.sql
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.roles")" = "2"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.modulos")" = "15"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.permisos_por_rol")" = "21"
@@ -115,6 +121,8 @@ jobs:
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select has_schema_privilege('authenticated', 'public', 'USAGE')")" = "f"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'p') and has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')")" = "0"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'p') and has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')")" = "0"
+          test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p') and not c.relrowsecurity")" = "0"
+          test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select rolbypassrls from pg_roles where rolname='multilot_app'")" = "f"
 
       - name: Check formatting
         run: yarn format:check

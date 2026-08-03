@@ -17,7 +17,7 @@ const roleInclude = {
     include: { modulos: true },
   },
   _count: {
-    select: { usuarios: true },
+    select: { membresias_tenant: true },
   },
 } satisfies Prisma.rolesInclude;
 
@@ -144,23 +144,27 @@ export class PrismaAccessControlRepository implements AccessControlRepository {
     userId: string,
     roleId: string,
   ): Promise<AccessUserRole> {
-    const [user, role] = await this.prisma.$transaction([
-      this.prisma.usuarios.findUnique({ where: { id: userId } }),
-      this.prisma.roles.findUnique({ where: { id: roleId } }),
-    ]);
-    if (!user) throw new Error('User not found');
+    const membership = await this.prisma.membresias_tenant.findFirst({
+      where: { perfil_id: userId, eliminado_en: null },
+      include: { usuarios: true },
+    });
+    if (!membership) throw new Error('User not found');
+
+    const role = await this.prisma.roles.findFirst({
+      where: { id: roleId, tenant_id: membership.tenant_id },
+    });
     if (!role) throw new Error('Role not found');
 
-    const updated = await this.prisma.usuarios.update({
-      where: { id: user.id },
+    const updated = await this.prisma.membresias_tenant.update({
+      where: { id: membership.id },
       data: { rol_id: role.id, actualizado_en: new Date() },
-      include: { roles: true },
+      include: { roles: true, usuarios: true },
     });
 
     return {
-      userId: updated.id,
+      userId: updated.perfil_id,
       username: updated.username,
-      name: updated.nombre,
+      name: updated.usuarios.nombre,
       roleId: updated.roles.id,
       roleName: updated.roles.nombre,
       updatedAt: updated.actualizado_en,
@@ -190,7 +194,7 @@ export class PrismaAccessControlRepository implements AccessControlRepository {
       id: role.id,
       name: role.nombre,
       createdAt: role.creado_en,
-      userCount: role._count.usuarios,
+      userCount: role._count.membresias_tenant,
       permissions: modules.map((module): AccessPermission => {
         const permission = byModuleId.get(module.id);
         return {

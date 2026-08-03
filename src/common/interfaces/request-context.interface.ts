@@ -10,6 +10,11 @@ export type AuthenticatedUserContext = {
   active?: boolean;
   modules?: string[];
   permissions?: string[];
+  tenantId?: string;
+  tenantSlug?: string;
+  membershipId?: string;
+  isOwner?: boolean;
+  platformAdminId?: string;
 };
 
 export type SellerContext = {
@@ -23,6 +28,7 @@ export type ApiRequestContext = {
   requestId?: string;
   user?: AuthenticatedUserContext;
   seller?: SellerContext;
+  tenantId?: string;
 };
 
 export type ApiRequest = Request & {

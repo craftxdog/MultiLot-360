@@ -13,5 +13,8 @@ export type CreateInternalUserInput = {
 export interface AuthAccountRepository {
   createInternalUser(input: CreateInternalUserInput): Promise<IdentityUser>;
   findById(userId: string): Promise<IdentityUser | null>;
-  findByAuthUserId(authUserId: string): Promise<IdentityUser | null>;
+  findByAuthUserId(
+    authUserId: string,
+    tenantSelector?: string,
+  ): Promise<IdentityUser | null>;
 }

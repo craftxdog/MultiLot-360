@@ -9,16 +9,23 @@ import {
 } from '../../../domain';
 
 const identityUserInclude = {
-  roles: {
+  membresias_tenant: {
+    where: { estado: 'ACTIVO' as const, eliminado_en: null },
+    take: 1,
     include: {
-      permisos_por_rol: {
+      tenants: true,
+      vendedores: true,
+      roles: {
         include: {
-          modulos: true,
+          permisos_por_rol: {
+            include: {
+              modulos: true,
+            },
+          },
         },
       },
     },
   },
-  vendedores: true,
 } satisfies Prisma.usuariosInclude;
 
 type IdentityUserRecord = Prisma.usuariosGetPayload<{
@@ -56,7 +63,12 @@ export class PrismaIdentityAccessRepository implements IdentityAccessRepository 
   }
 
   private mapUser(user: IdentityUserRecord): IdentityUser {
-    const permissionRows = user.roles.permisos_por_rol;
+    const membership = user.membresias_tenant[0];
+    if (!membership) {
+      throw new Error('Active tenant membership is required');
+    }
+    const seller = membership.vendedores;
+    const permissionRows = membership.roles.permisos_por_rol;
     const modules = [
       ...new Set(
         permissionRows
@@ -84,17 +96,24 @@ export class PrismaIdentityAccessRepository implements IdentityAccessRepository 
       name: user.nombre,
       active: user.activo,
       role: {
-        id: user.roles.id,
-        name: user.roles.nombre,
+        id: membership.roles.id,
+        name: membership.roles.nombre,
       },
       modules,
       permissions,
-      ...(user.vendedores && {
+      tenant: {
+        id: membership.tenants.id,
+        slug: membership.tenants.slug,
+        name: membership.tenants.nombre,
+        membershipId: membership.id,
+        isOwner: membership.es_propietario,
+      },
+      ...(seller && {
         seller: {
-          id: user.vendedores.id,
-          userId: user.vendedores.usuario_id,
-          name: user.vendedores.nombre,
-          active: user.vendedores.activo,
+          id: seller.id,
+          userId: seller.usuario_id,
+          name: seller.nombre,
+          active: seller.activo,
         },
       }),
     };

@@ -11,7 +11,6 @@ import {
 import {
   ApiBearerAuth,
   ApiAcceptedResponse,
-  ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -33,7 +32,6 @@ import {
   LogoutUseCase,
   RefreshSessionUseCase,
   RequestPasswordResetUseCase,
-  SignupAdminUseCase,
 } from '../../../application';
 import {
   AdminResetPasswordDto,
@@ -46,14 +44,12 @@ import {
   RefreshSessionDto,
   RequestPasswordResetDto,
   RequestPasswordResetResponseDto,
-  SignupAdminDto,
 } from '../dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly signupAdmin: SignupAdminUseCase,
     private readonly login: LoginUseCase,
     private readonly refreshSession: RefreshSessionUseCase,
     private readonly logout: LogoutUseCase,
@@ -61,20 +57,6 @@ export class AuthController {
     private readonly confirmPasswordReset: ConfirmPasswordResetUseCase,
     private readonly adminResetPassword: AdminResetPasswordUseCase,
   ) {}
-
-  @Public()
-  @Post('signup')
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
-  @ApiCreatedResponse({ type: AuthSessionResponseDto })
-  signup(@Body() body: SignupAdminDto) {
-    return this.signupAdmin.execute({
-      email: body.email,
-      username: body.username,
-      password: body.password,
-      name: body.name,
-    });
-  }
 
   @Public()
   @Post('login')
@@ -86,6 +68,7 @@ export class AuthController {
     return this.login.execute({
       email: body.email,
       password: body.password,
+      tenantSelector: body.tenant,
     });
   }
 
@@ -98,6 +81,7 @@ export class AuthController {
   refresh(@Body() body: RefreshSessionDto) {
     return this.refreshSession.execute({
       refreshToken: body.refreshToken,
+      tenantSelector: body.tenant,
     });
   }
 

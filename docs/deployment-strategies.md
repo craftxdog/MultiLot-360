@@ -189,6 +189,9 @@ DB_POOL_IDLE_TIMEOUT_MS=30000
 DB_POOL_CONNECTION_TIMEOUT_MS=10000
 SWAGGER_ENABLED=false
 AUTH_SIGNUP_ENABLED=false
+BILLING_PROVIDER=disabled
+BILLING_WORKER_SECRET=<independent-random-secret-at-least-32-characters>
+PAYPAL_ENABLED=false
 LOG_LEVEL=log
 ```
 
@@ -202,6 +205,10 @@ Recursos actuales:
 
 Usar `api.alphaby.cloud`, puerto interno 3000 y HTTPS. La base de datos debe
 usar el Session Pooler de Supabase y Redis debe permanecer en la red interna.
+Crear además en Dokploy una tarea diaria que invoque
+`POST /api/v1/billing/internal/cycle` con el header
+`x-billing-worker-secret`; el comando exacto y la política de rotación están en
+el [runbook multi-tenant](multi-tenant-database-runbook.md).
 
 ### 6. Despliegue y rollback
 

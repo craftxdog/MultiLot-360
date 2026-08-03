@@ -4,6 +4,28 @@ import { RecordAuditEventUseCase } from '../../application';
 import { AuditHttpInterceptor } from './audit-http.interceptor';
 
 describe('AuditHttpInterceptor', () => {
+  it('does not mix platform finance mutations into the tenant audit ledger', async () => {
+    const execute = jest.fn();
+    const interceptor = new AuditHttpInterceptor({
+      execute,
+    } as unknown as RecordAuditEventUseCase);
+    const request = {
+      method: 'POST',
+      originalUrl: '/api/v1/billing/admin/transfers/id/review',
+      user: { id: 'profile-id', platformAdminId: 'platform-admin-id' },
+    };
+    const context = {
+      getType: () => 'http',
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
+    const next = { handle: () => of({ approved: true }) } as CallHandler;
+
+    await expect(
+      lastValueFrom(interceptor.intercept(context, next)),
+    ).resolves.toEqual({ approved: true });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('redacts password reset credentials from audit payloads', async () => {
     const execute = jest
       .fn<

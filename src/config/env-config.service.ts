@@ -43,4 +43,7 @@ export class EnvConfigService {
   get auth() {
     return this.get('auth');
   }
+  get billing() {
+    return this.get('billing');
+  }
 }

@@ -187,10 +187,14 @@ yarn docs:check
 yarn lint:check
 yarn test --runInBand --no-watchman
 yarn test:e2e --runInBand --no-watchman
+yarn test:database
 yarn build
 ```
 
 Para una prueba operacional real, levantar API y Redis y ejecutar
+`yarn test:api:certify-development` contra el entorno development autorizado.
+El certificador exige ejercicio dinámico de todas las rutas registradas y
+orquesta el smoke operacional. Para una verificación parcial se puede ejecutar
 `yarn test:api:smoke` con credenciales temporales autorizadas. Los flujos que
 crean invitaciones o envían correo deben habilitarse explícitamente.
 El smoke realtime con vendedor temporal comprueba persistencia y lectura de

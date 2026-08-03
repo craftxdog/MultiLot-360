@@ -36,9 +36,9 @@ async function main(): Promise<void> {
 
   for (const fixture of fixtures) {
     await prisma.$transaction(async (tx) => {
-      if (fixture.vendedores) {
+      for (const seller of fixture.vendedores) {
         await tx.limites_numero.deleteMany({
-          where: { vendedor_id: fixture.vendedores.id },
+          where: { vendedor_id: seller.id },
         });
       }
       await tx.auditoria_eventos.deleteMany({

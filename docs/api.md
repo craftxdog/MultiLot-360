@@ -172,7 +172,6 @@ migraciones recientes están en:
 
 | Método | Ruta | Acceso | Propósito |
 | --- | --- | --- | --- |
-| POST | `/auth/signup` | Público, sujeto a `AUTH_SIGNUP_ENABLED` | Crea el administrador inicial y una sesión. |
 | POST | `/auth/login` | Público | Inicia sesión con correo y contraseña. |
 | POST | `/auth/refresh` | Público | Intercambia un refresh token por una sesión renovada. |
 | POST | `/auth/password/reset/request` | Público, 3/minuto | Genera un OTP de recovery y lo envía con MailerSend. Siempre responde de forma genérica para evitar enumeración de cuentas. |
@@ -181,11 +180,73 @@ migraciones recientes están en:
 | POST | `/auth/logout` | Bearer | Revoca las sesiones de refresh asociadas al token. |
 | GET | `/auth/me` | Bearer | Devuelve identidad interna, rol, permisos, módulos y vendedor asociado. |
 
+## Alta SaaS y facturación
+
+| Método | Ruta | Acceso | Propósito |
+| --- | --- | --- | --- |
+| GET | `/billing/plans` | Público | Lista precios activos; query `channel=BANK_TRANSFER`, `PAYPAL` o `DEVELOPMENT`. |
+| POST | `/billing/signup` | Público, 3/hora | Crea identidad y tenant `PENDIENTE_PAGO`; requiere confirmar correo antes de facturar. |
+| GET | `/billing/portal` | Owner o permiso billing | Devuelve tenant, onboarding, suscripción, facturas, transferencias y cuentas de la misma moneda. |
+| POST | `/billing/portal/invoices/initial` | Owner o permiso billing | Crea idempotentemente el primer documento comercial después de verificar correo. |
+| POST | `/billing/portal/transfers` | Owner o permiso billing | Declara una transferencia exacta para una factura y cuenta compatibles. |
+| POST | `/billing/portal/transfers/:id/evidence` | Owner o permiso billing | Sube `multipart/form-data`, campo `file`; PDF/JPEG/PNG, máximo 10 MiB. |
+| POST | `/billing/portal/paypal/checkout` | Owner o permiso billing | Devuelve la aprobación alojada si PayPal está habilitado para el precio. |
+| GET | `/billing/admin/transfers` | Administrador financiero AlphaBy | Cola global; filtros `status` y `limit=1..200`. |
+| POST | `/billing/admin/transfers/:id/review` | Administrador financiero AlphaBy | Aprueba o rechaza una sola vez; aprobar exige referencia bancaria confirmada. |
+| POST | `/billing/webhooks/paypal` | Firma PayPal | Verifica, deduplica y converge en el mismo ledger que las transferencias. |
+| POST | `/billing/internal/cycle` | Secreto de worker | Ejecuta el ciclo diario idempotente de renovación, gracia, suspensión y archivo. |
+| POST | `/billing/development/complete` | Solo development + secreto | Simula un pago verificado para pruebas E2E. Producción lo rechaza aunque se conozca la ruta. |
+
+El propietario puede iniciar sesión antes del pago, pero únicamente en el portal
+de facturación. Los módulos operacionales requieren un tenant `ACTIVO` o dentro
+de gracia. Los vendedores nunca tienen acceso billing. MultiLot no recibe ni
+almacena PAN, CVV ni credenciales bancarias.
+
+```json
+// POST /billing/signup
+{
+  "email": "propietario@empresa.com",
+  "username": "propietario",
+  "name": "Ana Pérez",
+  "password": "Sup3rSecret2026!",
+  "companyName": "Lotería Central, S.A.",
+  "companySlug": "loteria-central",
+  "priceId": "uuid-devuelto-por-billing-plans",
+  "paymentMethod": "BANK_TRANSFER",
+  "timezone": "America/Managua"
+}
+```
+
+```json
+// POST /billing/portal/transfers
+{
+  "invoiceId": "uuid",
+  "bankAccountId": "uuid",
+  "reference": "referencia entregada por el banco",
+  "amountMinor": 2900,
+  "currency": "USD",
+  "transferredAt": "2026-07-16T15:30:00.000Z",
+  "payerName": "Lotería Central, S.A.",
+  "sourceAccountLast4": "1234"
+}
+
+// POST /billing/admin/transfers/:id/review
+{
+  "decision": "APROBADA",
+  "confirmedBankReference": "movimiento verificado en estado bancario",
+  "notes": "Monto y beneficiario conciliados"
+}
+```
+
+Los montos HTTP también son unidades menores, no decimales. Consultar la
+[arquitectura de cobros](architecture/saas-billing-bank-transfers.md) para el
+ciclo de vida y las invariantes de seguridad.
+
 ### Cuerpos principales de Auth
 
 ```json
 // POST /auth/login
-{ "email": "admin@example.com", "password": "secret" }
+{ "email": "admin@example.com", "password": "secret", "tenant": "mi-empresa" }
 
 // POST /auth/refresh
 { "refreshToken": "supabase-refresh-token" }
@@ -223,8 +284,8 @@ contraseñas, service role keys ni tokens completos.
 | POST | `/identity-access/sellers/access-code/confirm` | Público | Consume el token opaco o código manual, establece contraseña y activa la cuenta. |
 | POST | `/identity-access/sellers/access-code/resend` | `usuarios.create` | Invalida el código anterior y envía uno nuevo. |
 | PATCH | `/identity-access/sellers/invitations/:invitationId/revoke` | `usuarios.update` o `usuarios.create` | Revoca una invitación pendiente. |
-| PATCH | `/identity-access/sellers/:sellerId/soft-delete` | `usuarios.delete` | Eliminación lógica: desactiva usuario/vendedor, marca metadata de baja, revoca invitaciones pendientes y audita la acción. |
-| DELETE | `/identity-access/sellers/:sellerId` | `usuarios.delete` | Eliminación física: borra Auth Supabase, ventas, detalles, pagos, límites, códigos, notificaciones y el perfil usuario/vendedor; conserva auditoría administrativa. |
+| PATCH | `/identity-access/sellers/:sellerId/soft-delete` | `usuarios.delete` | Baja reversible tenant-scoped: suspende membresía/vendedor, revoca invitaciones y audita; no altera Auth ni el perfil global. |
+| DELETE | `/identity-access/sellers/:sellerId` | `usuarios.delete` | Baja definitiva tenant-scoped: elimina datos removibles del vendedor y conserva identidad, auditoría y tombstone de membresía. Se rechaza si existen ventas históricas. |
 
 El token del enlace y el código manual comparten una invitación de un solo uso,
 cambian al reenviarse y tienen vencimiento. La base solo conserva sus hashes.

@@ -41,9 +41,8 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       this.prisma.vendedores.findMany({
         where,
         include: {
-          usuarios: {
-            include: { roles: true },
-          },
+          usuarios: true,
+          membresias_tenant: { include: { roles: true } },
         },
         orderBy,
         skip: getOffsetSkip(query),
@@ -58,17 +57,16 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
         userId: item.usuario_id,
         username: item.usuarios.username,
         userName: item.usuarios.nombre,
-        roleId: item.usuarios.roles.id,
-        roleName: item.usuarios.roles.nombre,
+        roleId: item.membresias_tenant.roles.id,
+        roleName: item.membresias_tenant.roles.nombre,
         name: item.nombre,
         documentId: item.cedula,
         phone: item.telefono,
         address: item.direccion,
-        active: item.activo && item.usuarios.activo,
-        userActive: item.usuarios.activo,
-        deletedAt: item.eliminado_en ?? item.usuarios.eliminado_en,
-        deletionReason:
-          item.motivo_eliminacion ?? item.usuarios.motivo_eliminacion,
+        active: item.activo && item.membresias_tenant.estado === 'ACTIVO',
+        userActive: item.membresias_tenant.estado === 'ACTIVO',
+        deletedAt: item.eliminado_en ?? item.membresias_tenant.eliminado_en,
+        deletionReason: item.motivo_eliminacion,
         createdAt: item.creado_en,
         updatedAt: item.actualizado_en,
       })),
@@ -183,12 +181,11 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
           actualizado_en: deletedAt,
         },
       });
-      await tx.usuarios.update({
-        where: { id: seller.usuario_id },
+      await tx.membresias_tenant.update({
+        where: { id: seller.membresia_id },
         data: {
-          activo: false,
+          estado: 'SUSPENDIDO',
           eliminado_en: deletedAt,
-          motivo_eliminacion: input.reason,
           actualizado_en: deletedAt,
         },
       });
@@ -228,41 +225,10 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
         })
       ).map((sale) => sale.id);
 
-      await tx.auditoria_eventos.updateMany({
-        where: { usuario_id: seller.usuario_id },
-        data: { usuario_id: null },
-      });
-      await tx.numeros_bloqueados.updateMany({
-        where: { creado_por: seller.usuario_id },
-        data: { creado_por: null },
-      });
-      await tx.resultados.updateMany({
-        where: { creado_por: seller.usuario_id },
-        data: { creado_por: null },
-      });
-      await tx.pagos_premios.updateMany({
-        where: { pagado_por: seller.usuario_id },
-        data: { pagado_por: null },
-      });
-      await tx.cortes.updateMany({
-        where: { creado_por: seller.usuario_id },
-        data: { creado_por: null },
-      });
-      await tx.ventas.updateMany({
-        where: { anulada_por: seller.usuario_id },
-        data: { anulada_por: null },
-      });
-
       if (saleIds.length > 0) {
-        await tx.pagos_premios.deleteMany({
-          where: { venta_id: { in: saleIds } },
-        });
-        await tx.venta_detalle.deleteMany({
-          where: { venta_id: { in: saleIds } },
-        });
-        await tx.ventas.deleteMany({
-          where: { id: { in: saleIds } },
-        });
+        throw new Error(
+          'El vendedor tiene ventas históricas y sólo admite baja reversible.',
+        );
       }
 
       await tx.limites_numero.deleteMany({
@@ -283,22 +249,27 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       await tx.vendedores.delete({
         where: { id: seller.id },
       });
-      await tx.usuarios.delete({
-        where: { id: seller.usuario_id },
+      await tx.membresias_tenant.update({
+        where: { id: seller.membresia_id },
+        data: {
+          estado: 'REVOCADO',
+          eliminado_en: deletedAt,
+          actualizado_en: deletedAt,
+        },
       });
       await this.recordDeletionAudit(tx, 'identity.seller.hard_deleted', {
         adminUserId: input.adminUserId,
         target,
         reason: input.reason,
         deletedAt: deletedAt.toISOString(),
-        authUserDeleted: input.authUserDeleted,
+        authUserDeleted: false,
         deletedSalesCount: saleIds.length,
       });
 
       return {
         ...target,
         mode: 'hard',
-        authUserDeleted: input.authUserDeleted,
+        authUserDeleted: false,
         deletedAt,
       };
     });
@@ -328,29 +299,24 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
             username: input.username,
           },
           include: {
-            vendedores: true,
+            vendedores: { where: { tenant_id: role.tenant_id } },
+            membresias_tenant: { where: { tenant_id: role.tenant_id } },
           },
         });
 
-        if (existingUser?.activo) {
+        const existingMembership = existingUser?.membresias_tenant[0];
+        const existingSeller = existingUser?.vendedores[0];
+
+        if (existingMembership?.estado === 'ACTIVO') {
           throw new Error(`User "${input.username}" is already active`);
         }
 
-        if (existingUser && !existingUser.vendedores) {
+        if (existingMembership && !existingSeller) {
           throw new Error(`User "${input.username}" is not a seller`);
         }
 
         const user = existingUser
-          ? await tx.usuarios.update({
-              where: {
-                id: existingUser.id,
-              },
-              data: {
-                rol_id: role.id,
-                nombre: input.sellerName,
-                activo: false,
-              },
-            })
+          ? existingUser
           : await tx.usuarios.create({
               data: {
                 username: input.username,
@@ -361,10 +327,32 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
               },
             });
 
-        const seller = existingUser?.vendedores
+        const membership = await tx.membresias_tenant.upsert({
+          where: {
+            tenant_id_perfil_id: {
+              tenant_id: role.tenant_id,
+              perfil_id: user.id,
+            },
+          },
+          create: {
+            tenant_id: role.tenant_id,
+            perfil_id: user.id,
+            rol_id: role.id,
+            username: input.username,
+            estado: 'INVITADO',
+          },
+          update: {
+            rol_id: role.id,
+            username: input.username,
+            estado: 'INVITADO',
+            eliminado_en: null,
+          },
+        });
+
+        const seller = existingSeller
           ? await tx.vendedores.update({
               where: {
-                id: existingUser.vendedores.id,
+                id: existingSeller.id,
               },
               data: {
                 nombre: input.sellerName,
@@ -376,6 +364,8 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
             })
           : await tx.vendedores.create({
               data: {
+                tenant_id: role.tenant_id,
+                membresia_id: membership.id,
                 usuario_id: user.id,
                 nombre: input.sellerName,
                 cedula: input.documentId,
@@ -384,6 +374,18 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
                 activo: false,
               },
             });
+
+        const actorMembership = input.adminUserId
+          ? await tx.membresias_tenant.findUnique({
+              where: {
+                tenant_id_perfil_id: {
+                  tenant_id: role.tenant_id,
+                  perfil_id: input.adminUserId,
+                },
+              },
+              select: { id: true },
+            })
+          : null;
 
         await tx.codigos_acceso_vendedor.updateMany({
           where: {
@@ -397,6 +399,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
 
         await tx.codigos_acceso_vendedor.create({
           data: {
+            tenant_id: role.tenant_id,
             usuario_id: user.id,
             vendedor_id: seller.id,
             email: input.email,
@@ -404,6 +407,7 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
             enlace_token_hash: input.actionTokenHash,
             expira_en: input.expiresAt,
             creado_por: input.adminUserId,
+            creado_por_membresia_id: actorMembership?.id,
           },
         });
 
@@ -789,6 +793,17 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       return null;
     }
 
+    return this.withInvitationContext(
+      email,
+      accessCodeHash,
+      actionTokenHash,
+      () => this.findPendingAccessCodeInContext(credentialWhere),
+    );
+  }
+
+  private async findPendingAccessCodeInContext(
+    credentialWhere: Prisma.codigos_acceso_vendedorWhereInput,
+  ): Promise<PendingSellerAccess | null> {
     const accessCode = await this.prisma.codigos_acceso_vendedor.findFirst({
       where: {
         ...credentialWhere,
@@ -830,6 +845,18 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
       return null;
     }
 
+    return this.withInvitationContext(
+      input.email,
+      input.accessCodeHash,
+      input.actionTokenHash,
+      () => this.confirmAccessCodeInContext(input, credentialWhere),
+    );
+  }
+
+  private async confirmAccessCodeInContext(
+    input: ConfirmSellerAccessInput,
+    credentialWhere: Prisma.codigos_acceso_vendedorWhereInput,
+  ): Promise<ConfirmedSellerAccess | null> {
     const accessCode = await this.prisma.codigos_acceso_vendedor.findFirst({
       where: {
         ...credentialWhere,
@@ -881,6 +908,13 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
           activo: true,
         },
       });
+      await tx.membresias_tenant.update({
+        where: { id: seller.membresia_id },
+        data: {
+          estado: 'ACTIVO',
+          eliminado_en: null,
+        },
+      });
 
       return {
         userId: user.id,
@@ -888,6 +922,29 @@ export class PrismaSellerOnboardingRepository implements SellerOnboardingReposit
         email: accessCode.email,
       };
     });
+  }
+
+  private async withInvitationContext<T>(
+    email: string | undefined,
+    accessCodeHash: string | undefined,
+    actionTokenHash: string | undefined,
+    work: () => Promise<T>,
+  ): Promise<T | null> {
+    const activateAndRun = async (): Promise<T | null> => {
+      const rows = await this.prisma.$queryRaw<Array<{ active: boolean }>>(
+        Prisma.sql`SELECT app_private.set_seller_invitation_context(
+          ${email ?? null}::text,
+          ${accessCodeHash ?? null}::text,
+          ${actionTokenHash ?? null}::text
+        ) AS active`,
+      );
+      if (!rows[0]?.active) return null;
+      return work();
+    };
+
+    return this.prisma.hasRequestTransaction()
+      ? activateAndRun()
+      : this.prisma.runInRequestTransaction(activateAndRun);
   }
 
   private buildAccessCredentialWhere(

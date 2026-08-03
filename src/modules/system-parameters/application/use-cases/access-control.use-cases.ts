@@ -115,7 +115,7 @@ export class CreateAccessRoleUseCase extends UseCase<
   }): Promise<Result<AccessRole, AppError>> {
     try {
       return Result.success(
-        await this.repository.createRole(input.name.trim()),
+        await this.repository.createRole(input.name.trim().toUpperCase()),
       );
     } catch (error) {
       return ErrorFactory.useCase(

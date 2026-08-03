@@ -5,7 +5,7 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, from, map, mergeMap, throwError } from 'rxjs';
 import { ApiRequest } from '../../../../common';
 import { RecordAuditEventUseCase } from '../../application';
 
@@ -44,15 +44,25 @@ export class AuditHttpInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    return next.handle().pipe(
-      tap(() => {
-        void this.record(request, 'http.request.completed');
-      }),
-      catchError((error: unknown) => {
-        void this.record(request, 'http.request.failed', error);
+    // Platform finance mutations write their own immutable reviewer ledger.
+    // A tenant audit insert has no valid tenant context and would abort the
+    // surrounding PostgreSQL transaction even if its application error were
+    // caught, silently rolling back the financial decision.
+    if (request.user?.platformAdminId) {
+      return next.handle();
+    }
 
-        return throwError(() => error);
-      }),
+    return next.handle().pipe(
+      mergeMap((value: unknown) =>
+        from(this.record(request, 'http.request.completed')).pipe(
+          map((): unknown => value),
+        ),
+      ),
+      catchError((error: unknown) =>
+        from(this.record(request, 'http.request.failed', error)).pipe(
+          mergeMap(() => throwError(() => error)),
+        ),
+      ),
     );
   }
 

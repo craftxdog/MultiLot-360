@@ -113,7 +113,7 @@ function productionEnv(): NodeJS.ProcessEnv {
     SUPABASE_SERVICE_ROLE_KEY:
       'service-role-key-with-sufficient-production-length',
     DATABASE_URL:
-      'postgresql://postgres.project:password@pooler.supabase.com:5432/postgres?schema=public',
+      'postgresql://multilot_api:password@pooler.supabase.com:5432/postgres?schema=public',
     DB_SSL: 'true',
     DB_POOL_MAX: '3',
     DB_POOL_IDLE_TIMEOUT_MS: '30000',
@@ -124,6 +124,7 @@ function productionEnv(): NodeJS.ProcessEnv {
     REALTIME_ENABLED: 'true',
     REALTIME_REDIS_ENABLED: 'true',
     SELLER_ACCESS_CODE_SECRET: 'independent-seller-code-secret-for-production',
+    BILLING_WORKER_SECRET: 'independent-billing-worker-secret-for-production',
     AUTH_SIGNUP_ENABLED: 'false',
   };
 }

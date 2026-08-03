@@ -3,6 +3,8 @@ export const ROLES_KEY = 'roles';
 export const PERMISSIONS_KEY = 'permissions';
 export const ANY_PERMISSIONS_KEY = 'anyPermissions';
 export const MODULES_KEY = 'modules';
+export const BILLING_AUTH_MODE_KEY = 'billingAuthMode';
+export type BillingAuthMode = 'portal' | 'platform';
 
 export const SYSTEM_MODULES = {
   usuarios: 'usuarios',

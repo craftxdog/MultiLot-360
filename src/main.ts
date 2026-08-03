@@ -66,8 +66,22 @@ async function bootstrap() {
         )
         .setVersion('1.0.0')
         .addBearerAuth()
+        .addApiKey(
+          {
+            type: 'apiKey',
+            in: 'header',
+            name: 'x-tenant-id',
+            description:
+              'Tenant UUID or slug. Optional when the user has only one active company.',
+          },
+          'tenant',
+        )
         .addTag('Health', 'Estado del proceso y sus dependencias.')
         .addTag('Auth', 'Sesiones, identidad y recuperación de contraseña.')
+        .addTag(
+          'SaaS billing',
+          'Planes, alta pagada de empresas y webhooks de suscripción.',
+        )
         .addTag(
           'Seller onboarding',
           'Invitación, activación y administración de vendedores.',

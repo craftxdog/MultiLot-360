@@ -20,7 +20,7 @@ describe('SocketIoEventPublisher', () => {
     publisher.publish({
       name: OPERATIONAL_EVENTS.saleCreated,
       aggregateId: 'sale-id',
-      audience: { sellerIds: ['seller-id'] },
+      audience: { tenantId: 'tenant-id', sellerIds: ['seller-id'] },
       payload: { saleId: 'sale-id' },
     });
 
@@ -30,7 +30,7 @@ describe('SocketIoEventPublisher', () => {
       name: OPERATIONAL_EVENTS.saleCreated,
       aggregateId: 'sale-id',
       version: 1,
-      audience: { sellerIds: ['seller-id'] },
+      audience: { tenantId: 'tenant-id', sellerIds: ['seller-id'] },
       payload: { saleId: 'sale-id' },
     });
     expect(typeof envelope.id).toBe('string');
@@ -60,7 +60,7 @@ describe('SocketIoEventPublisher', () => {
     publisher.publish({
       name: OPERATIONAL_EVENTS.drawShiftOpened,
       aggregateId: 'shift-id',
-      audience: { roles: ['VENDEDOR'] },
+      audience: { tenantId: 'tenant-id', roles: ['VENDEDOR'] },
       payload: { shiftId: 'shift-id' },
     });
     await new Promise((resolve) => setImmediate(resolve));
@@ -70,7 +70,7 @@ describe('SocketIoEventPublisher', () => {
       expect.objectContaining({
         name: OPERATIONAL_EVENTS.notificationCreated,
         aggregateId: 'notification-id',
-        audience: { userIds: ['user-id'] },
+        audience: { tenantId: 'tenant-id', userIds: ['user-id'] },
       }),
     );
   });

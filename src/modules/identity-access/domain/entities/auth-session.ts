@@ -11,10 +11,12 @@ export type AuthSession = {
 export type LoginCommand = {
   email: string;
   password: string;
+  tenantSelector?: string;
 };
 
 export type RefreshSessionCommand = {
   refreshToken: string;
+  tenantSelector?: string;
 };
 
 export type LogoutCommand = {

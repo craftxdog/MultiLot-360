@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { buildOffsetPagination, getOffsetSkip } from '../../../../../common';
+import {
+  buildOffsetPagination,
+  getOffsetSkip,
+  TenantExecutionContextService,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import { PaginatedResult } from '../../../../../shared-kernel';
 import { AuditEvent, AuditEventPayload } from '../../../domain/entities';
@@ -24,12 +28,37 @@ type AuditEventRecord = Prisma.auditoria_eventosGetPayload<{
   include: typeof auditEventInclude;
 }>;
 
+type PlatformAuditRow = { event: AuditEvent };
+
 @Injectable()
 export class PrismaAuditEventsRepository implements AuditEventsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantExecution: TenantExecutionContextService,
+  ) {}
 
   async record(input: RecordAuditEventInput): Promise<AuditEvent> {
     try {
+      if (!this.prisma.hasRequestTransaction()) {
+        return this.prisma.runInBillingTransaction(async () => {
+          const payload =
+            input.payload === undefined ? null : JSON.stringify(input.payload);
+          const rows = await this.prisma.$queryRaw<PlatformAuditRow[]>(
+            Prisma.sql`SELECT app_private.record_platform_audit(
+              ${input.userId ?? null}::uuid,
+              ${input.event}::text,
+              ${payload}::jsonb
+            ) AS event`,
+          );
+          const event = rows[0]?.event;
+          if (!event) throw new Error('Could not persist platform audit event');
+          return {
+            ...event,
+            createdAt: new Date(event.createdAt),
+          };
+        });
+      }
+
       const event = await this.prisma.auditoria_eventos.create({
         data: {
           usuario_id: input.userId,
@@ -38,6 +67,29 @@ export class PrismaAuditEventsRepository implements AuditEventsRepository {
         },
         include: auditEventInclude,
       });
+
+      const tenant = this.tenantExecution.get();
+      if (tenant) {
+        this.tenantExecution.deferAfterRollback(async () => {
+          await this.prisma.runInIndependentTenantTransaction(
+            {
+              authUserId: tenant.authUserId,
+              tenantId: tenant.id,
+              profileId: tenant.profileId,
+              membershipId: tenant.membershipId,
+            },
+            async (transaction) => {
+              await transaction.auditoria_eventos.create({
+                data: {
+                  usuario_id: input.userId,
+                  evento: input.event,
+                  payload: this.toPrismaJson(input.payload),
+                },
+              });
+            },
+          );
+        });
+      }
 
       return this.mapEvent(event);
     } catch (error) {

@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -7,7 +7,12 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Namespace, Socket } from 'socket.io';
-import { extractBearerToken } from '../../common';
+import {
+  TENANT_ID_HEADER,
+  TenantContextService,
+  TenantExecutionContextService,
+  extractBearerToken,
+} from '../../common';
 import { EnvConfigService } from '../../config/env-config.service';
 import {
   AccessTokenVerifierService,
@@ -15,6 +20,7 @@ import {
 } from '../../modules/identity-access/application';
 import { IdentityUser } from '../../modules/identity-access/domain';
 import { IntegrationEventEnvelope, isFailure } from '../../shared-kernel';
+import { PrismaService } from '../database/prisma';
 import { realtimeRoom, toAudienceRooms } from './realtime-room';
 
 export const REALTIME_NAMESPACE = '/realtime';
@@ -48,6 +54,10 @@ export class RealtimeGateway
     private readonly envConfig: EnvConfigService,
     private readonly accessTokenVerifier: AccessTokenVerifierService,
     private readonly resolveRequestIdentity: ResolveRequestIdentityUseCase,
+    @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly tenantContext?: TenantContextService,
+    @Optional()
+    private readonly tenantExecution?: TenantExecutionContextService,
   ) {}
 
   afterInit(namespace: Namespace): void {
@@ -72,6 +82,7 @@ export class RealtimeGateway
       userId: identity.id,
       roleName: identity.role.name,
       sellerId: identity.seller?.id ?? null,
+      tenantId: identity.tenant?.id ?? null,
       modules: identity.modules,
       serverTime: new Date().toISOString(),
     });
@@ -110,7 +121,23 @@ export class RealtimeGateway
       }
 
       const claims = await this.accessTokenVerifier.verify(token);
-      const result = await this.resolveRequestIdentity.execute(claims);
+      if (!claims.sub) {
+        next(this.authError('AUTH_REJECTED', 'Supabase subject is required'));
+        return;
+      }
+      const resolveIdentity = async () => {
+        await this.tenantContext?.activate(
+          claims.sub as string,
+          this.extractTenantSelector(socket),
+        );
+        return this.resolveRequestIdentity.execute(claims);
+      };
+      const result =
+        this.prisma && this.tenantExecution && this.tenantContext
+          ? await this.prisma.runInRequestTransaction(() =>
+              this.tenantExecution!.run(resolveIdentity),
+            )
+          : await resolveIdentity();
 
       if (isFailure(result)) {
         next(this.authError('AUTH_REJECTED', result.error.message));
@@ -134,12 +161,28 @@ export class RealtimeGateway
     return extractBearerToken({ headers: socket.handshake.headers });
   }
 
+  private extractTenantSelector(
+    socket: AuthenticatedSocket,
+  ): string | undefined {
+    const authTenant: unknown = socket.handshake.auth?.tenantId;
+    if (typeof authTenant === 'string' && authTenant.trim()) {
+      return authTenant.trim();
+    }
+    const header = socket.handshake.headers[TENANT_ID_HEADER];
+    return Array.isArray(header) ? header[0] : header;
+  }
+
   private roomsFor(identity: IdentityUser): string[] {
+    const tenantId = identity.tenant?.id;
+    if (!tenantId) return [];
     return [
-      realtimeRoom.user(identity.id),
-      realtimeRoom.role(identity.role.name),
-      ...identity.modules.map(realtimeRoom.module),
-      ...(identity.seller ? [realtimeRoom.seller(identity.seller.id)] : []),
+      realtimeRoom.tenant(tenantId),
+      realtimeRoom.user(tenantId, identity.id),
+      realtimeRoom.role(tenantId, identity.role.name),
+      ...identity.modules.map((value) => realtimeRoom.module(tenantId, value)),
+      ...(identity.seller
+        ? [realtimeRoom.seller(tenantId, identity.seller.id)]
+        : []),
     ];
   }
 

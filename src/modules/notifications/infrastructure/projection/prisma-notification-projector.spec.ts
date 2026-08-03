@@ -20,7 +20,7 @@ describe('PrismaNotificationProjector', () => {
     createMany.mockResolvedValue({ count: 2 });
     const prisma = {
       parametros: {
-        findUnique: jest.fn().mockResolvedValue({
+        findFirst: jest.fn().mockResolvedValue({
           valor: JSON.stringify({
             enabled: true,
             thresholdMiles: 100,

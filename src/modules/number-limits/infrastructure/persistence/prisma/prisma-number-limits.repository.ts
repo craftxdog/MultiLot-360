@@ -284,7 +284,7 @@ export class PrismaNumberLimitsRepository implements NumberLimitsRepository {
       return null;
     }
 
-    const configuration = await this.prisma.sorteos_config.findUnique({
+    const configuration = await this.prisma.sorteos_config.findFirst({
       where: {
         codigo: drawCode,
       },

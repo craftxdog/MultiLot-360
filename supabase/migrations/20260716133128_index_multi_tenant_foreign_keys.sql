@@ -1,0 +1,34 @@
+-- Cover every new foreign key with its leftmost index prefix. This keeps tenant
+-- deletes, referential checks and composite joins predictable as the SaaS grows.
+CREATE INDEX ix_auditoria_eventos_tenant_id_membresia_id ON public.auditoria_eventos (tenant_id, membresia_id);
+CREATE INDEX ix_billing_events_tenant_id ON public.billing_events (tenant_id);
+CREATE INDEX ix_billing_invoices_tenant_id_subscription_id ON public.billing_invoices (tenant_id, subscription_id);
+CREATE INDEX ix_billing_payment_methods_billing_account_id ON public.billing_payment_methods (billing_account_id);
+CREATE INDEX ix_billing_payment_methods_tenant_id_billing_account_id ON public.billing_payment_methods (tenant_id, billing_account_id);
+CREATE INDEX ix_codigos_acceso_vendedor_tenant_id_creado_por_membresia_id ON public.codigos_acceso_vendedor (tenant_id, creado_por_membresia_id);
+CREATE INDEX ix_codigos_acceso_vendedor_tenant_id_vendedor_id ON public.codigos_acceso_vendedor (tenant_id, vendedor_id);
+CREATE INDEX ix_cortes_tenant_id_creado_por_membresia_id ON public.cortes (tenant_id, creado_por_membresia_id);
+CREATE INDEX ix_limites_numero_tenant_id_config_id ON public.limites_numero (tenant_id, config_id);
+CREATE INDEX ix_limites_numero_tenant_id_vendedor_id ON public.limites_numero (tenant_id, vendedor_id);
+CREATE INDEX ix_membresias_tenant_tenant_id_invitado_por_membresia_id ON public.membresias_tenant (tenant_id, invitado_por_membresia_id);
+CREATE INDEX ix_membresias_tenant_tenant_id_rol_id ON public.membresias_tenant (tenant_id, rol_id);
+CREATE INDEX ix_numeros_bloqueados_tenant_id_creado_por_membresia_id ON public.numeros_bloqueados (tenant_id, creado_por_membresia_id);
+CREATE INDEX ix_numeros_bloqueados_tenant_id_turno_id ON public.numeros_bloqueados (tenant_id, turno_id);
+CREATE INDEX ix_outbox_events_tenant_id ON public.outbox_events (tenant_id);
+CREATE INDEX ix_pagos_premios_tenant_id_pagado_por_membresia_id ON public.pagos_premios (tenant_id, pagado_por_membresia_id);
+CREATE INDEX ix_pagos_premios_tenant_id_resultado_id ON public.pagos_premios (tenant_id, resultado_id);
+CREATE INDEX ix_pagos_premios_tenant_id_venta_id ON public.pagos_premios (tenant_id, venta_id);
+CREATE INDEX ix_permisos_por_rol_tenant_id_rol_id ON public.permisos_por_rol (tenant_id, rol_id);
+CREATE INDEX ix_resultados_tenant_id_creado_por_membresia_id ON public.resultados (tenant_id, creado_por_membresia_id);
+CREATE INDEX ix_resultados_tenant_id_turno_id ON public.resultados (tenant_id, turno_id);
+CREATE INDEX ix_tenant_invitations_tenant_id_invitado_por_membresia_id ON public.tenant_invitations (tenant_id, invitado_por_membresia_id);
+CREATE INDEX ix_tenant_invitations_tenant_id_rol_id ON public.tenant_invitations (tenant_id, rol_id);
+CREATE INDEX ix_tenant_onboarding_sessions_perfil_id ON public.tenant_onboarding_sessions (perfil_id);
+CREATE INDEX ix_tenant_onboarding_sessions_price_id ON public.tenant_onboarding_sessions (price_id);
+CREATE INDEX ix_tenant_onboarding_sessions_tenant_id ON public.tenant_onboarding_sessions (tenant_id);
+CREATE INDEX ix_tenant_subscriptions_tenant_id_billing_account_id ON public.tenant_subscriptions (tenant_id, billing_account_id);
+CREATE INDEX ix_tenant_subscriptions_billing_account_id ON public.tenant_subscriptions (billing_account_id);
+CREATE INDEX ix_tenant_subscriptions_price_id ON public.tenant_subscriptions (price_id);
+CREATE INDEX ix_turnos_tenant_id_config_id ON public.turnos (tenant_id, config_id);
+CREATE INDEX ix_venta_detalle_tenant_id_venta_id ON public.venta_detalle (tenant_id, venta_id);
+CREATE INDEX ix_ventas_tenant_id_anulada_por_membresia_id ON public.ventas (tenant_id, anulada_por_membresia_id);

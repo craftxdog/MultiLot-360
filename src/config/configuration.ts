@@ -79,6 +79,20 @@ export interface AppConfig {
     passwordResetUrl: string;
     passwordResetCodeExpiresInMinutes: number;
   };
+
+  billing: {
+    provider: 'disabled' | 'paypal' | 'development';
+    paypalEnabled: boolean;
+    workerSecret: string;
+    checkoutExpiresInMinutes: number;
+    returnUrl: string;
+    cancelUrl: string;
+    developmentSecret: string;
+    paypalEnvironment: 'sandbox' | 'live';
+    paypalClientId: string;
+    paypalClientSecret: string;
+    paypalWebhookId: string;
+  };
 }
 
 export default (): AppConfig => {
@@ -160,6 +174,23 @@ export default (): AppConfig => {
         new URL('/restablecer-contrasena', env.APP_WEB_URL).toString(),
       passwordResetCodeExpiresInMinutes:
         env.PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES,
+    },
+    billing: {
+      provider: env.BILLING_PROVIDER,
+      paypalEnabled: env.PAYPAL_ENABLED,
+      workerSecret: env.BILLING_WORKER_SECRET,
+      checkoutExpiresInMinutes: env.BILLING_CHECKOUT_EXPIRES_IN_MINUTES,
+      returnUrl:
+        env.BILLING_RETURN_URL ||
+        new URL('/facturacion/confirmada', env.APP_WEB_URL).toString(),
+      cancelUrl:
+        env.BILLING_CANCEL_URL ||
+        new URL('/facturacion/cancelada', env.APP_WEB_URL).toString(),
+      developmentSecret: env.BILLING_DEVELOPMENT_SECRET,
+      paypalEnvironment: env.PAYPAL_ENVIRONMENT,
+      paypalClientId: env.PAYPAL_CLIENT_ID,
+      paypalClientSecret: env.PAYPAL_CLIENT_SECRET,
+      paypalWebhookId: env.PAYPAL_WEBHOOK_ID,
     },
   };
 };

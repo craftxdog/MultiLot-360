@@ -16,6 +16,16 @@
 @auditEventId = 1
 @roleId = 00000000-0000-4000-8000-000000000011
 @notificationId = 00000000-0000-4000-8000-000000000012
+@priceId = 00000000-0000-4000-8000-000000000013
+@onboardingId = 00000000-0000-4000-8000-000000000014
+@providerSubscriptionId = DEV-REPLACE_WITH_SUBSCRIPTION_ID
+@developmentBillingSecret = REPLACE_WITH_DEVELOPMENT_BILLING_SECRET
+@billingToken = REPLACE_WITH_OWNER_OR_BILLING_ACCESS_TOKEN
+@platformBillingToken = REPLACE_WITH_ALPHABY_FINANCE_ADMIN_TOKEN
+@invoiceId = 00000000-0000-4000-8000-000000000015
+@bankAccountId = 00000000-0000-4000-8000-000000000016
+@transferSubmissionId = 00000000-0000-4000-8000-000000000017
+@billingWorkerSecret = REPLACE_WITH_BILLING_WORKER_SECRET
 
 ### Sistema
 
@@ -30,28 +40,136 @@ GET {{baseUrl}}/health
 # ROUTE: GET /health/ready
 GET {{baseUrl}}/health/ready
 
-### Autenticación
+### Alta SaaS y facturación
 
-# ROUTE: POST /auth/signup
-# Destructivo: úsalo únicamente para crear el administrador inicial.
-POST {{baseUrl}}/auth/signup
+# ROUTE: GET /billing/plans
+GET {{baseUrl}}/billing/plans?channel=BANK_TRANSFER
+
+###
+# ROUTE: POST /billing/signup
+POST {{baseUrl}}/billing/signup
 Content-Type: application/json
 
 {
-  "email": "admin@example.com",
-  "username": "admin",
-  "name": "Administrador Principal",
-  "password": "Sup3rSecret2026!"
+  "email": "propietario@example.com",
+  "username": "propietario",
+  "name": "Propietario Principal",
+  "password": "Sup3rSecret2026!",
+  "companyName": "Empresa Demo",
+  "companySlug": "empresa-demo",
+  "priceId": "{{priceId}}",
+  "paymentMethod": "BANK_TRANSFER",
+  "timezone": "America/Managua"
 }
 
 ###
+# ROUTE: GET /billing/portal
+GET {{baseUrl}}/billing/portal
+Authorization: Bearer {{billingToken}}
+
+###
+# ROUTE: POST /billing/portal/invoices/initial
+POST {{baseUrl}}/billing/portal/invoices/initial
+Authorization: Bearer {{billingToken}}
+
+###
+# ROUTE: POST /billing/portal/paypal/checkout
+POST {{baseUrl}}/billing/portal/paypal/checkout
+Authorization: Bearer {{billingToken}}
+
+###
+# ROUTE: POST /billing/portal/transfers
+POST {{baseUrl}}/billing/portal/transfers
+Authorization: Bearer {{billingToken}}
+Content-Type: application/json
+
+{
+  "invoiceId": "{{invoiceId}}",
+  "bankAccountId": "{{bankAccountId}}",
+  "reference": "transferencia declarada",
+  "amountMinor": 2900,
+  "currency": "USD",
+  "transferredAt": "2026-07-16T15:30:00.000Z",
+  "payerName": "Empresa Demo",
+  "sourceAccountLast4": "1234"
+}
+
+###
+# ROUTE: POST /billing/portal/transfers/:id/evidence
+POST {{baseUrl}}/billing/portal/transfers/{{transferSubmissionId}}/evidence
+Authorization: Bearer {{billingToken}}
+Content-Type: multipart/form-data; boundary=BillingEvidenceBoundary
+
+--BillingEvidenceBoundary
+Content-Disposition: form-data; name="file"; filename="comprobante.pdf"
+Content-Type: application/pdf
+
+< ./comprobante.pdf
+--BillingEvidenceBoundary--
+
+###
+# ROUTE: GET /billing/admin/transfers
+GET {{baseUrl}}/billing/admin/transfers?status=EN_REVISION&limit=100
+Authorization: Bearer {{platformBillingToken}}
+
+###
+# ROUTE: POST /billing/admin/transfers/:id/review
+POST {{baseUrl}}/billing/admin/transfers/{{transferSubmissionId}}/review
+Authorization: Bearer {{platformBillingToken}}
+Content-Type: application/json
+
+{
+  "decision": "APROBADA",
+  "confirmedBankReference": "movimiento-bancario-confirmado",
+  "notes": "Monto, moneda y beneficiario conciliados"
+}
+
+###
+# ROUTE: POST /billing/webhooks/paypal
+POST {{baseUrl}}/billing/webhooks/paypal
+Content-Type: application/json
+paypal-transmission-id: REPLACE_WITH_PAYPAL_TRANSMISSION_ID
+paypal-transmission-time: 2026-07-16T00:00:00Z
+paypal-cert-url: https://api-m.sandbox.paypal.com/v1/notifications/certs/REPLACE
+paypal-auth-algo: SHA256withRSA
+paypal-transmission-sig: REPLACE_WITH_PAYPAL_SIGNATURE
+
+{
+  "id": "WH-REPLACE",
+  "event_type": "PAYMENT.SALE.COMPLETED",
+  "resource": { "billing_agreement_id": "I-REPLACE" },
+  "create_time": "2026-07-16T00:00:00Z"
+}
+
+###
+# ROUTE: POST /billing/internal/cycle
+POST {{baseUrl}}/billing/internal/cycle
+Content-Type: application/json
+x-billing-worker-secret: {{billingWorkerSecret}}
+
+{}
+
+###
+# ROUTE: POST /billing/development/complete
+POST {{baseUrl}}/billing/development/complete
+Content-Type: application/json
+x-development-billing-secret: {{developmentBillingSecret}}
+
+{
+  "onboardingId": "{{onboardingId}}",
+  "providerSubscriptionId": "{{providerSubscriptionId}}"
+}
+
+### Autenticación
+
 # ROUTE: POST /auth/login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
   "email": "admin@example.com",
-  "password": "Sup3rSecret2026!"
+  "password": "Sup3rSecret2026!",
+  "tenant": "mi-empresa"
 }
 
 ###
@@ -60,7 +178,8 @@ POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "{{refreshToken}}"
+  "refreshToken": "{{refreshToken}}",
+  "tenant": "mi-empresa"
 }
 
 ###

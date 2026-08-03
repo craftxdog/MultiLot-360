@@ -17,7 +17,7 @@ export class PrismaSystemParametersRepository implements SystemParametersReposit
   constructor(private readonly prisma: PrismaService) {}
 
   async findByKey(key: string): Promise<SystemParameter | null> {
-    const parameter = await this.prisma.parametros.findUnique({
+    const parameter = await this.prisma.parametros.findFirst({
       where: {
         clave: key,
       },
@@ -48,19 +48,23 @@ export class PrismaSystemParametersRepository implements SystemParametersReposit
   }
 
   async upsert(input: UpsertSystemParameterInput): Promise<SystemParameter> {
-    const parameter = await this.prisma.parametros.upsert({
-      where: {
-        clave: input.key,
-      },
-      create: {
-        clave: input.key,
-        valor: input.value,
-      },
-      update: {
-        valor: input.value,
-        actualizado_en: new Date(),
-      },
+    const current = await this.prisma.parametros.findFirst({
+      where: { clave: input.key },
+      select: { tenant_id: true, clave: true },
     });
+    const parameter = current
+      ? await this.prisma.parametros.update({
+          where: {
+            tenant_id_clave: {
+              tenant_id: current.tenant_id,
+              clave: current.clave,
+            },
+          },
+          data: { valor: input.value, actualizado_en: new Date() },
+        })
+      : await this.prisma.parametros.create({
+          data: { clave: input.key, valor: input.value },
+        });
 
     return this.mapParameter(parameter);
   }

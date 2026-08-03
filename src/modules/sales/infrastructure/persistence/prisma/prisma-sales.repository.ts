@@ -131,7 +131,7 @@ export class PrismaSalesRepository implements SalesRepository {
   }
 
   async getVoidPolicy(): Promise<SalesVoidPolicy> {
-    const parameter = await this.prisma.parametros.findUnique({
+    const parameter = await this.prisma.parametros.findFirst({
       where: {
         clave: SALES_VOID_WINDOW_MINUTES_KEY,
       },
@@ -148,22 +148,31 @@ export class PrismaSalesRepository implements SalesRepository {
   async updateVoidPolicy(
     input: UpdateSalesVoidPolicyInput,
   ): Promise<SalesVoidPolicy> {
-    const parameter = await this.prisma.parametros.upsert({
-      where: {
-        clave: SALES_VOID_WINDOW_MINUTES_KEY,
-      },
-      create: {
-        clave: SALES_VOID_WINDOW_MINUTES_KEY,
-        valor: String(input.windowMinutes),
-      },
-      update: {
-        valor: String(input.windowMinutes),
-        actualizado_en: new Date(),
-      },
-      select: {
-        valor: true,
-      },
+    const current = await this.prisma.parametros.findFirst({
+      where: { clave: SALES_VOID_WINDOW_MINUTES_KEY },
+      select: { tenant_id: true, clave: true },
     });
+    const parameter = current
+      ? await this.prisma.parametros.update({
+          where: {
+            tenant_id_clave: {
+              tenant_id: current.tenant_id,
+              clave: current.clave,
+            },
+          },
+          data: {
+            valor: String(input.windowMinutes),
+            actualizado_en: new Date(),
+          },
+          select: { valor: true },
+        })
+      : await this.prisma.parametros.create({
+          data: {
+            clave: SALES_VOID_WINDOW_MINUTES_KEY,
+            valor: String(input.windowMinutes),
+          },
+          select: { valor: true },
+        });
 
     return {
       windowMinutes: this.parseVoidWindowMinutes(parameter.valor),

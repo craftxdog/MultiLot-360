@@ -22,6 +22,13 @@ const identity: IdentityUser = {
   role: { id: 'role-id', name: 'VENDEDOR' },
   modules: ['ventas', 'turnos'],
   permissions: ['ventas.read', 'ventas.create', 'turnos.read'],
+  tenant: {
+    id: 'tenant-id',
+    slug: 'tenant-test',
+    name: 'Tenant Test',
+    membershipId: 'membership-id',
+    isOwner: false,
+  },
   seller: {
     id: 'seller-id',
     userId: 'user-id',
@@ -77,11 +84,12 @@ describe('RealtimeGateway', () => {
 
     expect(verifier.verify.mock.calls[0][0]).toBe('valid-token');
     expect(join).toHaveBeenCalledWith([
-      'user:user-id',
-      'role:vendedor',
-      'module:ventas',
-      'module:turnos',
-      'seller:seller-id',
+      'tenant:tenant-id',
+      'tenant:tenant-id:user:user-id',
+      'tenant:tenant-id:role:vendedor',
+      'tenant:tenant-id:module:ventas',
+      'tenant:tenant-id:module:turnos',
+      'tenant:tenant-id:seller:seller-id',
     ]);
     expect(emit).toHaveBeenCalledWith(
       REALTIME_READY_EVENT,
@@ -107,13 +115,17 @@ describe('RealtimeGateway', () => {
       occurredAt: '2026-06-30T10:00:00.000Z',
       version: 1,
       audience: {
+        tenantId: 'tenant-id',
         modules: ['ventas'],
         sellerIds: ['seller-id'],
       },
       payload: { saleId: 'sale-id' },
     });
 
-    expect(to).toHaveBeenCalledWith(['module:ventas', 'seller:seller-id']);
+    expect(to).toHaveBeenCalledWith([
+      'tenant:tenant-id:module:ventas',
+      'tenant:tenant-id:seller:seller-id',
+    ]);
     expect(emit).toHaveBeenCalledWith(
       OPERATIONAL_EVENTS.saleCreated,
       expect.objectContaining({ id: 'event-id' }),

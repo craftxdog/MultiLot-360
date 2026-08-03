@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { CommonModule } from '../../common';
 import { IdentityAccessModule } from '../../modules/identity-access';
 import { NotificationsModule } from '../../modules/notifications';
 import { INTEGRATION_EVENT_PUBLISHER } from '../../shared-kernel';
@@ -7,7 +8,7 @@ import { SocketIoEventPublisher } from './socket-io-event-publisher';
 
 @Global()
 @Module({
-  imports: [IdentityAccessModule, NotificationsModule],
+  imports: [CommonModule, IdentityAccessModule, NotificationsModule],
   providers: [
     RealtimeGateway,
     SocketIoEventPublisher,

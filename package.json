@@ -28,6 +28,8 @@
     "rbac:verify": "ts-node scripts/verify-rbac-notifications.ts",
     "test": "jest",
     "test:api:smoke": "ts-node scripts/api-smoke.ts",
+    "test:api:certify-development": "ts-node scripts/certify-development-flows.ts",
+    "test:database": "ts-node scripts/run-database-tests.ts",
     "test:realtime:smoke": "ts-node scripts/realtime-smoke.ts",
     "test:realtime:cleanup": "ts-node scripts/cleanup-realtime-smoke.ts",
     "test:watch": "jest --watch",

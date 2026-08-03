@@ -6,7 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY, extractBearerToken } from '../../../../../common';
+import {
+  IS_PUBLIC_KEY,
+  BILLING_AUTH_MODE_KEY,
+  BillingAuthMode,
+  TENANT_ID_HEADER,
+  TenantContextService,
+  extractBearerToken,
+} from '../../../../../common';
 import { ApiRequest } from '../../../../../common/interfaces';
 import { isFailure } from '../../../../../shared-kernel';
 import {
@@ -21,6 +28,7 @@ export class SupabaseAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly accessTokenVerifier: AccessTokenVerifierService,
     private readonly resolveRequestIdentity: ResolveRequestIdentityUseCase,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -36,6 +44,33 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     const payload = await this.verifyToken(token);
+    if (!payload.sub) {
+      throw new UnauthorizedException('Supabase subject claim is required');
+    }
+    const selectorHeader = request.headers[TENANT_ID_HEADER];
+    const tenantSelector = Array.isArray(selectorHeader)
+      ? selectorHeader[0]
+      : selectorHeader;
+    const billingMode = this.reflector.getAllAndOverride<BillingAuthMode>(
+      BILLING_AUTH_MODE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (billingMode === 'platform') {
+      const platform = await this.tenantContext.activatePlatformBilling(
+        payload.sub,
+      );
+      request.user = {
+        id: platform.profileId,
+        authUserId: payload.sub,
+        email: payload.email,
+        active: true,
+        platformAdminId: platform.platformAdminId,
+      };
+      return true;
+    }
+    const tenant = billingMode
+      ? await this.tenantContext.activateBilling(payload.sub, tenantSelector)
+      : await this.tenantContext.activate(payload.sub, tenantSelector);
     const result = await this.resolveRequestIdentity.execute(payload);
 
     if (isFailure(result)) {
@@ -47,6 +82,10 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     this.attachIdentity(request, result.value.user, payload);
+    request.context = {
+      ...request.context,
+      tenantId: tenant.id,
+    };
 
     return true;
   }
@@ -66,6 +105,10 @@ export class SupabaseAuthGuard implements CanActivate {
       active: identity.active,
       modules: identity.modules,
       permissions: identity.permissions,
+      tenantId: identity.tenant?.id,
+      tenantSlug: identity.tenant?.slug,
+      membershipId: identity.tenant?.membershipId,
+      isOwner: identity.tenant?.isOwner,
     };
 
     if (identity.seller) {

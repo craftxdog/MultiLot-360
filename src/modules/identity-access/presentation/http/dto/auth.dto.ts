@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -27,6 +28,18 @@ export class LoginDto {
   @MinLength(8)
   @MaxLength(72)
   password: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'mi-empresa',
+    description:
+      'Slug o UUID del tenant. Es obligatorio cuando la cuenta pertenece a más de una empresa.',
+  })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  tenant?: string;
 }
 
 export class SignupAdminDto {
@@ -58,6 +71,13 @@ export class RefreshSessionDto {
   @ApiProperty()
   @IsString()
   refreshToken: string;
+
+  @ApiProperty({ required: false, example: 'mi-empresa' })
+  @Transform(({ value }) => trimLowercaseString(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  tenant?: string;
 }
 
 export class AuthSessionResponseDto {

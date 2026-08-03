@@ -4,6 +4,7 @@ import {
   ROLE_ID_HEADER,
   ROLE_NAME_HEADER,
   SELLER_ID_HEADER,
+  TENANT_ID_HEADER,
   USER_ID_HEADER,
 } from '../constants/request-context.constant';
 import { ApiRequest } from '../interfaces/request-context.interface';
@@ -46,6 +47,11 @@ export const getSellerId = (request: ApiRequest): string | undefined =>
   request.seller?.id ??
   request.context?.seller?.id ??
   getHeader(request, SELLER_ID_HEADER);
+
+export const getTenantId = (request: ApiRequest): string | undefined =>
+  request.user?.tenantId ??
+  request.context?.tenantId ??
+  getHeader(request, TENANT_ID_HEADER);
 
 export const getCurrentUser = (request: ApiRequest) =>
   request.user ?? request.context?.user;

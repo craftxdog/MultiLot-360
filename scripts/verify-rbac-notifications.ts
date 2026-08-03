@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   const notificationModule = await prisma.modulos.findUnique({
     where: { codigo: 'NOTIFICACIONES' },
   });
-  const parameter = await prisma.parametros.findUnique({
+  const parameter = await prisma.parametros.findFirst({
     where: { clave: 'notifications.sales_milestone' },
   });
   const notificationCount = await prisma.notificaciones.count();

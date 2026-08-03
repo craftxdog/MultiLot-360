@@ -66,17 +66,11 @@ export class DeleteSellerUseCase extends UseCase<
         return Result.success(result);
       }
 
-      let authUserDeleted = false;
-      if (target.authUserId) {
-        await this.authProvider.deleteUser(target.authUserId);
-        authUserDeleted = true;
-      }
-
       const result = await this.repository.hardDeleteSeller({
         sellerId: input.sellerId,
         adminUserId: input.adminUserId,
         reason,
-        authUserDeleted,
+        authUserDeleted: false,
       });
 
       if (!result) {
