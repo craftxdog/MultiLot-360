@@ -100,6 +100,24 @@ export function validateEnv(env: NodeJS.ProcessEnv) {
     PASSWORD_RESET_CODE_EXPIRES_IN_MINUTES: resetCodeExpiryMinutes({
       default: 60,
     }),
+
+    BILLING_PROVIDER: str({
+      choices: ['disabled', 'paypal', 'development'],
+      default: 'disabled',
+    }),
+    BILLING_CHECKOUT_EXPIRES_IN_MINUTES: num({ default: 30 }),
+    BILLING_RETURN_URL: url({ default: '' }),
+    BILLING_CANCEL_URL: url({ default: '' }),
+    BILLING_DEVELOPMENT_SECRET: str({ default: '' }),
+    BILLING_WORKER_SECRET: str({ default: '' }),
+    PAYPAL_ENABLED: bool({ default: false }),
+    PAYPAL_ENVIRONMENT: str({
+      choices: ['sandbox', 'live'],
+      default: 'sandbox',
+    }),
+    PAYPAL_CLIENT_ID: str({ default: '' }),
+    PAYPAL_CLIENT_SECRET: str({ default: '' }),
+    PAYPAL_WEBHOOK_ID: str({ default: '' }),
   });
 
   if (validated.NODE_ENV === 'production') {
@@ -136,6 +154,15 @@ type ProductionEnv = {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SUPABASE_URL: string;
   SWAGGER_ENABLED: boolean;
+  BILLING_PROVIDER: string;
+  BILLING_WORKER_SECRET: string;
+  BILLING_RETURN_URL: string;
+  BILLING_CANCEL_URL: string;
+  PAYPAL_ENVIRONMENT: string;
+  PAYPAL_ENABLED: boolean;
+  PAYPAL_CLIENT_ID: string;
+  PAYPAL_CLIENT_SECRET: string;
+  PAYPAL_WEBHOOK_ID: string;
 };
 
 function validateProductionEnv(env: ProductionEnv): void {
@@ -154,9 +181,6 @@ function validateProductionEnv(env: ProductionEnv): void {
   if (env.SWAGGER_ENABLED) {
     errors.push('SWAGGER_ENABLED must be false');
   }
-  if (env.AUTH_SIGNUP_ENABLED) {
-    errors.push('AUTH_SIGNUP_ENABLED must be false');
-  }
   if (['debug', 'verbose'].includes(env.LOG_LEVEL)) {
     errors.push('LOG_LEVEL cannot be debug or verbose');
   }
@@ -165,6 +189,7 @@ function validateProductionEnv(env: ProductionEnv): void {
   requireLength('SUPABASE_PUBLISHABLE_KEY', env.SUPABASE_PUBLISHABLE_KEY, 20);
   requireLength('SUPABASE_SERVICE_ROLE_KEY', env.SUPABASE_SERVICE_ROLE_KEY, 32);
   requireLength('SELLER_ACCESS_CODE_SECRET', env.SELLER_ACCESS_CODE_SECRET, 32);
+  requireLength('BILLING_WORKER_SECRET', env.BILLING_WORKER_SECRET, 32);
   requireLength('REDIS_PASSWORD', env.REDIS_PASSWORD, 16);
 
   const expectedSupabaseUrl = `https://${env.SUPABASE_PROJECT_REF}.supabase.co`;
@@ -215,6 +240,17 @@ function validateProductionEnv(env: ProductionEnv): void {
     );
   }
 
+  if (env.PAYPAL_ENABLED) {
+    if (env.PAYPAL_ENVIRONMENT !== 'live') {
+      errors.push('PAYPAL_ENVIRONMENT must be live when PayPal is enabled');
+    }
+    requireLength('PAYPAL_CLIENT_ID', env.PAYPAL_CLIENT_ID, 20);
+    requireLength('PAYPAL_CLIENT_SECRET', env.PAYPAL_CLIENT_SECRET, 20);
+    requireLength('PAYPAL_WEBHOOK_ID', env.PAYPAL_WEBHOOK_ID, 10);
+    validateHttpsUrl('BILLING_RETURN_URL', env.BILLING_RETURN_URL, errors);
+    validateHttpsUrl('BILLING_CANCEL_URL', env.BILLING_CANCEL_URL, errors);
+  }
+
   if (errors.length > 0) {
     throw new Error(
       `Unsafe production configuration:\n- ${errors.join('\n- ')}`,
@@ -263,6 +299,10 @@ function validateProductionDatabaseUrl(value: string, errors: string[]): void {
     }
     if (['localhost', '127.0.0.1', '::1'].includes(parsed.hostname)) {
       errors.push('DATABASE_URL cannot target localhost');
+    }
+    const username = decodeURIComponent(parsed.username).toLowerCase();
+    if (username === 'postgres' || username.startsWith('postgres.')) {
+      errors.push('DATABASE_URL must not use the postgres owner account');
     }
   } catch {
     errors.push('DATABASE_URL must be a valid PostgreSQL URL');

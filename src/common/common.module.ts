@@ -5,11 +5,18 @@ import {
   ResultInterceptor,
   TransformInterceptor,
 } from './interceptors';
-import { AccessLogMiddleware } from './middleware';
+import { AccessLogMiddleware, TenantTransactionMiddleware } from './middleware';
+import {
+  TenantContextService,
+  TenantExecutionContextService,
+} from './services';
 
 @Module({
   providers: [
     AccessLogMiddleware,
+    TenantTransactionMiddleware,
+    TenantContextService,
+    TenantExecutionContextService,
     HttpExceptionFilter,
     RequestContextInterceptor,
     ResultInterceptor,
@@ -17,6 +24,9 @@ import { AccessLogMiddleware } from './middleware';
   ],
   exports: [
     AccessLogMiddleware,
+    TenantTransactionMiddleware,
+    TenantContextService,
+    TenantExecutionContextService,
     HttpExceptionFilter,
     RequestContextInterceptor,
     ResultInterceptor,
@@ -25,6 +35,8 @@ import { AccessLogMiddleware } from './middleware';
 })
 export class CommonModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AccessLogMiddleware).forRoutes('{*path}');
+    consumer
+      .apply(TenantTransactionMiddleware, AccessLogMiddleware)
+      .forRoutes('{*path}');
   }
 }

@@ -11,7 +11,6 @@ import {
 import {
   ApiBearerAuth,
   ApiAcceptedResponse,
-  ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -28,53 +27,39 @@ import {
 } from '../../../../../common';
 import {
   AdminResetPasswordUseCase,
+  ConfirmPasswordResetLinkUseCase,
   ConfirmPasswordResetUseCase,
   LoginUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
   RequestPasswordResetUseCase,
-  SignupAdminUseCase,
 } from '../../../application';
 import {
   AdminResetPasswordDto,
   AdminResetPasswordResponseDto,
   AuthSessionResponseDto,
   ConfirmPasswordResetDto,
+  ConfirmPasswordResetLinkDto,
   ConfirmPasswordResetResponseDto,
   LoginDto,
   LogoutResponseDto,
   RefreshSessionDto,
   RequestPasswordResetDto,
   RequestPasswordResetResponseDto,
-  SignupAdminDto,
 } from '../dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly signupAdmin: SignupAdminUseCase,
     private readonly login: LoginUseCase,
     private readonly refreshSession: RefreshSessionUseCase,
     private readonly logout: LogoutUseCase,
     private readonly requestPasswordReset: RequestPasswordResetUseCase,
     private readonly confirmPasswordReset: ConfirmPasswordResetUseCase,
+    private readonly confirmPasswordResetLink: ConfirmPasswordResetLinkUseCase,
     private readonly adminResetPassword: AdminResetPasswordUseCase,
   ) {}
-
-  @Public()
-  @Post('signup')
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
-  @ApiCreatedResponse({ type: AuthSessionResponseDto })
-  signup(@Body() body: SignupAdminDto) {
-    return this.signupAdmin.execute({
-      email: body.email,
-      username: body.username,
-      password: body.password,
-      name: body.name,
-    });
-  }
 
   @Public()
   @Post('login')
@@ -86,6 +71,7 @@ export class AuthController {
     return this.login.execute({
       email: body.email,
       password: body.password,
+      tenantSelector: body.tenant,
     });
   }
 
@@ -98,6 +84,7 @@ export class AuthController {
   refresh(@Body() body: RefreshSessionDto) {
     return this.refreshSession.execute({
       refreshToken: body.refreshToken,
+      tenantSelector: body.tenant,
     });
   }
 
@@ -121,6 +108,20 @@ export class AuthController {
     return this.confirmPasswordReset.execute({
       email: body.email,
       code: body.code,
+      newPassword: body.newPassword,
+      confirmPassword: body.confirmPassword,
+    });
+  }
+
+  @Public()
+  @Post('password/reset/confirm-link')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOkResponse({ type: ConfirmPasswordResetResponseDto })
+  confirmPasswordResetLinkSession(@Body() body: ConfirmPasswordResetLinkDto) {
+    return this.confirmPasswordResetLink.execute({
+      tokenHash: body.tokenHash,
       newPassword: body.newPassword,
       confirmPassword: body.confirmPassword,
     });

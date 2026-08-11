@@ -22,5 +22,12 @@ export type IdentityUser = {
   role: IdentityRole;
   modules: string[];
   permissions: PermissionKey[];
+  tenant?: {
+    id: string;
+    slug: string;
+    name: string;
+    membershipId: string;
+    isOwner: boolean;
+  };
   seller?: IdentitySeller;
 };

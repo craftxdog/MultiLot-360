@@ -89,7 +89,7 @@ describe('Sales use cases', () => {
 
     expect(result.isSuccess).toBe(true);
     expect(repository.create.mock.calls[0][0]).toEqual({
-      sellerId: 'seller-id',
+      attribution: { kind: 'SELLER', sellerId: 'seller-id' },
       shiftId: 'shift-id',
       items: [
         { number: '02', prizeMiles: 1.9 },
@@ -156,7 +156,7 @@ describe('Sales use cases', () => {
 
     expect(result.isSuccess).toBe(true);
     expect(repository.create.mock.calls[0][0]).toEqual({
-      sellerId: 'seller-id',
+      attribution: { kind: 'SELLER', sellerId: 'seller-id' },
       shiftId: 'shift-id',
       items: [
         { number: '20', prizeMiles: 10 },
@@ -194,24 +194,63 @@ describe('Sales use cases', () => {
     });
 
     expect(result.isSuccess).toBe(true);
-    expect(repository.create.mock.calls[0][0].sellerId).toBe('seller-id');
+    expect(repository.create.mock.calls[0][0].attribution).toEqual({
+      kind: 'SELLER',
+      sellerId: 'seller-id',
+    });
   });
 
-  it('requires a seller assignment when an admin has no seller profile', async () => {
+  it('allows an admin to sell as self without a pre-existing seller profile', async () => {
+    repository.create.mockResolvedValue(createSale());
     const useCase = new CreateSaleUseCase(repository);
 
     const result = await useCase.execute({
       actorRoleName: 'ADMIN',
+      actorUserId: 'admin-user-id',
+      actorMembershipId: 'admin-membership-id',
+      shiftId: 'shift-id',
+      items: [{ number: '02', prizeMiles: 20 }],
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.create.mock.calls[0][0].attribution).toEqual({
+      kind: 'ADMIN_SELF',
+      userId: 'admin-user-id',
+      membershipId: 'admin-membership-id',
+    });
+  });
+
+  it('rejects an admin self-sale without an active tenant identity', async () => {
+    const useCase = new CreateSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      actorRoleName: 'ADMIN',
+      actorUserId: 'admin-user-id',
       shiftId: 'shift-id',
       items: [{ number: '02', prizeMiles: 20 }],
     });
 
     expect(result.isFailure).toBe(true);
-    expect(result.isFailure && result.error.statusCode).toBe(400);
-    expect(result.isFailure && result.error.message).toBe(
-      'sellerId is required for admins or users without an assigned seller profile',
-    );
+    expect(result.isFailure && result.error.statusCode).toBe(403);
     expect(repository.create.mock.calls).toHaveLength(0);
+  });
+
+  it('rejects a stale or non-admin membership during self-sale persistence', async () => {
+    repository.create.mockRejectedValue(
+      new Error('Active admin tenant membership not found'),
+    );
+    const useCase = new CreateSaleUseCase(repository);
+
+    const result = await useCase.execute({
+      actorRoleName: 'ADMIN',
+      actorUserId: 'admin-user-id',
+      actorMembershipId: 'admin-membership-id',
+      shiftId: 'shift-id',
+      items: [{ number: '02', prizeMiles: 20 }],
+    });
+
+    expect(result.isFailure).toBe(true);
+    expect(result.isFailure && result.error.statusCode).toBe(403);
   });
 
   it('forces non-admin list queries to the current seller', async () => {

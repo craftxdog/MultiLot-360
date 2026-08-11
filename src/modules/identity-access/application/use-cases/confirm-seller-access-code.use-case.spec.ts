@@ -23,6 +23,7 @@ describe('ConfirmSellerAccessCodeUseCase', () => {
     generatePasswordRecoveryCode: jest.fn(),
     signOut: jest.fn(),
     resetPasswordWithRecoveryCode: jest.fn(),
+    resetPasswordWithRecoveryTokenHash: jest.fn(),
     adminResetPassword: jest.fn(),
     verifyAccessToken: jest.fn(),
   };

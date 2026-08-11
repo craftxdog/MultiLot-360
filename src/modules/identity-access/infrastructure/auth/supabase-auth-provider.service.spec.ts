@@ -30,7 +30,7 @@ describe('SupabaseAuthProviderService password recovery', () => {
     const generateLink = jest.fn().mockResolvedValue({
       data: {
         user: { id: 'auth-user-id' },
-        properties: { email_otp: '123456' },
+        properties: { email_otp: '123456', hashed_token: 'a'.repeat(64) },
       },
       error: null,
     });
@@ -47,7 +47,11 @@ describe('SupabaseAuthProviderService password recovery', () => {
       type: 'recovery',
       email: 'user@example.com',
     });
-    expect(recovery).toEqual({ authUserId: 'auth-user-id', code: '123456' });
+    expect(recovery).toEqual({
+      authUserId: 'auth-user-id',
+      code: '123456',
+      tokenHash: 'a'.repeat(64),
+    });
   });
 
   it('verifies the recovery OTP, updates the password and revokes sessions', async () => {
@@ -108,6 +112,38 @@ describe('SupabaseAuthProviderService password recovery', () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
+  it('verifies a recovery token hash, updates the password and revokes sessions', async () => {
+    const verifyOtp = jest.fn().mockResolvedValue({
+      data: {
+        user: { id: 'auth-user-id' },
+        session: { access_token: 'link-access-token' },
+      },
+      error: null,
+    });
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+    const signOut = jest.fn().mockResolvedValue({ error: null });
+    mockedCreateClient
+      .mockReturnValueOnce(asClient({ auth: { verifyOtp, updateUser } }))
+      .mockReturnValueOnce(asClient({ auth: { admin: { signOut } } }));
+    const service = new SupabaseAuthProviderService(env);
+    const tokenHash = 'b'.repeat(64);
+
+    const result = await service.resetPasswordWithRecoveryTokenHash({
+      tokenHash,
+      newPassword: 'NuevaClave2026!',
+    });
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      token_hash: tokenHash,
+      type: 'recovery',
+    });
+    expect(updateUser).toHaveBeenCalledWith({
+      password: 'NuevaClave2026!',
+    });
+    expect(signOut).toHaveBeenCalledWith('link-access-token', 'global');
+    expect(result).toEqual({ authUserId: 'auth-user-id' });
+  });
+
   it('lets an admin reset a target through a server-side recovery session', async () => {
     const getUserById = jest.fn().mockResolvedValue({
       data: { user: { id: 'auth-user-id', email: 'user@example.com' } },
@@ -116,7 +152,7 @@ describe('SupabaseAuthProviderService password recovery', () => {
     const generateLink = jest.fn().mockResolvedValue({
       data: {
         user: { id: 'auth-user-id' },
-        properties: { email_otp: '654321' },
+        properties: { email_otp: '654321', hashed_token: 'c'.repeat(64) },
       },
       error: null,
     });

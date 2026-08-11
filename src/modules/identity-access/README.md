@@ -66,8 +66,8 @@ email exists:
 
 ```txt
 POST /api/v1/auth/password/reset/request
-  -> Supabase admin.generateLink(type=recovery) creates a one-time OTP
-  -> MailerSend delivers the code and a link to the reset form
+  -> Supabase admin.generateLink(type=recovery) creates OTP + token hash
+  -> SMTP delivers the manual code and a secure link to the reset form
   -> always returns 202 for an accepted request
 ```
 
@@ -77,14 +77,28 @@ POST /api/v1/auth/password/reset/request
 }
 ```
 
-The email button opens `PASSWORD_RESET_URL` with only the normalized email
-preloaded. The recovery code is deliberately kept out of the URL. The user
-types the code and the new password:
+The email button opens `PASSWORD_RESET_URL` with the normalized email in the
+query and the opaque token hash in the URL fragment. The six-digit recovery
+code is deliberately kept out of the URL and remains available as fallback:
 
 ```txt
 POST /api/v1/auth/password/reset/confirm
   -> verifies email + one-time code with Supabase type=recovery
   -> updates the password and revokes every Supabase refresh session
+```
+
+El enlace seguro usa una ruta independiente y mantiene el OTP anterior como
+respaldo manual:
+
+```http
+POST /api/v1/auth/password/reset/confirm-link
+Content-Type: application/json
+
+{
+  "tokenHash": "token-hash-opaco-del-fragmento",
+  "newPassword": "NuevaClave2026!",
+  "confirmPassword": "NuevaClave2026!"
+}
 ```
 
 ```json

@@ -6,6 +6,7 @@ import {
 import { AccessControlRepository } from '../../domain';
 import {
   AssignUserRoleUseCase,
+  CreateAccessRoleUseCase,
   ReplaceAccessRolePermissionsUseCase,
 } from './access-control.use-cases';
 
@@ -50,6 +51,19 @@ describe('Access control use cases', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     publishedEvents.length = 0;
+  });
+
+  it('normalizes new role names to the uppercase database invariant', async () => {
+    repository.createRole.mockResolvedValue({
+      ...role,
+      name: 'QA SUPERVISOR-01',
+    });
+    const useCase = new CreateAccessRoleUseCase(repository);
+
+    const result = await useCase.execute({ name: '  qa supervisor-01  ' });
+
+    expect(result.isSuccess).toBe(true);
+    expect(repository.createRole.mock.calls).toEqual([['QA SUPERVISOR-01']]);
   });
 
   it('replaces permissions and notifies connected users in the role', async () => {

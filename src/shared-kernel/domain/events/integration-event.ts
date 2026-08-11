@@ -3,6 +3,7 @@ export const INTEGRATION_EVENT_PUBLISHER = Symbol(
 );
 
 export type IntegrationEventAudience = {
+  tenantId?: string;
   modules?: string[];
   roles?: string[];
   sellerIds?: string[];

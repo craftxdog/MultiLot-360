@@ -52,6 +52,7 @@ export type SendPasswordRecoveryCodeInput = {
   recipient: MailRecipient;
   userName: string;
   recoveryCode: string;
+  recoveryTokenHash: string;
   expiresInMinutes: number;
 };
 

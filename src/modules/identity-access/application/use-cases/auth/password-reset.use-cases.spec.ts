@@ -7,6 +7,7 @@ import {
   MailerPort,
 } from '../../../domain';
 import { AdminResetPasswordUseCase } from './admin-reset-password.use-case';
+import { ConfirmPasswordResetLinkUseCase } from './confirm-password-reset-link.use-case';
 import { ConfirmPasswordResetUseCase } from './confirm-password-reset.use-case';
 import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
 
@@ -23,6 +24,7 @@ const createProvider = (): jest.Mocked<AuthProviderPort> => ({
   refreshSession: jest.fn(),
   generatePasswordRecoveryCode: jest.fn(),
   resetPasswordWithRecoveryCode: jest.fn(),
+  resetPasswordWithRecoveryTokenHash: jest.fn(),
   adminResetPassword: jest.fn(),
   signOut: jest.fn(),
   verifyAccessToken: jest.fn(),
@@ -76,6 +78,7 @@ describe('password reset use cases', () => {
     authProvider.generatePasswordRecoveryCode.mockResolvedValue({
       authUserId: identity.authUserId,
       code: '123456',
+      tokenHash: 'a'.repeat(64),
     });
     authAccountRepository.findByAuthUserId.mockResolvedValue(identity);
     const useCase = new RequestPasswordResetUseCase(
@@ -98,6 +101,7 @@ describe('password reset use cases', () => {
           recipient: { email: 'user@example.com', name: 'Usuario Demo' },
           userName: 'Usuario Demo',
           recoveryCode: '123456',
+          recoveryTokenHash: 'a'.repeat(64),
           expiresInMinutes: 60,
         },
       ],
@@ -110,6 +114,9 @@ describe('password reset use cases', () => {
       }),
     );
     expect(JSON.stringify(auditExecute.mock.calls)).not.toContain('123456');
+    expect(JSON.stringify(auditExecute.mock.calls)).not.toContain(
+      'a'.repeat(64),
+    );
   });
 
   it('keeps the request enumeration-safe when generation or delivery fails', async () => {
@@ -221,6 +228,68 @@ describe('password reset use cases', () => {
     expect(failureAudit?.event).toBe('auth.password_reset.failed');
     expect(failureAudit?.payload).toMatchObject({
       reason: 'INVALID_OR_EXPIRED_CODE',
+    });
+  });
+
+  it('validates a secure recovery link without auditing its token hash', async () => {
+    const tokenHash = 'b'.repeat(64);
+    authProvider.resetPasswordWithRecoveryTokenHash.mockResolvedValue({
+      authUserId: identity.authUserId,
+    });
+    authAccountRepository.findByAuthUserId.mockResolvedValue(identity);
+    const useCase = new ConfirmPasswordResetLinkUseCase(
+      authProvider,
+      authAccountRepository,
+      audit,
+    );
+
+    const result = await useCase.execute({
+      tokenHash,
+      newPassword: 'NuevaClave2026!',
+      confirmPassword: 'NuevaClave2026!',
+    });
+
+    expect(result).toMatchObject({
+      value: { passwordUpdated: true, sessionsRevoked: true },
+    });
+    expect(authProvider.resetPasswordWithRecoveryTokenHash.mock.calls).toEqual([
+      [{ tokenHash, newPassword: 'NuevaClave2026!' }],
+    ]);
+    const completedAudit = auditExecute.mock.calls.at(-1)?.[0];
+    expect(completedAudit).toMatchObject({
+      userId: identity.id,
+      event: 'auth.password_reset.completed',
+      payload: { method: 'secure_link' },
+    });
+    expect(JSON.stringify(auditExecute.mock.calls)).not.toContain(tokenHash);
+  });
+
+  it('maps an expired secure recovery link to unauthorized', async () => {
+    authProvider.resetPasswordWithRecoveryTokenHash.mockRejectedValue(
+      new Error('RECOVERY_TOKEN_INVALID: Token has expired or is invalid'),
+    );
+    const useCase = new ConfirmPasswordResetLinkUseCase(
+      authProvider,
+      authAccountRepository,
+      audit,
+    );
+
+    const result = await useCase.execute({
+      tokenHash: 'c'.repeat(64),
+      newPassword: 'NuevaClave2026!',
+      confirmPassword: 'NuevaClave2026!',
+    });
+
+    expect(result).toMatchObject({
+      isFailure: true,
+      error: { statusCode: 401 },
+    });
+    expect(auditExecute.mock.calls.at(-1)?.[0]).toMatchObject({
+      event: 'auth.password_reset.failed',
+      payload: {
+        method: 'secure_link',
+        reason: 'INVALID_OR_EXPIRED_LINK',
+      },
     });
   });
 

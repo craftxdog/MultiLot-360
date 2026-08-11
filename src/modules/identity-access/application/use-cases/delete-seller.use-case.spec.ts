@@ -58,12 +58,12 @@ describe('DeleteSellerUseCase', () => {
     });
   });
 
-  it('hard-deletes Supabase Auth before deleting local seller data', async () => {
+  it('hard-deletes only tenant data and preserves the global Auth identity', async () => {
     repository.findDeletionTarget.mockResolvedValue(target);
     repository.hardDeleteSeller.mockResolvedValue({
       ...deletionResult,
       mode: 'hard',
-      authUserDeleted: true,
+      authUserDeleted: false,
     });
 
     const result = await useCase.execute({
@@ -73,12 +73,12 @@ describe('DeleteSellerUseCase', () => {
     });
 
     expect(result.isSuccess).toBe(true);
-    expect(authProvider.deleteUser.mock.calls[0][0]).toBe('auth-user-id');
+    expect(authProvider.deleteUser.mock.calls).toHaveLength(0);
     expect(repository.hardDeleteSeller.mock.calls[0][0]).toEqual({
       sellerId: target.sellerId,
       adminUserId: 'admin-user-id',
       reason: undefined,
-      authUserDeleted: true,
+      authUserDeleted: false,
     });
   });
 

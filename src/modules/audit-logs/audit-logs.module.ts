@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { CommonModule } from '../../common';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import {
   GetAuditEventUseCase,
@@ -14,7 +15,7 @@ import {
 import { AuditEventsController } from './presentation';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [CommonModule, DatabaseModule],
   controllers: [AuditEventsController],
   providers: [
     PrismaAuditEventsRepository,

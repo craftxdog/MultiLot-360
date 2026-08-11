@@ -31,6 +31,7 @@ describe('Delete draw configuration use cases', () => {
     signOut: jest.fn(),
     generatePasswordRecoveryCode: jest.fn(),
     resetPasswordWithRecoveryCode: jest.fn(),
+    resetPasswordWithRecoveryTokenHash: jest.fn(),
     adminResetPassword: jest.fn(),
     verifyAccessToken: jest.fn(),
   };

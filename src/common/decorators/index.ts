@@ -1,3 +1,4 @@
+export * from './billing-auth.decorator';
 export * from './current-request-context.decorator';
 export * from './current-seller.decorator';
 export * from './current-user.decorator';

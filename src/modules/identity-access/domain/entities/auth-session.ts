@@ -11,10 +11,12 @@ export type AuthSession = {
 export type LoginCommand = {
   email: string;
   password: string;
+  tenantSelector?: string;
 };
 
 export type RefreshSessionCommand = {
   refreshToken: string;
+  tenantSelector?: string;
 };
 
 export type LogoutCommand = {
@@ -28,6 +30,12 @@ export type RequestPasswordResetCommand = {
 export type ConfirmPasswordResetCommand = {
   email: string;
   code: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type ConfirmPasswordResetLinkCommand = {
+  tokenHash: string;
   newPassword: string;
   confirmPassword: string;
 };

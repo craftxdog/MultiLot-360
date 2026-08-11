@@ -184,7 +184,10 @@ export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
         userName: input.userName,
         recoveryCode: input.recoveryCode,
         expiresInMinutes: input.expiresInMinutes,
-        passwordResetUrl: this.buildPasswordResetUrl(input.recipient.email),
+        passwordResetUrl: this.buildPasswordResetUrl(
+          input.recipient.email,
+          input.recoveryTokenHash,
+        ),
       },
     });
   }
@@ -195,9 +198,12 @@ export class MailerSendMailerService implements MailerPort, OnModuleDestroy {
     return actionUrl.toString();
   }
 
-  private buildPasswordResetUrl(email: string): string {
+  private buildPasswordResetUrl(email: string, tokenHash: string): string {
     const actionUrl = new URL(this.envConfig.auth.passwordResetUrl);
     actionUrl.searchParams.set('email', email.trim().toLowerCase());
+    actionUrl.hash = new URLSearchParams({
+      recovery_token: tokenHash,
+    }).toString();
     return actionUrl.toString();
   }
 

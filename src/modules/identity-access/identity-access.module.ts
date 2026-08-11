@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { CommonModule } from '../../common';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import { AuditLogsModule } from '../audit-logs';
 import {
   AccessTokenVerifierService,
   AdminResetPasswordUseCase,
   ConfirmPasswordResetUseCase,
+  ConfirmPasswordResetLinkUseCase,
   ConfirmSellerAccessCodeUseCase,
   CreateSellerInvitationUseCase,
   DeleteSellerUseCase,
@@ -21,7 +23,6 @@ import {
   ResolveRequestIdentityUseCase,
   RevokeSellerInvitationUseCase,
   SellerAccessCodeService,
-  SignupAdminUseCase,
 } from './application';
 import {
   AUTH_ACCOUNT_REPOSITORY,
@@ -48,6 +49,7 @@ import {
 @Module({
   imports: [
     DatabaseModule,
+    CommonModule,
     AuditLogsModule,
     JwtModule.register({}),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
@@ -63,6 +65,7 @@ import {
     SupabaseAuthProviderService,
     ConfirmSellerAccessCodeUseCase,
     ConfirmPasswordResetUseCase,
+    ConfirmPasswordResetLinkUseCase,
     CreateSellerInvitationUseCase,
     DeleteSellerUseCase,
     ListSellerInvitationsUseCase,
@@ -74,7 +77,6 @@ import {
     ResendSellerAccessCodeUseCase,
     RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
-    SignupAdminUseCase,
     {
       provide: AUTH_ACCOUNT_REPOSITORY,
       useExisting: PrismaAuthAccountRepository,
@@ -113,6 +115,7 @@ import {
     AdminResetPasswordUseCase,
     ConfirmSellerAccessCodeUseCase,
     ConfirmPasswordResetUseCase,
+    ConfirmPasswordResetLinkUseCase,
     CreateSellerInvitationUseCase,
     DeleteSellerUseCase,
     ListSellerInvitationsUseCase,
@@ -124,7 +127,6 @@ import {
     ResendSellerAccessCodeUseCase,
     RevokeSellerInvitationUseCase,
     ResolveRequestIdentityUseCase,
-    SignupAdminUseCase,
     AUTH_PROVIDER,
   ],
 })

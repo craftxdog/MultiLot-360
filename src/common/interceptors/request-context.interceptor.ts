@@ -31,6 +31,7 @@ export class RequestContextInterceptor implements NestInterceptor {
       requestId,
       user: getCurrentUser(request),
       seller: getCurrentSeller(request),
+      tenantId: request.user?.tenantId,
     };
 
     response.setHeader(REQUEST_ID_HEADER, requestId);

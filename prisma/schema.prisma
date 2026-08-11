@@ -7,275 +7,216 @@ datasource db {
   provider = "postgresql"
 }
 
-model roles {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre           String             @unique
-  creado_en        DateTime           @default(now()) @db.Timestamptz(6)
-  permisos_por_rol permisos_por_rol[]
-  usuarios         usuarios[]
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model auditoria_eventos {
+  id                BigInt             @id @default(autoincrement())
+  usuario_id        String?            @db.Uuid
+  evento            String
+  payload           Json?
+  creado_en         DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id         String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  membresia_id      String?            @default(dbgenerated("app_private.current_membership_id()")) @db.Uuid
+  usuarios          usuarios?          @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_auditoria_eventos_tenant")
+  membresias_tenant membresias_tenant? @relation(fields: [tenant_id, membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_auditoria_membresia_tenant")
+
+  @@index([creado_en(sort: Desc)], map: "ix_auditoria_eventos_creado_en")
+  @@index([tenant_id], map: "ix_auditoria_eventos_tenant")
+  @@index([tenant_id, membresia_id], map: "ix_auditoria_eventos_tenant_id_membresia_id")
+  @@index([usuario_id], map: "ix_auditoria_eventos_usuario_id")
+  @@index([tenant_id, creado_en(sort: Desc)], map: "ix_auditoria_tenant_created")
 }
 
-model modulos {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  codigo           String             @unique
-  descripcion      String?
-  creado_en        DateTime           @default(now()) @db.Timestamptz(6)
-  permisos_por_rol permisos_por_rol[]
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_events {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id             String?                 @db.Uuid
+  proveedor             String
+  proveedor_event_id    String
+  tipo                  String
+  payload_hash          String                  @db.Char(64)
+  payload               Json                    @default("{}")
+  recibido_en           DateTime                @default(now()) @db.Timestamptz(6)
+  procesado_en          DateTime?               @db.Timestamptz(6)
+  error                 String?
+  intentos              Int                     @default(0)
+  tenants               tenants?                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction)
+  subscription_payments subscription_payments[]
+
+  @@unique([proveedor, proveedor_event_id], map: "uq_billing_events_provider")
+  @@index([recibido_en], map: "ix_billing_events_pending", where: raw("(procesado_en IS NULL)"))
+  @@index([tenant_id], map: "ix_billing_events_tenant_id")
 }
 
-model permisos_por_rol {
-  rol_id           String  @db.Uuid
-  modulo_id        String  @db.Uuid
-  puede_leer       Boolean @default(true)
-  puede_crear      Boolean @default(false)
-  puede_actualizar Boolean @default(false)
-  puede_borrar     Boolean @default(false)
-  modulos          modulos @relation(fields: [modulo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles            roles   @relation(fields: [rol_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_invoices {
+  id                                                                                 String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                                                                          String                     @db.Uuid
+  subscription_id                                                                    String?                    @db.Uuid
+  proveedor                                                                          String
+  proveedor_invoice_id                                                               String?
+  estado                                                                             factura_estado             @default(BORRADOR)
+  moneda                                                                             String                     @db.Char(3)
+  subtotal_minor                                                                     BigInt                     @default(0)
+  impuesto_minor                                                                     BigInt                     @default(0)
+  total_minor                                                                        BigInt                     @default(0)
+  vencimiento_en                                                                     DateTime?                  @db.Timestamptz(6)
+  pagada_en                                                                          DateTime?                  @db.Timestamptz(6)
+  url_factura                                                                        String?
+  creado_en                                                                          DateTime                   @default(now()) @db.Timestamptz(6)
+  actualizado_en                                                                     DateTime                   @default(now()) @db.Timestamptz(6)
+  numero_documento                                                                   String?                    @unique(map: "uq_billing_invoices_document_number", where: raw("(numero_documento IS NOT NULL)"))
+  referencia_bancaria                                                                String?                    @unique(map: "uq_billing_invoices_bank_reference", where: raw("(referencia_bancaria IS NOT NULL)"))
+  periodo_inicia_en                                                                  DateTime?                  @db.Timestamptz(6)
+  periodo_termina_en                                                                 DateTime?                  @db.Timestamptz(6)
+  emitida_en                                                                         DateTime?                  @db.Timestamptz(6)
+  gracia_termina_en                                                                  DateTime?                  @db.Timestamptz(6)
+  revision_pausa_hasta                                                               DateTime?                  @db.Timestamptz(6)
+  metadata                                                                           Json                       @default("{}")
+  bank_transfer_submissions                                                          bank_transfer_submissions[]
+  billing_invoice_items_billing_invoice_items_invoice_idTobilling_invoices           billing_invoice_items[]    @relation("billing_invoice_items_invoice_idTobilling_invoices")
+  billing_invoice_items_billing_invoice_items_tenant_id_invoice_idTobilling_invoices billing_invoice_items[]    @relation("billing_invoice_items_tenant_id_invoice_idTobilling_invoices")
+  tenants                                                                            tenants                    @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_subscriptions                                                               tenant_subscriptions?      @relation(fields: [tenant_id, subscription_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoices_subscription")
+  subscription_payments                                                              subscription_payments?
 
-  @@id([rol_id, modulo_id])
-  @@index([modulo_id], map: "ix_permisos_por_rol_modulo_id")
+  @@unique([proveedor, proveedor_invoice_id], map: "uq_invoices_provider")
+  @@unique([tenant_id, id], map: "uq_billing_invoices_tenant_id_id")
+  @@index([tenant_id, subscription_id], map: "ix_billing_invoices_tenant_id_subscription_id")
+  @@index([tenant_id, creado_en(sort: Desc)], map: "ix_invoices_tenant_created")
+  @@index([estado, vencimiento_en, gracia_termina_en], map: "ix_billing_invoices_collection", where: raw("(estado = ANY (ARRAY['ABIERTA'::factura_estado, 'FALLIDA'::factura_estado]))"))
 }
 
-model usuarios {
-  id                     String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  auth_user_id           String?                   @unique @db.Uuid
-  username               String                    @unique
-  pass_hash              String
-  rol_id                 String                    @db.Uuid
-  activo                 Boolean                   @default(true)
-  nombre                 String?
-  creado_en              DateTime                  @default(now()) @db.Timestamptz(6)
-  actualizado_en         DateTime                  @default(now()) @db.Timestamptz(6)
-  eliminado_en           DateTime?                 @db.Timestamptz(6)
-  motivo_eliminacion     String?
-  auditoria_eventos      auditoria_eventos[]
-  codigos_acceso_creados codigos_acceso_vendedor[] @relation("codigos_acceso_creados")
-  codigos_acceso_usuario codigos_acceso_vendedor[] @relation("codigos_acceso_usuario")
-  cortes                 cortes[]
-  numeros_bloqueados     numeros_bloqueados[]
-  notificaciones         notificaciones[]
-  pagos_premios          pagos_premios[]
-  resultados             resultados[]
-  roles                  roles                     @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendedores             vendedores?
-  ventas_anuladas        ventas[]                  @relation("ventas_anuladas")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_payment_methods {
+  id                          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                  @unique(map: "uq_payment_method_default", where: raw("predeterminado")) @db.Uuid
+  billing_account_id          String                  @db.Uuid
+  proveedor                   String
+  proveedor_payment_method_id String
+  tipo                        String
+  marca                       String?
+  ultimos4                    String?                 @db.Char(4)
+  exp_mes                     Int?                    @db.SmallInt
+  exp_anio                    Int?                    @db.SmallInt
+  predeterminado              Boolean                 @default(false)
+  creado_en                   DateTime                @default(now()) @db.Timestamptz(6)
+  tenants                     tenants                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_billing_accounts     tenant_billing_accounts @relation(fields: [tenant_id, billing_account_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_methods_account_tenant")
 
-  @@index([rol_id], map: "ix_usuarios_rol_id")
-  @@index([username], map: "ix_usuarios_username")
+  @@unique([proveedor, proveedor_payment_method_id], map: "uq_payment_methods_provider")
+  @@index([billing_account_id], map: "ix_billing_payment_methods_billing_account_id")
+  @@index([tenant_id, billing_account_id], map: "ix_billing_payment_methods_tenant_id_billing_account_id")
 }
 
-model vendedores {
-  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id              String                    @unique @db.Uuid
-  nombre                  String
-  cedula                  String                    @unique
-  telefono                String?
-  direccion               String?
-  activo                  Boolean                   @default(true)
-  creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
-  actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
-  eliminado_en            DateTime?                 @db.Timestamptz(6)
-  motivo_eliminacion      String?
-  codigos_acceso_vendedor codigos_acceso_vendedor[]
-  limites_numero          limites_numero[]
-  usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  ventas                  ventas[]
-
-  @@index([usuario_id], map: "ix_vendedores_usuario")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_plans {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo          String           @unique
+  nombre          String
+  descripcion     String?
+  limites         Json             @default("{}")
+  caracteristicas Json             @default("{}")
+  activo          Boolean          @default(true)
+  creado_en       DateTime         @default(now()) @db.Timestamptz(6)
+  actualizado_en  DateTime         @default(now()) @db.Timestamptz(6)
+  billing_prices  billing_prices[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_prices {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plan_id                    String                       @db.Uuid
+  proveedor                  String
+  proveedor_price_id         String?
+  moneda                     String                       @db.Char(3)
+  monto_minor                BigInt
+  intervalo                  intervalo_facturacion        @default(MENSUAL)
+  activo                     Boolean                      @default(true)
+  creado_en                  DateTime                     @default(now()) @db.Timestamptz(6)
+  billing_price_channels     billing_price_channels[]
+  billing_plans              billing_plans                @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenant_onboarding_sessions tenant_onboarding_sessions[]
+  tenant_subscriptions       tenant_subscriptions[]
+
+  @@unique([plan_id, moneda, intervalo], map: "uq_billing_prices_plan_currency_interval")
+  @@unique([proveedor, proveedor_price_id], map: "uq_billing_prices_provider")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model codigos_acceso_vendedor {
-  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id        String               @db.Uuid
-  vendedor_id       String               @db.Uuid
-  email             String
-  codigo_hash       String
-  enlace_token_hash String?              @unique(map: "uq_codigos_acceso_vendedor_enlace_token_hash") @db.Char(64)
-  estado            codigo_acceso_estado @default(PENDIENTE)
-  expira_en         DateTime             @db.Timestamptz(6)
-  usado_en          DateTime?            @db.Timestamptz(6)
-  creado_por        String?              @db.Uuid
-  creado_en         DateTime             @default(now()) @db.Timestamptz(6)
-  creador           usuarios?            @relation("codigos_acceso_creados", fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuarios          usuarios             @relation("codigos_acceso_usuario", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  vendedores        vendedores           @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                      String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id              String               @db.Uuid
+  vendedor_id             String               @db.Uuid
+  email                   String
+  codigo_hash             String
+  estado                  codigo_acceso_estado @default(PENDIENTE)
+  expira_en               DateTime             @db.Timestamptz(6)
+  usado_en                DateTime?            @db.Timestamptz(6)
+  creado_por              String?              @db.Uuid
+  creado_en               DateTime             @default(now()) @db.Timestamptz(6)
+  tenant_id               String               @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  creado_por_membresia_id String?              @db.Uuid
+  enlace_token_hash       String?              @unique(map: "uq_codigos_acceso_vendedor_enlace_token_hash") @db.Char(64)
+  creador                 usuarios?            @relation("codigos_acceso_vendedor_creado_porTousuarios", fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios                usuarios             @relation("codigos_acceso_vendedor_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                 tenants              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_codigos_acceso_vendedor_tenant")
+  membresias_tenant       membresias_tenant?   @relation(fields: [tenant_id, creado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_codigos_actor_tenant")
+  vendedores              vendedores           @relation(fields: [tenant_id, vendedor_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_codigos_vendedor_tenant")
 
   @@index([creado_por], map: "ix_codigos_acceso_vendedor_creado_por")
   @@index([email, estado], map: "ix_codigos_acceso_vendedor_email_estado")
+  @@index([tenant_id], map: "ix_codigos_acceso_vendedor_tenant")
+  @@index([tenant_id, creado_por_membresia_id], map: "ix_codigos_acceso_vendedor_tenant_id_creado_por_membresia_id")
+  @@index([tenant_id, vendedor_id], map: "ix_codigos_acceso_vendedor_tenant_id_vendedor_id")
   @@index([usuario_id, estado], map: "ix_codigos_acceso_vendedor_usuario_estado")
   @@index([vendedor_id, estado], map: "ix_codigos_acceso_vendedor_vendedor_estado")
 }
 
-model sorteos_config {
-  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  codigo                  String           @unique
-  hora                    DateTime         @db.Time(6)
-  solo_martes             Boolean          @default(false)
-  auto_generar_turnos     Boolean          @default(true)
-  fecha_unica             DateTime?        @db.Date
-  lock_segundos_antes     Int              @default(60)
-  reopen_segundos_despues Int              @default(600)
-  activo                  Boolean          @default(true)
-  eliminado_en            DateTime?        @db.Timestamptz(6)
-  motivo_eliminacion      String?
-  creado_en               DateTime         @default(now()) @db.Timestamptz(6)
-  actualizado_en          DateTime         @default(now()) @db.Timestamptz(6)
-  limites_numero          limites_numero[]
-  turnos                  turnos[]
-
-  @@index([auto_generar_turnos, activo], map: "ix_sorteos_auto_activo")
-  @@index([activo, hora], map: "ix_sorteos_activo_hora")
-  @@index([fecha_unica], map: "ix_sorteos_fecha_unica")
-}
-
-model turnos {
-  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  fecha              DateTime             @db.Date
-  config_id          String               @db.Uuid
-  estado             turno_estado         @default(ABIERTO)
-  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
-  actualizado_en     DateTime             @default(now()) @db.Timestamptz(6)
-  numeros_bloqueados numeros_bloqueados[]
-  resultados         resultados?
-  sorteos_config     sorteos_config       @relation(fields: [config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ventas             ventas[]
-
-  @@unique([fecha, config_id])
-  @@index([config_id], map: "ix_turnos_config_id")
-  @@index([estado], map: "ix_turnos_estado")
-  @@index([fecha, config_id], map: "ix_turnos_fecha_cfg")
-}
-
-model ventas {
-  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  vendedor_id      String          @db.Uuid
-  turno_id         String?         @db.Uuid
-  creado_en        DateTime        @default(now()) @db.Timestamptz(6)
-  total_miles      Decimal         @default(0) @db.Decimal(14, 2)
-  estado           venta_estado    @default(ACTIVA)
-  anulada_por      String?         @db.Uuid
-  anulada_en       DateTime?       @db.Timestamptz(6)
-  motivo_anulacion String?
-  pagos_premios    pagos_premios?
-  venta_detalle    venta_detalle[]
-  usuarios         usuarios?       @relation("ventas_anuladas", fields: [anulada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  turnos           turnos?         @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendedores       vendedores      @relation(fields: [vendedor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([anulada_por], map: "ix_ventas_anulada_por")
-  @@index([turno_id, estado], map: "ix_ventas_turno_estado")
-  @@index([vendedor_id, creado_en(sort: Desc)], map: "ix_ventas_vendedor_creado")
-}
-
-model venta_detalle {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  venta_id     String   @db.Uuid
-  numero       String   @db.Char(2)
-  premio_miles Decimal  @db.Decimal(14, 2)
-  creado_en    DateTime @default(now()) @db.Timestamptz(6)
-  ventas       ventas   @relation(fields: [venta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([numero], map: "ix_venta_detalle_numero")
-  @@index([venta_id], map: "ix_venta_detalle_venta")
-}
-
-model numeros_bloqueados {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  numero     String    @db.Char(2)
-  turno_id   String?   @db.Uuid
-  fecha      DateTime? @db.Date
-  motivo     String?
-  creado_por String?   @db.Uuid
-  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
-  usuarios   usuarios? @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  turnos     turnos?   @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([numero, fecha], map: "uq_bloq_num_diario", where: raw("(turno_id IS NULL)"))
-  @@unique([numero, turno_id], map: "uq_bloq_num_turno", where: raw("(turno_id IS NOT NULL)"))
-  @@index([creado_por], map: "ix_numeros_bloqueados_creado_por")
-  @@index([numero, fecha], map: "ix_bloq_num_fecha")
-  @@index([numero, turno_id], map: "ix_bloq_num_turno")
-  @@index([turno_id], map: "ix_numeros_bloqueados_turno_id")
-}
-
-model resultados {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  turno_id       String          @unique @db.Uuid
-  numero_ganador String          @db.Char(2)
-  creado_por     String?         @db.Uuid
-  creado_en      DateTime        @default(now()) @db.Timestamptz(6)
-  pagos_premios  pagos_premios[]
-  usuarios       usuarios?       @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  turnos         turnos          @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([creado_en], map: "ix_resultados_creado_en")
-  @@index([creado_por], map: "ix_resultados_creado_por")
-  @@index([turno_id], map: "ix_resultados_turno")
-}
-
-model pagos_premios {
-  venta_id           String     @id @db.Uuid
-  resultado_id       String     @db.Uuid
-  monto_pagado_miles Decimal    @db.Decimal(14, 2)
-  pagado_por         String?    @db.Uuid
-  pagado_en          DateTime   @default(now()) @db.Timestamptz(6)
-  usuarios           usuarios?  @relation(fields: [pagado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  resultados         resultados @relation(fields: [resultado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ventas             ventas     @relation(fields: [venta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([pagado_en], map: "ix_pagos_premios_pagado_en")
-  @@index([pagado_por], map: "ix_pagos_premios_pagado_por")
-  @@index([resultado_id], map: "ix_pagos_premios_resultado_id")
-}
-
-model parametros {
-  clave          String   @id
-  valor          String
-  actualizado_en DateTime @default(now()) @db.Timestamptz(6)
-}
-
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model cortes {
-  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  fecha_inicio         DateTime  @db.Date
-  fecha_fin            DateTime  @db.Date
-  descripcion          String?
-  visible_a_vendedores Boolean   @default(true)
-  creado_por           String?   @db.Uuid
-  creado_en            DateTime  @default(now()) @db.Timestamptz(6)
-  usuarios             usuarios? @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fecha_inicio            DateTime           @db.Date
+  fecha_fin               DateTime           @db.Date
+  descripcion             String?
+  visible_a_vendedores    Boolean            @default(true)
+  creado_por              String?            @db.Uuid
+  creado_en               DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id               String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  creado_por_membresia_id String?            @db.Uuid
+  usuarios                usuarios?          @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  membresias_tenant       membresias_tenant? @relation(fields: [tenant_id, creado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cortes_actor_tenant")
+  tenants                 tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cortes_tenant")
 
   @@index([creado_por], map: "ix_cortes_creado_por")
+  @@index([tenant_id], map: "ix_cortes_tenant")
+  @@index([tenant_id, creado_por_membresia_id], map: "ix_cortes_tenant_id_creado_por_membresia_id")
 }
 
-model auditoria_eventos {
-  id         BigInt    @id @default(autoincrement())
-  usuario_id String?   @db.Uuid
-  evento     String
-  payload    Json?
-  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
-  usuarios   usuarios? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model idempotency_keys {
+  tenant_id       String    @db.Uuid
+  scope           String
+  idempotency_key String
+  request_hash    String    @db.Char(64)
+  response_status Int?
+  response_body   Json?
+  bloqueada_hasta DateTime? @db.Timestamptz(6)
+  expira_en       DateTime  @db.Timestamptz(6)
+  creado_en       DateTime  @default(now()) @db.Timestamptz(6)
+  tenants         tenants   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([creado_en(sort: Desc)], map: "ix_auditoria_eventos_creado_en")
-  @@index([usuario_id], map: "ix_auditoria_eventos_usuario_id")
-}
-
-model notificaciones {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id String    @db.Uuid
-  tipo       String    @db.VarChar(80)
-  titulo     String    @db.VarChar(160)
-  mensaje    String
-  datos      Json?
-  dedup_key  String?   @db.VarChar(220)
-  leida_en   DateTime? @db.Timestamptz(6)
-  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
-  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([dedup_key], map: "uq_notificaciones_dedup_key", where: raw("(dedup_key IS NOT NULL)"))
-  @@index([usuario_id, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_creado")
-  @@index([usuario_id, leida_en, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_leida")
-  @@index([tipo, creado_en(sort: Desc)], map: "ix_notificaciones_tipo_creado")
+  @@id([tenant_id, scope, idempotency_key])
+  @@index([expira_en], map: "ix_idempotency_expira")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -292,12 +233,866 @@ model limites_numero {
   vigente_hasta  DateTime?       @db.Date
   creado_en      DateTime        @default(now()) @db.Timestamptz(6)
   config_id      String?         @db.Uuid
-  sorteos_config sorteos_config? @relation(fields: [config_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  vendedores     vendedores?     @relation(fields: [vendedor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_id      String          @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  sorteos_config sorteos_config? @relation(fields: [tenant_id, config_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_limites_config_tenant")
+  tenants        tenants         @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_limites_numero_tenant")
+  vendedores     vendedores?     @relation(fields: [tenant_id, vendedor_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_limites_vendedor_tenant")
 
   @@index([config_id, numero], map: "ix_limites_numero_config", where: raw("(config_id IS NOT NULL)"))
+  @@index([tenant_id], map: "ix_limites_numero_tenant")
+  @@index([tenant_id, config_id], map: "ix_limites_numero_tenant_id_config_id")
+  @@index([tenant_id, vendedor_id], map: "ix_limites_numero_tenant_id_vendedor_id")
   @@index([vendedor_id, numero], map: "ix_limites_numero_vendedor", where: raw("(vendedor_id IS NOT NULL)"))
   @@index([numero, vigente_desde, vigente_hasta], map: "ix_limites_numero_vigencia")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model membresias_tenant {
+  id                          String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  perfil_id                   String                      @db.Uuid
+  rol_id                      String                      @db.Uuid
+  username                    String
+  estado                      membresia_estado            @default(ACTIVO)
+  es_propietario              Boolean                     @default(false)
+  invitado_por_membresia_id   String?                     @db.Uuid
+  ultimo_acceso_en            DateTime?                   @db.Timestamptz(6)
+  creado_en                   DateTime                    @default(now()) @db.Timestamptz(6)
+  actualizado_en              DateTime                    @default(now()) @db.Timestamptz(6)
+  eliminado_en                DateTime?                   @db.Timestamptz(6)
+  puede_gestionar_facturacion Boolean                     @default(false)
+  auditoria_eventos           auditoria_eventos[]
+  bank_transfer_submissions   bank_transfer_submissions[]
+  codigos_acceso_vendedor     codigos_acceso_vendedor[]
+  cortes                      cortes[]
+  membresias_tenant           membresias_tenant?          @relation("membresias_tenantTomembresias_tenant", fields: [tenant_id, invitado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_membresias_invitador")
+  other_membresias_tenant     membresias_tenant[]         @relation("membresias_tenantTomembresias_tenant")
+  roles                       roles                       @relation(fields: [tenant_id, rol_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_membresias_rol")
+  tenants                     tenants                     @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_membresias_tenant")
+  usuarios                    usuarios                    @relation(fields: [perfil_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  notificaciones              notificaciones[]
+  numeros_bloqueados          numeros_bloqueados[]
+  pagos_premios               pagos_premios[]
+  payment_evidence_files      payment_evidence_files[]
+  resultados                  resultados[]
+  tenant_invitations          tenant_invitations[]
+  vendedores                  vendedores?
+  ventas                      ventas[]
+
+  @@unique([tenant_id, id], map: "uq_membresias_tenant_id_id")
+  @@unique([tenant_id, perfil_id], map: "uq_membresias_tenant_perfil")
+  @@index([perfil_id, estado], map: "ix_membresias_perfil_estado")
+  @@index([tenant_id, invitado_por_membresia_id], map: "ix_membresias_tenant_tenant_id_invitado_por_membresia_id")
+  @@index([tenant_id, rol_id], map: "ix_membresias_tenant_tenant_id_rol_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model modulos {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo           String             @unique
+  descripcion      String?
+  creado_en        DateTime           @default(now()) @db.Timestamptz(6)
+  permisos_por_rol permisos_por_rol[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model notificaciones {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id        String             @db.Uuid
+  tipo              String             @db.VarChar(80)
+  titulo            String             @db.VarChar(160)
+  mensaje           String
+  datos             Json?
+  dedup_key         String?            @db.VarChar(220)
+  leida_en          DateTime?          @db.Timestamptz(6)
+  creado_en         DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id         String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  membresia_id      String?            @db.Uuid
+  membresias_tenant membresias_tenant? @relation(fields: [tenant_id, membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notificaciones_membresia_tenant")
+  tenants           tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notificaciones_tenant")
+  usuarios          usuarios           @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notificaciones_usuario")
+
+  @@unique([tenant_id, dedup_key], map: "uq_notificaciones_tenant_dedup", where: raw("(dedup_key IS NOT NULL)"))
+  @@index([tenant_id], map: "ix_notificaciones_tenant")
+  @@index([tenant_id, membresia_id, creado_en(sort: Desc)], map: "ix_notificaciones_tenant_membership_created")
+  @@index([tipo, creado_en(sort: Desc)], map: "ix_notificaciones_tipo_creado")
+  @@index([usuario_id, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_creado")
+  @@index([usuario_id, leida_en, creado_en(sort: Desc)], map: "ix_notificaciones_usuario_leida")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model numeros_bloqueados {
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numero                  String             @db.Char(2)
+  turno_id                String?            @db.Uuid
+  fecha                   DateTime?          @db.Date
+  motivo                  String?
+  creado_por              String?            @db.Uuid
+  creado_en               DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id               String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  creado_por_membresia_id String?            @db.Uuid
+  membresias_tenant       membresias_tenant? @relation(fields: [tenant_id, creado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_bloqueos_actor_tenant")
+  turnos                  turnos?            @relation(fields: [tenant_id, turno_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_bloqueos_turno_tenant")
+  tenants                 tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_numeros_bloqueados_tenant")
+  usuarios                usuarios?          @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, numero, fecha], map: "uq_bloq_tenant_num_diario", where: raw("(turno_id IS NULL)"))
+  @@unique([tenant_id, numero, turno_id], map: "uq_bloq_tenant_num_turno", where: raw("(turno_id IS NOT NULL)"))
+  @@index([numero, fecha], map: "ix_bloq_num_fecha")
+  @@index([numero, turno_id], map: "ix_bloq_num_turno")
+  @@index([creado_por], map: "ix_numeros_bloqueados_creado_por")
+  @@index([tenant_id], map: "ix_numeros_bloqueados_tenant")
+  @@index([tenant_id, creado_por_membresia_id], map: "ix_numeros_bloqueados_tenant_id_creado_por_membresia_id")
+  @@index([tenant_id, turno_id], map: "ix_numeros_bloqueados_tenant_id_turno_id")
+  @@index([turno_id], map: "ix_numeros_bloqueados_turno_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model outbox_events {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id      String               @db.Uuid
+  aggregate_type String
+  aggregate_id   String?              @db.Uuid
+  event_type     String
+  payload        Json
+  estado         evento_outbox_estado @default(PENDIENTE)
+  intentos       Int                  @default(0)
+  disponible_en  DateTime             @default(now()) @db.Timestamptz(6)
+  bloqueado_en   DateTime?            @db.Timestamptz(6)
+  publicado_en   DateTime?            @db.Timestamptz(6)
+  ultimo_error   String?
+  creado_en      DateTime             @default(now()) @db.Timestamptz(6)
+  tenants        tenants              @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([estado, disponible_en, creado_en], map: "ix_outbox_dispatch", where: raw("(estado = ANY (ARRAY['PENDIENTE'::evento_outbox_estado, 'FALLIDO'::evento_outbox_estado]))"))
+  @@index([tenant_id], map: "ix_outbox_events_tenant_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pagos_premios {
+  venta_id                String             @id @db.Uuid
+  resultado_id            String             @db.Uuid
+  monto_pagado_miles      Decimal            @db.Decimal(14, 2)
+  pagado_por              String?            @db.Uuid
+  pagado_en               DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id               String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  pagado_por_membresia_id String?            @db.Uuid
+  membresias_tenant       membresias_tenant? @relation(fields: [tenant_id, pagado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pagos_actor_tenant")
+  tenants                 tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pagos_premios_tenant")
+  resultados              resultados         @relation(fields: [tenant_id, resultado_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pagos_resultado_tenant")
+  ventas                  ventas             @relation(fields: [tenant_id, venta_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_pagos_venta_tenant")
+  usuarios                usuarios?          @relation(fields: [pagado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, venta_id], map: "uq_pagos_tenant_venta")
+  @@index([pagado_en], map: "ix_pagos_premios_pagado_en")
+  @@index([pagado_por], map: "ix_pagos_premios_pagado_por")
+  @@index([resultado_id], map: "ix_pagos_premios_resultado_id")
+  @@index([tenant_id], map: "ix_pagos_premios_tenant")
+  @@index([tenant_id, pagado_por_membresia_id], map: "ix_pagos_premios_tenant_id_pagado_por_membresia_id")
+  @@index([tenant_id, resultado_id], map: "ix_pagos_premios_tenant_id_resultado_id")
+  @@index([tenant_id, venta_id], map: "ix_pagos_premios_tenant_id_venta_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model parametros {
+  clave          String
+  valor          String
+  actualizado_en DateTime @default(now()) @db.Timestamptz(6)
+  tenant_id      String   @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  tenants        tenants  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_parametros_tenant")
+
+  @@id([tenant_id, clave])
+  @@index([tenant_id], map: "ix_parametros_tenant")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model permisos_por_rol {
+  rol_id           String  @db.Uuid
+  modulo_id        String  @db.Uuid
+  puede_leer       Boolean @default(true)
+  puede_crear      Boolean @default(false)
+  puede_actualizar Boolean @default(false)
+  puede_borrar     Boolean @default(false)
+  tenant_id        String  @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  roles            roles   @relation(fields: [tenant_id, rol_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_permisos_rol_tenant")
+  modulos          modulos @relation(fields: [modulo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([rol_id, modulo_id])
+  @@index([modulo_id], map: "ix_permisos_por_rol_modulo_id")
+  @@index([tenant_id, rol_id], map: "ix_permisos_por_rol_tenant_id_rol_id")
+  @@index([tenant_id], map: "ix_permisos_tenant")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model platform_admins {
+  perfil_id                      String                           @id @db.Uuid
+  creado_en                      DateTime                         @default(now()) @db.Timestamptz(6)
+  activo                         Boolean                          @default(true)
+  puede_revisar_facturacion      Boolean                          @default(true)
+  payment_reviews                payment_reviews[]
+  usuarios                       usuarios                         @relation(fields: [perfil_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscription_payment_reversals subscription_payment_reversals[]
+  subscription_payments          subscription_payments[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model resultados {
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id                String             @unique @db.Uuid
+  numero_ganador          String             @db.Char(2)
+  creado_por              String?            @db.Uuid
+  creado_en               DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_id               String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  creado_por_membresia_id String?            @db.Uuid
+  pagos_premios           pagos_premios[]
+  membresias_tenant       membresias_tenant? @relation(fields: [tenant_id, creado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_actor_tenant")
+  tenants                 tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_tenant")
+  turnos                  turnos             @relation(fields: [tenant_id, turno_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_resultados_turno_tenant")
+  usuarios                usuarios?          @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, id], map: "uq_resultados_tenant_id_id")
+  @@unique([tenant_id, turno_id], map: "uq_resultados_tenant_turno")
+  @@index([creado_en], map: "ix_resultados_creado_en")
+  @@index([creado_por], map: "ix_resultados_creado_por")
+  @@index([tenant_id], map: "ix_resultados_tenant")
+  @@index([tenant_id, creado_por_membresia_id], map: "ix_resultados_tenant_id_creado_por_membresia_id")
+  @@index([tenant_id, turno_id], map: "ix_resultados_tenant_id_turno_id")
+  @@index([turno_id], map: "ix_resultados_turno")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre             String
+  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
+  tenant_id          String               @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  membresias_tenant  membresias_tenant[]
+  permisos_por_rol   permisos_por_rol[]
+  tenants            tenants              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_roles_tenant")
+  tenant_invitations tenant_invitations[]
+  usuarios           usuarios[]
+
+  @@unique([tenant_id, id], map: "uq_roles_tenant_id_id")
+  @@unique([tenant_id, nombre], map: "uq_roles_tenant_nombre")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model sorteos_config {
+  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                  String
+  hora                    DateTime         @db.Time(6)
+  solo_martes             Boolean          @default(false)
+  lock_segundos_antes     Int              @default(60)
+  reopen_segundos_despues Int              @default(600)
+  activo                  Boolean          @default(true)
+  creado_en               DateTime         @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime         @default(now()) @db.Timestamptz(6)
+  auto_generar_turnos     Boolean          @default(true)
+  fecha_unica             DateTime?        @db.Date
+  eliminado_en            DateTime?        @db.Timestamptz(6)
+  motivo_eliminacion      String?
+  tenant_id               String           @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  limites_numero          limites_numero[]
+  tenants                 tenants          @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sorteos_config_tenant")
+  turnos                  turnos[]
+
+  @@unique([tenant_id, codigo], map: "uq_sorteos_tenant_codigo")
+  @@unique([tenant_id, id], map: "uq_sorteos_tenant_id_id")
+  @@index([activo, hora], map: "ix_sorteos_activo_hora")
+  @@index([auto_generar_turnos, activo], map: "ix_sorteos_auto_activo", where: raw("(eliminado_en IS NULL)"))
+  @@index([tenant_id], map: "ix_sorteos_config_tenant")
+  @@index([fecha_unica], map: "ix_sorteos_fecha_unica", where: raw("((fecha_unica IS NOT NULL) AND (eliminado_en IS NULL))"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tenant_billing_accounts {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                   @unique @db.Uuid
+  proveedor               String
+  proveedor_customer_id   String?
+  email_facturacion       String?
+  razon_social            String?
+  identificacion_fiscal   String?
+  datos_fiscales          Json                     @default("{}")
+  creado_en               DateTime                 @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime                 @default(now()) @db.Timestamptz(6)
+  billing_payment_methods billing_payment_methods[]
+  tenants                 tenants                  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_subscriptions    tenant_subscriptions[]
+
+  @@unique([tenant_id, id], map: "uq_billing_accounts_tenant_id_id")
+  @@unique([proveedor, proveedor_customer_id], map: "uq_billing_accounts_provider_customer_present", where: raw("(proveedor_customer_id IS NOT NULL)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model tenant_domains {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id     String    @db.Uuid
+  dominio       String
+  verificado_en DateTime? @db.Timestamptz(6)
+  creado_en     DateTime  @default(now()) @db.Timestamptz(6)
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, id], map: "uq_tenant_domains_tenant_id_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model tenant_invitations {
+  id                        String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                 String                   @db.Uuid
+  email                     String
+  rol_id                    String                   @db.Uuid
+  token_hash                String                   @unique(map: "uq_tenant_invitations_token") @db.Char(64)
+  estado                    invitacion_tenant_estado @default(PENDIENTE)
+  invitado_por_membresia_id String                   @db.Uuid
+  expira_en                 DateTime                 @db.Timestamptz(6)
+  aceptada_en               DateTime?                @db.Timestamptz(6)
+  creado_en                 DateTime                 @default(now()) @db.Timestamptz(6)
+  membresias_tenant         membresias_tenant        @relation(fields: [tenant_id, invitado_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tenant_invitations_actor")
+  roles                     roles                    @relation(fields: [tenant_id, rol_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tenant_invitations_rol")
+  tenants                   tenants                  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, id], map: "uq_tenant_invitations_tenant_id_id")
+  @@index([tenant_id, invitado_por_membresia_id], map: "ix_tenant_invitations_tenant_id_invitado_por_membresia_id")
+  @@index([tenant_id, rol_id], map: "ix_tenant_invitations_tenant_id_rol_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tenant_onboarding_sessions {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  perfil_id            String         @db.Uuid
+  tenant_id            String?        @db.Uuid
+  price_id             String         @db.Uuid
+  proveedor            String
+  proveedor_session_id String
+  estado               String         @default("PENDIENTE")
+  expira_en            DateTime       @db.Timestamptz(6)
+  completada_en        DateTime?      @db.Timestamptz(6)
+  creado_en            DateTime       @default(now()) @db.Timestamptz(6)
+  tenant_slug          String
+  tenant_nombre        String
+  zona_horaria         String         @default("America/Managua")
+  moneda               String         @default("NIO") @db.Char(3)
+  auth_user_id         String?        @unique(map: "uq_onboarding_pending_auth_user", where: raw("((estado = 'PENDIENTE'::text) AND (auth_user_id IS NOT NULL))")) @db.Uuid
+  email                String?
+  metodo_pago          String         @default("BANK_TRANSFER")
+  usuarios             usuarios       @relation(fields: [perfil_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  billing_prices       billing_prices @relation(fields: [price_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants              tenants?       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([proveedor, proveedor_session_id], map: "uq_onboarding_provider_session")
+  @@index([perfil_id], map: "ix_tenant_onboarding_sessions_perfil_id")
+  @@index([price_id], map: "ix_tenant_onboarding_sessions_price_id")
+  @@index([tenant_id], map: "ix_tenant_onboarding_sessions_tenant_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tenant_subscriptions {
+  id                        String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                 String                  @unique(map: "uq_tenant_subscription_vigente", where: raw("(estado = ANY (ARRAY['INCOMPLETA'::suscripcion_estado, 'PRUEBA'::suscripcion_estado, 'ACTIVA'::suscripcion_estado, 'MOROSA'::suscripcion_estado, 'PAUSADA'::suscripcion_estado]))")) @db.Uuid
+  billing_account_id        String                  @db.Uuid
+  price_id                  String                  @db.Uuid
+  proveedor                 String
+  proveedor_subscription_id String?
+  estado                    suscripcion_estado      @default(INCOMPLETA)
+  periodo_inicia_en         DateTime?               @db.Timestamptz(6)
+  periodo_termina_en        DateTime?               @db.Timestamptz(6)
+  prueba_termina_en         DateTime?               @db.Timestamptz(6)
+  cancelar_al_final         Boolean                 @default(false)
+  cancelada_en              DateTime?               @db.Timestamptz(6)
+  creado_en                 DateTime                @default(now()) @db.Timestamptz(6)
+  actualizado_en            DateTime                @default(now()) @db.Timestamptz(6)
+  billing_invoices          billing_invoices[]
+  subscription_payments     subscription_payments[]
+  tenant_billing_accounts   tenant_billing_accounts @relation(fields: [tenant_id, billing_account_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_subscriptions_account_tenant")
+  billing_prices            billing_prices          @relation(fields: [price_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                   tenants                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, id], map: "uq_subscriptions_tenant_id_id")
+  @@unique([proveedor, proveedor_subscription_id], map: "uq_subscriptions_provider_present", where: raw("(proveedor_subscription_id IS NOT NULL)"))
+  @@index([estado, periodo_termina_en], map: "ix_subscriptions_estado_periodo")
+  @@index([billing_account_id], map: "ix_tenant_subscriptions_billing_account_id")
+  @@index([price_id], map: "ix_tenant_subscriptions_price_id")
+  @@index([tenant_id, billing_account_id], map: "ix_tenant_subscriptions_tenant_id_billing_account_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model tenants {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                       String
+  nombre                     String
+  estado                     tenant_estado                @default(PENDIENTE_PAGO)
+  zona_horaria               String                       @default("America/Managua")
+  moneda                     String                       @default("NIO") @db.Char(3)
+  configuracion              Json                         @default("{}")
+  es_legacy                  Boolean                      @unique(map: "uq_tenants_legacy", where: raw("es_legacy")) @default(false)
+  creado_en                  DateTime                     @default(now()) @db.Timestamptz(6)
+  actualizado_en             DateTime                     @default(now()) @db.Timestamptz(6)
+  eliminado_en               DateTime?                    @db.Timestamptz(6)
+  auditoria_eventos          auditoria_eventos[]
+  bank_transfer_submissions  bank_transfer_submissions[]
+  billing_events             billing_events[]
+  billing_invoice_items      billing_invoice_items[]
+  billing_invoices           billing_invoices[]
+  billing_payment_methods    billing_payment_methods?
+  codigos_acceso_vendedor    codigos_acceso_vendedor[]
+  cortes                     cortes[]
+  idempotency_keys           idempotency_keys[]
+  limites_numero             limites_numero[]
+  membresias_tenant          membresias_tenant[]
+  notificaciones             notificaciones[]
+  numeros_bloqueados         numeros_bloqueados[]
+  outbox_events              outbox_events[]
+  pagos_premios              pagos_premios[]
+  parametros                 parametros[]
+  payment_evidence_files     payment_evidence_files[]
+  payment_reviews            payment_reviews[]
+  resultados                 resultados[]
+  roles                      roles[]
+  sorteos_config             sorteos_config[]
+  subscription_payments      subscription_payments[]
+  tenant_billing_accounts    tenant_billing_accounts?
+  tenant_domains             tenant_domains[]
+  tenant_invitations         tenant_invitations[]
+  tenant_onboarding_sessions tenant_onboarding_sessions[]
+  tenant_subscriptions       tenant_subscriptions?
+  turnos                     turnos[]
+  vendedores                 vendedores[]
+  venta_detalle              venta_detalle[]
+  ventas                     ventas[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model turnos {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fecha              DateTime             @db.Date
+  config_id          String               @db.Uuid
+  estado             turno_estado         @default(ABIERTO)
+  creado_en          DateTime             @default(now()) @db.Timestamptz(6)
+  actualizado_en     DateTime             @default(now()) @db.Timestamptz(6)
+  tenant_id          String               @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  numeros_bloqueados numeros_bloqueados[]
+  resultados         resultados?
+  sorteos_config     sorteos_config       @relation(fields: [tenant_id, config_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_turnos_config_tenant")
+  tenants            tenants              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_turnos_tenant")
+  ventas             ventas[]
+
+  @@unique([fecha, config_id])
+  @@unique([tenant_id, id], map: "uq_turnos_tenant_id_id")
+  @@index([config_id], map: "ix_turnos_config_id")
+  @@index([estado], map: "ix_turnos_estado")
+  @@index([fecha, config_id], map: "ix_turnos_fecha_cfg")
+  @@index([tenant_id], map: "ix_turnos_tenant")
+  @@index([tenant_id, fecha, estado], map: "ix_turnos_tenant_fecha_estado")
+  @@index([tenant_id, config_id], map: "ix_turnos_tenant_id_config_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model usuarios {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  auth_user_id               String?                      @unique @db.Uuid
+  username                   String                       @unique
+  pass_hash                  String
+  rol_id                     String                       @db.Uuid
+  activo                     Boolean                      @default(true)
+  nombre                     String?
+  creado_en                  DateTime                     @default(now()) @db.Timestamptz(6)
+  actualizado_en             DateTime                     @default(now()) @db.Timestamptz(6)
+  eliminado_en               DateTime?                    @db.Timestamptz(6)
+  motivo_eliminacion         String?
+  auditoria_eventos          auditoria_eventos[]
+  codigos_acceso_creados     codigos_acceso_vendedor[]    @relation("codigos_acceso_vendedor_creado_porTousuarios")
+  codigos_acceso_usuario     codigos_acceso_vendedor[]    @relation("codigos_acceso_vendedor_usuario_idTousuarios")
+  cortes                     cortes[]
+  membresias_tenant          membresias_tenant[]
+  notificaciones             notificaciones[]
+  numeros_bloqueados         numeros_bloqueados[]
+  pagos_premios              pagos_premios[]
+  platform_admins            platform_admins?
+  resultados                 resultados[]
+  tenant_onboarding_sessions tenant_onboarding_sessions[]
+  roles                      roles                        @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendedores                 vendedores[]
+  ventas                     ventas[]
+
+  @@index([eliminado_en], map: "ix_usuarios_eliminado_en", where: raw("(eliminado_en IS NOT NULL)"))
+  @@index([rol_id], map: "ix_usuarios_rol_id")
+  @@index([username], map: "ix_usuarios_username")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model vendedores {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id              String                    @db.Uuid
+  nombre                  String
+  cedula                  String
+  telefono                String?
+  direccion               String?
+  activo                  Boolean                   @default(true)
+  creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
+  eliminado_en            DateTime?                 @db.Timestamptz(6)
+  motivo_eliminacion      String?
+  tenant_id               String                    @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  membresia_id            String                    @db.Uuid
+  codigos_acceso_vendedor codigos_acceso_vendedor[]
+  limites_numero          limites_numero[]
+  membresias_tenant       membresias_tenant         @relation(fields: [tenant_id, membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_vendedores_membresia_tenant")
+  tenants                 tenants                   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_vendedores_tenant")
+  usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ventas                  ventas[]
+
+  @@unique([tenant_id, cedula], map: "uq_vendedores_tenant_cedula")
+  @@unique([tenant_id, id], map: "uq_vendedores_tenant_id_id")
+  @@unique([tenant_id, membresia_id], map: "uq_vendedores_tenant_membresia")
+  @@index([eliminado_en], map: "ix_vendedores_eliminado_en", where: raw("(eliminado_en IS NOT NULL)"))
+  @@index([tenant_id], map: "ix_vendedores_tenant")
+  @@index([usuario_id], map: "ix_vendedores_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model venta_detalle {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venta_id     String   @db.Uuid
+  numero       String   @db.Char(2)
+  premio_miles Decimal  @db.Decimal(14, 2)
+  creado_en    DateTime @default(now()) @db.Timestamptz(6)
+  tenant_id    String   @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  ventas       ventas   @relation(fields: [tenant_id, venta_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_venta_tenant")
+  tenants      tenants  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_venta_detalle_tenant")
+
+  @@index([tenant_id, numero], map: "ix_detalle_tenant_numero")
+  @@index([numero], map: "ix_venta_detalle_numero")
+  @@index([tenant_id], map: "ix_venta_detalle_tenant")
+  @@index([tenant_id, venta_id], map: "ix_venta_detalle_tenant_id_venta_id")
+  @@index([venta_id], map: "ix_venta_detalle_venta")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ventas {
+  id                       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vendedor_id              String             @db.Uuid
+  turno_id                 String?            @db.Uuid
+  creado_en                DateTime           @default(now()) @db.Timestamptz(6)
+  total_miles              Decimal            @default(0) @db.Decimal(14, 2)
+  estado                   venta_estado       @default(ACTIVA)
+  anulada_por              String?            @db.Uuid
+  anulada_en               DateTime?          @db.Timestamptz(6)
+  motivo_anulacion         String?
+  tenant_id                String             @default(dbgenerated("app_private.current_or_legacy_tenant_id()")) @db.Uuid
+  anulada_por_membresia_id String?            @db.Uuid
+  pagos_premios            pagos_premios?
+  venta_detalle            venta_detalle[]
+  membresias_tenant        membresias_tenant? @relation(fields: [tenant_id, anulada_por_membresia_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ventas_actor_tenant")
+  tenants                  tenants            @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ventas_tenant")
+  turnos                   turnos?            @relation(fields: [tenant_id, turno_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ventas_turno_tenant")
+  vendedores               vendedores         @relation(fields: [tenant_id, vendedor_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ventas_vendedor_tenant")
+  usuarios                 usuarios?          @relation(fields: [anulada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, id], map: "uq_ventas_tenant_id_id")
+  @@index([anulada_por], map: "ix_ventas_anulada_por")
+  @@index([tenant_id], map: "ix_ventas_tenant")
+  @@index([tenant_id, anulada_por_membresia_id], map: "ix_ventas_tenant_id_anulada_por_membresia_id")
+  @@index([tenant_id, turno_id, estado], map: "ix_ventas_tenant_turno_estado")
+  @@index([tenant_id, vendedor_id, creado_en(sort: Desc)], map: "ix_ventas_tenant_vendedor_creado")
+  @@index([turno_id, estado], map: "ix_ventas_turno_estado")
+  @@index([vendedor_id, creado_en(sort: Desc)], map: "ix_ventas_vendedor_creado")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model bank_transfer_submissions {
+  id                         String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                  String                    @db.Uuid
+  invoice_id                 String                    @unique(map: "uq_bank_submission_invoice_live", where: raw("(estado = ANY (ARRAY['PENDIENTE_EVIDENCIA'::transferencia_pago_estado, 'EN_REVISION'::transferencia_pago_estado, 'APROBADA'::transferencia_pago_estado]))")) @db.Uuid
+  bank_account_id            String                    @db.Uuid
+  submitted_by_membership_id String                    @db.Uuid
+  estado                     transferencia_pago_estado @default(PENDIENTE_EVIDENCIA)
+  moneda                     String                    @db.Char(3)
+  monto_minor                BigInt
+  referencia_declarada       String?
+  fecha_transferencia        DateTime                  @db.Timestamptz(6)
+  nombre_ordenante           String
+  cuenta_origen_ultimos4     String?                   @db.Char(4)
+  indicadores_riesgo         Json                      @default("[]")
+  creado_en                  DateTime                  @default(now()) @db.Timestamptz(6)
+  actualizado_en             DateTime                  @default(now()) @db.Timestamptz(6)
+  billing_bank_accounts      billing_bank_accounts     @relation(fields: [bank_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                    tenants                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  membresias_tenant          membresias_tenant         @relation(fields: [tenant_id, submitted_by_membership_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_bank_submission_actor_tenant")
+  billing_invoices           billing_invoices          @relation(fields: [tenant_id, invoice_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_bank_submission_invoice_tenant")
+  payment_evidence_files     payment_evidence_files[]
+  payment_reviews            payment_reviews[]
+  subscription_payments      subscription_payments[]
+
+  @@unique([tenant_id, id], map: "uq_bank_submissions_tenant_id_id")
+  @@index([estado, creado_en], map: "ix_bank_submissions_review_queue", where: raw("(estado = 'EN_REVISION'::transferencia_pago_estado)"))
+  @@index([tenant_id, creado_en(sort: Desc)], map: "ix_bank_submissions_tenant_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_bank_accounts {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                    String                      @unique
+  banco                     String
+  titular                   String
+  moneda                    String                      @unique(map: "uq_billing_bank_account_active_currency", where: raw("activo")) @db.Char(3)
+  tipo_cuenta               String
+  numero_cuenta             String
+  instrucciones             String?
+  activo                    Boolean                     @default(true)
+  orden                     Int                         @default(0) @db.SmallInt
+  creado_en                 DateTime                    @default(now()) @db.Timestamptz(6)
+  actualizado_en            DateTime                    @default(now()) @db.Timestamptz(6)
+  bank_transfer_submissions bank_transfer_submissions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_document_sequences {
+  document_type  String
+  document_year  Int      @db.SmallInt
+  last_value     BigInt   @default(0)
+  actualizado_en DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([document_type, document_year])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_invoice_items {
+  id                                                                            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                                                                     String           @db.Uuid
+  invoice_id                                                                    String           @db.Uuid
+  descripcion                                                                   String
+  cantidad                                                                      Int              @default(1)
+  precio_unitario_minor                                                         BigInt
+  subtotal_minor                                                                BigInt
+  metadata                                                                      Json             @default("{}")
+  creado_en                                                                     DateTime         @default(now()) @db.Timestamptz(6)
+  billing_invoices_billing_invoice_items_invoice_idTobilling_invoices           billing_invoices @relation("billing_invoice_items_invoice_idTobilling_invoices", fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                                                                       tenants          @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  billing_invoices_billing_invoice_items_tenant_id_invoice_idTobilling_invoices billing_invoices @relation("billing_invoice_items_tenant_id_invoice_idTobilling_invoices", fields: [tenant_id, invoice_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_items_invoice_tenant")
+
+  @@index([tenant_id, invoice_id, creado_en], map: "ix_billing_invoice_items_invoice")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_price_channels {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  price_id           String         @db.Uuid
+  canal              String
+  proveedor_price_id String?
+  activo             Boolean        @default(true)
+  configuracion      Json           @default("{}")
+  creado_en          DateTime       @default(now()) @db.Timestamptz(6)
+  actualizado_en     DateTime       @default(now()) @db.Timestamptz(6)
+  billing_prices     billing_prices @relation(fields: [price_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([price_id, canal], map: "uq_billing_price_channel")
+  @@unique([canal, proveedor_price_id], map: "uq_billing_price_channel_provider_id", where: raw("(proveedor_price_id IS NOT NULL)"))
+  @@index([canal, activo, price_id], map: "ix_billing_price_channels_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_runs {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_key     String             @unique
+  estado      billing_run_estado @default(EJECUTANDO)
+  started_at  DateTime           @default(now()) @db.Timestamptz(6)
+  finished_at DateTime?          @db.Timestamptz(6)
+  metrics     Json               @default("{}")
+  error       String?
+
+  @@index([started_at(sort: Desc)], map: "ix_billing_runs_started")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model billing_settings {
+  singleton            Boolean  @id @default(true)
+  renewal_issue_days   Int      @default(5) @db.SmallInt
+  grace_days           Int      @default(3) @db.SmallInt
+  review_pause_hours   Int      @default(48) @db.SmallInt
+  late_reissue_days    Int      @default(15) @db.SmallInt
+  pending_archive_days Int      @default(30) @db.SmallInt
+  review_target_hours  Int      @default(24) @db.SmallInt
+  actualizado_en       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_evidence_files {
+  id                        String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                 String                    @db.Uuid
+  submission_id             String                    @db.Uuid
+  uploaded_by_membership_id String                    @db.Uuid
+  bucket_id                 String                    @default("billing-evidence")
+  object_path               String                    @unique
+  original_name             String
+  mime_type                 String
+  size_bytes                BigInt
+  sha256                    String                    @db.Char(64)
+  creado_en                 DateTime                  @default(now()) @db.Timestamptz(6)
+  membresias_tenant         membresias_tenant         @relation(fields: [tenant_id, uploaded_by_membership_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_evidence_actor_tenant")
+  bank_transfer_submissions bank_transfer_submissions @relation(fields: [tenant_id, submission_id], references: [tenant_id, id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_evidence_submission_tenant")
+  tenants                   tenants                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, submission_id, creado_en], map: "ix_payment_evidence_submission")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_reviews {
+  id                             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                      String                    @db.Uuid
+  submission_id                  String                    @unique(map: "uq_payment_review_approval", where: raw("(decision = 'APROBADA'::revision_pago_decision)")) @db.Uuid
+  platform_admin_id              String                    @db.Uuid
+  decision                       revision_pago_decision
+  referencia_bancaria_confirmada String?
+  notas                          String?
+  creado_en                      DateTime                  @default(now()) @db.Timestamptz(6)
+  bank_transfer_submissions      bank_transfer_submissions @relation(fields: [tenant_id, submission_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_review_submission_tenant")
+  platform_admins                platform_admins           @relation(fields: [platform_admin_id], references: [perfil_id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                        tenants                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, submission_id, creado_en(sort: Desc)], map: "ix_payment_reviews_submission_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model subscription_payment_reversals {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id            String                @unique(map: "uq_subscription_payment_reversal") @db.Uuid
+  platform_admin_id     String                @db.Uuid
+  motivo                String
+  creado_en             DateTime              @default(now()) @db.Timestamptz(6)
+  subscription_payments subscription_payments @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  platform_admins       platform_admins       @relation(fields: [platform_admin_id], references: [perfil_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model subscription_payments {
+  id                               String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                        String                          @db.Uuid
+  invoice_id                       String                          @unique(map: "uq_subscription_payments_invoice") @db.Uuid
+  subscription_id                  String                          @db.Uuid
+  submission_id                    String?                         @db.Uuid
+  billing_event_id                 String?                         @db.Uuid
+  origen                           origen_pago_suscripcion
+  referencia_externa               String
+  moneda                           String                          @db.Char(3)
+  monto_minor                      BigInt
+  confirmado_por_platform_admin_id String?                         @db.Uuid
+  confirmado_en                    DateTime                        @default(now()) @db.Timestamptz(6)
+  metadata                         Json                            @default("{}")
+  subscription_payment_reversals   subscription_payment_reversals?
+  billing_invoices                 billing_invoices                @relation(fields: [tenant_id, invoice_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_payment_invoice_tenant")
+  bank_transfer_submissions        bank_transfer_submissions?      @relation(fields: [tenant_id, submission_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_payment_submission_tenant")
+  tenant_subscriptions             tenant_subscriptions            @relation(fields: [tenant_id, subscription_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_payment_subscription_tenant")
+  billing_events                   billing_events?                 @relation(fields: [billing_event_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  platform_admins                  platform_admins?                @relation(fields: [confirmado_por_platform_admin_id], references: [perfil_id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                          tenants                         @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([origen, referencia_externa], map: "uq_subscription_payments_reference")
+  @@unique([tenant_id, invoice_id], map: "uq_subscription_payments_tenant_invoice_prisma")
+  @@index([tenant_id, confirmado_en(sort: Desc)], map: "ix_subscription_payments_tenant_confirmed")
+}
+
+enum codigo_acceso_estado {
+  PENDIENTE
+  USADO
+  EXPIRADO
+  REVOCADO
+}
+
+enum evento_outbox_estado {
+  PENDIENTE
+  PROCESANDO
+  PUBLICADO
+  FALLIDO
+}
+
+enum factura_estado {
+  BORRADOR
+  ABIERTA
+  PAGADA
+  FALLIDA
+  ANULADA
+}
+
+enum intervalo_facturacion {
+  MENSUAL
+  ANUAL
+}
+
+enum invitacion_tenant_estado {
+  PENDIENTE
+  ACEPTADA
+  EXPIRADA
+  REVOCADA
+}
+
+enum membresia_estado {
+  INVITADO
+  ACTIVO
+  SUSPENDIDO
+  REVOCADO
+}
+
+enum suscripcion_estado {
+  INCOMPLETA
+  PRUEBA
+  ACTIVA
+  MOROSA
+  PAUSADA
+  CANCELADA
+}
+
+enum tenant_estado {
+  PENDIENTE_PAGO
+  PRUEBA
+  ACTIVO
+  MOROSO
+  SUSPENDIDO
+  CANCELADO
 }
 
 enum turno_estado {
@@ -311,9 +1106,27 @@ enum venta_estado {
   ANULADA
 }
 
-enum codigo_acceso_estado {
-  PENDIENTE
-  USADO
-  EXPIRADO
-  REVOCADO
+enum billing_run_estado {
+  EJECUTANDO
+  COMPLETADO
+  FALLIDO
+}
+
+enum origen_pago_suscripcion {
+  TRANSFERENCIA_BANCARIA
+  PAYPAL
+  DEVELOPMENT
+}
+
+enum revision_pago_decision {
+  APROBADA
+  RECHAZADA
+}
+
+enum transferencia_pago_estado {
+  PENDIENTE_EVIDENCIA
+  EN_REVISION
+  APROBADA
+  RECHAZADA
+  CANCELADA
 }

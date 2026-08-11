@@ -16,11 +16,15 @@ export class SalesHttpMapper {
     dto: CreateSaleDto,
     currentSellerId?: string,
     actorRoleName?: string,
+    actorUserId?: string,
+    actorMembershipId?: string,
   ): CreateSaleCommand {
     return {
       requestedSellerId: dto.sellerId,
       currentSellerId,
       actorRoleName,
+      actorUserId,
+      actorMembershipId,
       shiftId: dto.shiftId,
       items: dto.items,
     };

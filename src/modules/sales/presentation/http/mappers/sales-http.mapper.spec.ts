@@ -10,11 +10,15 @@ describe('SalesHttpMapper', () => {
         },
         'seller-id',
         'VENDEDOR',
+        'user-id',
+        'membership-id',
       ),
     ).toEqual({
       requestedSellerId: undefined,
       currentSellerId: 'seller-id',
       actorRoleName: 'VENDEDOR',
+      actorUserId: 'user-id',
+      actorMembershipId: 'membership-id',
       shiftId: 'shift-id',
       items: [{ number: '02', prizeMiles: 20 }],
     });
@@ -34,11 +38,15 @@ describe('SalesHttpMapper', () => {
         },
         'seller-id',
         'VENDEDOR',
+        'user-id',
+        'membership-id',
       ),
     ).toEqual({
       requestedSellerId: undefined,
       currentSellerId: 'seller-id',
       actorRoleName: 'VENDEDOR',
+      actorUserId: 'user-id',
+      actorMembershipId: 'membership-id',
       shiftId: 'shift-id',
       items: [
         { number: '20', prizeMiles: 10 },

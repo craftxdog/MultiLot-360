@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  TenantContextService,
+  TenantExecutionContextService,
+} from '../../../../../common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma';
 import {
   AuthAccountRepository,
@@ -11,7 +15,7 @@ import {
 
 const MANAGED_PASSWORD_HASH = 'supabase:managed';
 
-const identityUserInclude = {
+const legacyIdentityUserInclude = {
   roles: {
     include: {
       permisos_por_rol: {
@@ -24,8 +28,32 @@ const identityUserInclude = {
   vendedores: true,
 } satisfies Prisma.usuariosInclude;
 
-type IdentityUserRecord = Prisma.usuariosGetPayload<{
-  include: typeof identityUserInclude;
+type LegacyIdentityUserRecord = Prisma.usuariosGetPayload<{
+  include: typeof legacyIdentityUserInclude;
+}>;
+
+const tenantIdentityUserInclude = {
+  membresias_tenant: {
+    where: { estado: 'ACTIVO' as const, eliminado_en: null },
+    take: 1,
+    include: {
+      tenants: true,
+      vendedores: true,
+      roles: {
+        include: {
+          permisos_por_rol: {
+            include: {
+              modulos: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.usuariosInclude;
+
+type TenantIdentityUserRecord = Prisma.usuariosGetPayload<{
+  include: typeof tenantIdentityUserInclude;
 }>;
 
 const PERMISSION_ACTIONS: Array<{
@@ -45,12 +73,16 @@ const buildPermissionKey = (
 
 @Injectable()
 export class PrismaAuthAccountRepository implements AuthAccountRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContextService,
+    private readonly tenantExecution: TenantExecutionContextService,
+  ) {}
 
   async createInternalUser(
     input: CreateInternalUserInput,
   ): Promise<IdentityUser> {
-    const role = await this.prisma.roles.findUnique({
+    const role = await this.prisma.roles.findFirst({
       where: {
         nombre: input.roleName,
       },
@@ -69,33 +101,62 @@ export class PrismaAuthAccountRepository implements AuthAccountRepository {
         nombre: input.name,
         activo: true,
       },
-      include: identityUserInclude,
+      include: legacyIdentityUserInclude,
     });
 
-    return this.mapUser(user);
+    return this.mapLegacyUser(user);
   }
 
-  async findByAuthUserId(authUserId: string): Promise<IdentityUser | null> {
-    const user = await this.prisma.usuarios.findUnique({
-      where: {
-        auth_user_id: authUserId,
-      },
-      include: identityUserInclude,
-    });
+  async findByAuthUserId(
+    authUserId: string,
+    tenantSelector?: string,
+  ): Promise<IdentityUser | null> {
+    if (!this.prisma.hasRequestTransaction()) {
+      return this.prisma.runInRequestTransaction(() =>
+        this.tenantExecution.run(async () => {
+          try {
+            await this.tenantContext.activateForAuthentication(
+              authUserId,
+              tenantSelector,
+            );
+          } catch {
+            return null;
+          }
+          return this.findTenantUserByAuthUserId(authUserId);
+        }),
+      );
+    }
 
-    return user ? this.mapUser(user) : null;
+    return this.findTenantUserByAuthUserId(authUserId);
   }
 
   async findById(userId: string): Promise<IdentityUser | null> {
     const user = await this.prisma.usuarios.findUnique({
       where: { id: userId },
-      include: identityUserInclude,
+      include: tenantIdentityUserInclude,
     });
 
-    return user ? this.mapUser(user) : null;
+    return user ? this.mapTenantUser(user) : null;
   }
 
-  private mapUser(user: IdentityUserRecord): IdentityUser {
+  private async findTenantUserByAuthUserId(
+    authUserId: string,
+  ): Promise<IdentityUser | null> {
+    const user = await this.prisma.usuarios.findFirst({
+      where: {
+        auth_user_id: authUserId,
+        membresias_tenant: {
+          some: { estado: 'ACTIVO', eliminado_en: null },
+        },
+      },
+      include: tenantIdentityUserInclude,
+    });
+
+    return user ? this.mapTenantUser(user) : null;
+  }
+
+  private mapLegacyUser(user: LegacyIdentityUserRecord): IdentityUser {
+    const seller = user.vendedores[0];
     const permissionRows = user.roles.permisos_por_rol;
     const modules = [
       ...new Set(
@@ -127,12 +188,69 @@ export class PrismaAuthAccountRepository implements AuthAccountRepository {
       },
       modules,
       permissions,
-      ...(user.vendedores && {
+      ...(seller && {
         seller: {
-          id: user.vendedores.id,
-          userId: user.vendedores.usuario_id,
-          name: user.vendedores.nombre,
-          active: user.vendedores.activo,
+          id: seller.id,
+          userId: seller.usuario_id,
+          name: seller.nombre,
+          active: seller.activo,
+        },
+      }),
+    };
+  }
+
+  private mapTenantUser(user: TenantIdentityUserRecord): IdentityUser {
+    const membership = user.membresias_tenant[0];
+    if (!membership) {
+      throw new Error('Active tenant membership is required');
+    }
+    const seller = membership.vendedores;
+    const permissionRows = membership.roles.permisos_por_rol;
+    const modules = [
+      ...new Set(
+        permissionRows
+          .filter((permission) =>
+            PERMISSION_ACTIONS.some(({ field }) => permission[field]),
+          )
+          .map((permission) => permission.modulos.codigo.toLowerCase()),
+      ),
+    ];
+    const permissions = [
+      ...new Set<PermissionKey>(
+        permissionRows.flatMap((permission) =>
+          PERMISSION_ACTIONS.filter(({ field }) => permission[field]).map(
+            ({ action }) =>
+              buildPermissionKey(permission.modulos.codigo, action),
+          ),
+        ),
+      ),
+    ];
+
+    return {
+      id: user.id,
+      authUserId: user.auth_user_id ?? '',
+      username: user.username,
+      name: user.nombre,
+      active: user.activo,
+      role: {
+        id: membership.roles.id,
+        name: membership.roles.nombre,
+      },
+      modules,
+      permissions,
+      tenant: {
+        id: membership.tenants.id,
+        slug: membership.tenants.slug,
+        name: membership.tenants.nombre,
+        membershipId: membership.id,
+        isOwner: membership.es_propietario,
+      },
+      ...(seller && {
+        seller: {
+          id: seller.id,
+          userId: seller.usuario_id,
+          name: seller.nombre,
+          active: seller.activo,
         },
       }),
     };

@@ -198,6 +198,7 @@ describe('MailerSendMailerService', () => {
       recipient: { email: ' User@Example.com ', name: 'User' },
       userName: 'User',
       recoveryCode: '123456',
+      recoveryTokenHash: 'a'.repeat(64),
       expiresInMinutes: 60,
     });
 
@@ -205,13 +206,19 @@ describe('MailerSendMailerService', () => {
       'password-recovery-code',
       expect.objectContaining({
         recoveryCode: '123456',
-        passwordResetUrl:
-          'https://app.multilot360.com/restablecer-contrasena?email=user%40example.com',
+        passwordResetUrl: `https://app.multilot360.com/restablecer-contrasena?email=user%40example.com#recovery_token=${'a'.repeat(64)}`,
       }),
     );
     expect(
       String(renderSpy.mock.calls.at(-1)?.[1]?.passwordResetUrl),
     ).not.toContain('123456');
+    const passwordResetUrl = String(
+      renderSpy.mock.calls.at(-1)?.[1]?.passwordResetUrl,
+    );
+    expect(new URL(passwordResetUrl).searchParams.has('recovery_token')).toBe(
+      false,
+    );
+    expect(new URL(passwordResetUrl).hash).toContain('recovery_token=');
   });
 
   it('verifies the SMTP connection without sending an email', async () => {

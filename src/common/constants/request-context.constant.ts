@@ -4,6 +4,7 @@ export const AUTH_USER_ID_HEADER = 'x-auth-user-id';
 export const ROLE_ID_HEADER = 'x-role-id';
 export const ROLE_NAME_HEADER = 'x-role-name';
 export const SELLER_ID_HEADER = 'x-seller-id';
+export const TENANT_ID_HEADER = 'x-tenant-id';
 
 export const REQUEST_CONTEXT_KEYS = {
   user: 'user',
@@ -18,4 +19,5 @@ export const CONTEXT_HEADERS = {
   roleId: ROLE_ID_HEADER,
   roleName: ROLE_NAME_HEADER,
   sellerId: SELLER_ID_HEADER,
+  tenantId: TENANT_ID_HEADER,
 } as const;

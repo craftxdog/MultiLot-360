@@ -77,9 +77,17 @@ export class SalesController {
     @Body() body: CreateSaleDto,
     @CurrentSeller('id') currentSellerId?: string,
     @CurrentUser('roleName') actorRoleName?: string,
+    @CurrentUser('id') actorUserId?: string,
+    @CurrentUser('membershipId') actorMembershipId?: string,
   ) {
     return this.createSale.execute(
-      SalesHttpMapper.toCreateCommand(body, currentSellerId, actorRoleName),
+      SalesHttpMapper.toCreateCommand(
+        body,
+        currentSellerId,
+        actorRoleName,
+        actorUserId,
+        actorMembershipId,
+      ),
     );
   }
 

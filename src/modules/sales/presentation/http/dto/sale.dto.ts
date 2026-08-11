@@ -73,7 +73,7 @@ export class SaleItemDto {
 export class CreateSaleDto {
   @ApiPropertyOptional({
     description:
-      'Seller id responsible for the sale. Required for admins and users without a seller profile; optional for sellers selling under their own profile.',
+      'Seller id responsible for the sale. Admins may omit it to sell under their own tenant membership; sellers may omit it to use their assigned seller profile.',
     format: 'uuid',
   })
   @IsOptional()

@@ -303,7 +303,7 @@ export class PrismaNotificationProjector implements NotificationProjector {
   }
 
   private async milestoneConfig(): Promise<SalesMilestoneConfig> {
-    const parameter = await this.prisma.parametros.findUnique({
+    const parameter = await this.prisma.parametros.findFirst({
       where: { clave: 'notifications.sales_milestone' },
     });
     if (!parameter) return DEFAULT_MILESTONE_CONFIG;

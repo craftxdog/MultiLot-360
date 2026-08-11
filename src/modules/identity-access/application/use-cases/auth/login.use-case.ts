@@ -33,6 +33,7 @@ export class LoginUseCase extends UseCase<LoginCommand, AuthSession, AppError> {
       });
       const user = await this.authAccountRepository.findByAuthUserId(
         session.authUserId,
+        input.tenantSelector,
       );
 
       if (!user) {

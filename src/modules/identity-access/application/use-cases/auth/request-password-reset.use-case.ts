@@ -58,6 +58,7 @@ export class RequestPasswordResetUseCase extends UseCase<
         recipient: { email, name: user?.name ?? undefined },
         userName: user?.name ?? 'Usuario',
         recoveryCode: recovery.code,
+        recoveryTokenHash: recovery.tokenHash,
         expiresInMinutes: this.envConfig.auth.passwordResetCodeExpiresInMinutes,
       });
 

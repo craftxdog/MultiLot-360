@@ -1,3 +1,5 @@
+import { recordRuntimeRoute } from './runtime-route-coverage';
+
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 type SmokeResponse<T = unknown> = {
@@ -147,6 +149,11 @@ type AuditEvent = {
   actor?: { id: string } | null;
 };
 
+type Notification = {
+  id: string;
+  readAt: string | null;
+};
+
 const baseUrl = (
   process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:3000/api/v1'
 ).replace(/\/$/, '');
@@ -164,6 +171,7 @@ let total = 0;
 let failures = 0;
 let existingSellerId = process.env.SMOKE_SELLER_ID;
 let existingSellerUserId: string | undefined;
+const notificationId = process.env.SMOKE_NOTIFICATION_ID;
 
 async function request<T = ApiEnvelope<unknown>>(
   method: HttpMethod,
@@ -174,6 +182,7 @@ async function request<T = ApiEnvelope<unknown>>(
     auth?: boolean;
   } = {},
 ): Promise<SmokeResponse<T>> {
+  recordRuntimeRoute(method, path || '/');
   const headers: Record<string, string> = {
     accept: 'application/json',
   };
@@ -373,12 +382,12 @@ async function loginWithCredentials(
 
 async function runAuthChecks() {
   expectStatus(
-    'auth signup validation',
+    'legacy unpaid auth signup is unavailable',
     await request('POST', '/auth/signup', {
       auth: false,
       body: {},
     }),
-    [400],
+    [404],
   );
   expectStatus(
     'auth login invalid credentials',
@@ -406,6 +415,18 @@ async function runAuthChecks() {
       body: {
         email: `missing.${uniqueSuffix}@example.com`,
         code: '000000',
+        newPassword: 'NuevaClave2026!',
+        confirmPassword: 'NuevaClave2026!',
+      },
+    }),
+    [401],
+  );
+  expectStatus(
+    'password reset secure link rejects invalid recovery token hash',
+    await request('POST', '/auth/password/reset/confirm-link', {
+      auth: false,
+      body: {
+        tokenHash: 'a'.repeat(64),
         newPassword: 'NuevaClave2026!',
         confirmPassword: 'NuevaClave2026!',
       },
@@ -486,11 +507,10 @@ async function runAuthChecks() {
   const passwordResetEventNames = new Set(
     passwordResetAudits.map((event) => event.event),
   );
-  const expectedPasswordResetEvents = [
-    'auth.password_reset.code_dispatch_failed',
-    'auth.password_reset.failed',
-    'auth.password_reset.admin_failed',
-  ];
+  // Public recovery attempts are intentionally written outside a tenant
+  // context and must not leak into a company's audit stream. This tenant must
+  // see only the authenticated admin failure generated above.
+  const expectedPasswordResetEvents = ['auth.password_reset.admin_failed'];
 
   if (
     expectedPasswordResetEvents.some(
@@ -580,6 +600,14 @@ async function runAccessAndNotificationChecks() {
   if (!sellerRole) throw new Error('Seller role was not found.');
 
   expectEnvelope<AccessRole>(
+    'access role create',
+    await request('POST', '/parameters/access/roles', {
+      body: { name: `qa-supervisor-${uniqueSuffix}` },
+    }),
+    201,
+  );
+
+  expectEnvelope<AccessRole>(
     'access role detail',
     await request('GET', `/parameters/access/roles/${sellerRole.id}`),
     200,
@@ -646,6 +674,26 @@ async function runAccessAndNotificationChecks() {
   expectEnvelope(
     'admin unread notification count',
     await request('GET', '/notifications/unread-count'),
+    200,
+  );
+  if (!notificationId) {
+    throw new Error(
+      'SMOKE_NOTIFICATION_ID is required for notification mutation checks.',
+    );
+  }
+  expectEnvelope<Notification>(
+    'notification mark read',
+    await request('PATCH', `/notifications/${notificationId}/read`),
+    200,
+  );
+  expectEnvelope(
+    'notifications mark all read',
+    await request('PATCH', '/notifications/read-all'),
+    200,
+  );
+  expectEnvelope(
+    'notification delete',
+    await request('DELETE', `/notifications/${notificationId}`),
     200,
   );
 
@@ -721,7 +769,10 @@ async function runSellerOnboardingChecks() {
     3,
     9,
   )}-${uniqueSuffix.slice(9, 13)}A`;
-  expectEnvelope<{ userId: string; sellerId: string }>(
+  const disposableSeller = expectEnvelope<{
+    userId: string;
+    sellerId: string;
+  }>(
     'seller invitation create and email send',
     await request('POST', '/identity-access/sellers/invitations', {
       body: {
@@ -778,6 +829,26 @@ async function runSellerOnboardingChecks() {
     ),
     200,
   );
+  expectEnvelope(
+    'seller soft delete',
+    await request(
+      'PATCH',
+      `/identity-access/sellers/${disposableSeller.sellerId}/soft-delete`,
+      { body: { reason: 'QA reversible seller removal' } },
+    ),
+    200,
+  );
+  expectEnvelope(
+    'seller hard delete',
+    await request(
+      'DELETE',
+      `/identity-access/sellers/${disposableSeller.sellerId}`,
+      {
+        body: { reason: 'QA final seller cleanup' },
+      },
+    ),
+    200,
+  );
 }
 
 async function runOperationalFlowChecks() {
@@ -829,6 +900,57 @@ async function runOperationalFlowChecks() {
       body: { reopenSecondsAfter: 86_399 },
     }),
     200,
+  );
+
+  const disposableConfiguration = expectEnvelope<DrawConfiguration>(
+    'disposable draw configuration create',
+    await request('POST', '/draws/configurations', {
+      body: {
+        code: `qa-delete-${uniqueSuffix}`,
+        time: '23:58:59',
+        autoGenerateShifts: false,
+        singleDate: smokeDate,
+        active: false,
+      },
+    }),
+    201,
+  );
+  expectEnvelope(
+    'draw configuration delete impact without dependencies',
+    await request(
+      'GET',
+      `/draws/configurations/${disposableConfiguration.id}/delete-impact`,
+    ),
+    200,
+  );
+  const adminPassword = process.env.SMOKE_ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error('SMOKE_ADMIN_PASSWORD is required for hard-delete checks.');
+  }
+  expectEnvelope(
+    'draw configuration hard delete with reauthentication',
+    await request(
+      'DELETE',
+      `/draws/configurations/${disposableConfiguration.id}`,
+      {
+        body: {
+          reason: 'QA configuration without operational history',
+          adminPassword,
+          confirmation: 'DELETE_DRAW_CONFIGURATION',
+        },
+      },
+    ),
+    200,
+  );
+
+  const autoDate = new Date(`${smokeDate}T12:00:00Z`);
+  autoDate.setUTCDate(autoDate.getUTCDate() + 1);
+  expectEnvelope(
+    'draw shifts auto generate idempotently',
+    await request('POST', '/draws/shifts/auto-generate', {
+      body: { date: autoDate.toISOString().slice(0, 10) },
+    }),
+    201,
   );
 
   const shift = expectEnvelope<DrawShift>(
@@ -1130,6 +1252,14 @@ async function runOperationalFlowChecks() {
   );
 
   expectEnvelope(
+    'business analytics report',
+    await request(
+      'GET',
+      `/reports/analytics?dateFrom=${smokeDate}&dateUntil=${smokeDate}&topLimit=10`,
+    ),
+    200,
+  );
+  expectEnvelope(
     'operational overview report',
     await request(
       'GET',
@@ -1188,10 +1318,20 @@ async function runOperationalFlowChecks() {
     200,
   );
   expectEnvelope(
-    'draw configuration cleanup deactivate',
-    await request('PATCH', `/draws/configurations/${configuration.id}`, {
-      body: { active: false },
-    }),
+    'draw configuration delete impact with operational history',
+    await request(
+      'GET',
+      `/draws/configurations/${configuration.id}/delete-impact`,
+    ),
+    200,
+  );
+  expectEnvelope(
+    'draw configuration soft delete preserves history',
+    await request(
+      'PATCH',
+      `/draws/configurations/${configuration.id}/soft-delete`,
+      { body: { reason: 'QA flow completed' } },
+    ),
     200,
   );
 

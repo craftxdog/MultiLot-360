@@ -38,6 +38,7 @@ export class RefreshSessionUseCase extends UseCase<
       );
       const user = await this.authAccountRepository.findByAuthUserId(
         session.authUserId,
+        input.tenantSelector,
       );
 
       if (!user) {
