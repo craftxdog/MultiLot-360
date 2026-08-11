@@ -11,8 +11,19 @@ export type SaleItemInput = {
   prizeMiles: number;
 };
 
+export type SaleAttribution =
+  | {
+      kind: 'SELLER';
+      sellerId: string;
+    }
+  | {
+      kind: 'ADMIN_SELF';
+      userId: string;
+      membershipId: string;
+    };
+
 export type CreateSaleInput = {
-  sellerId: string;
+  attribution: SaleAttribution;
   shiftId: string;
   items: SaleItemInput[];
 };

@@ -165,6 +165,11 @@ pagos_premios.monto_pagado_miles
 limites_numero.limite_miles
 ```
 
+Para vender acceso mensual a empresas nuevas y operar el flujo tenant completo,
+usar `docs/tenant-commercial-usage-runbook.md` como guía de negocio y
+producción. Ese documento enlaza el alta pagada, la activación del tenant, las
+invitaciones de vendedores, la venta por ADMIN y el ciclo diario de cobro.
+
 ## Redis y Socket.IO
 
 - `REALTIME_ENABLED=true` habilita el gateway.

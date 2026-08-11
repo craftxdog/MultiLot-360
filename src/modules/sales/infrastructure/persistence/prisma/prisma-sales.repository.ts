@@ -12,6 +12,7 @@ import { Sale } from '../../../domain/entities';
 import {
   CreateSaleInput,
   ListSalesQuery,
+  SaleAttribution,
   SalesRepository,
   SalesVoidPolicy,
   UpdateSalesVoidPolicyInput,
@@ -20,6 +21,7 @@ import {
 
 const SALES_VOID_WINDOW_MINUTES_KEY = 'sales.void_window_minutes';
 const DEFAULT_SALES_VOID_WINDOW_MINUTES = 10;
+const ADMINISTRATIVE_SELLER_DOCUMENT_PREFIX = 'ADMIN-';
 
 const saleInclude = {
   vendedores: {
@@ -50,12 +52,13 @@ export class PrismaSalesRepository implements SalesRepository {
 
   async create(input: CreateSaleInput): Promise<Sale> {
     try {
-      await this.assertSellerCanSell(input.sellerId);
+      const sellerId = await this.resolveSellerId(input.attribution);
+      await this.assertSellerCanSell(sellerId);
       await this.assertShiftCanReceiveSales(input.shiftId);
 
       const sale = await this.prisma.ventas.create({
         data: {
-          vendedor_id: input.sellerId,
+          vendedor_id: sellerId,
           turno_id: input.shiftId,
           total_miles: this.sumTotalMiles(input.items),
           venta_detalle: {
@@ -196,6 +199,65 @@ export class PrismaSalesRepository implements SalesRepository {
     if (!seller.activo) {
       throw new Error('Seller is inactive');
     }
+  }
+
+  private async resolveSellerId(attribution: SaleAttribution): Promise<string> {
+    if (attribution.kind === 'SELLER') {
+      return attribution.sellerId;
+    }
+
+    const membership = await this.prisma.membresias_tenant.findFirst({
+      where: {
+        id: attribution.membershipId,
+        perfil_id: attribution.userId,
+        estado: 'ACTIVO',
+        eliminado_en: null,
+      },
+      select: {
+        id: true,
+        tenant_id: true,
+        perfil_id: true,
+        username: true,
+        roles: {
+          select: {
+            nombre: true,
+          },
+        },
+        usuarios: {
+          select: {
+            nombre: true,
+          },
+        },
+      },
+    });
+
+    if (!membership || membership.roles.nombre.toUpperCase() !== 'ADMIN') {
+      throw new Error('Active admin tenant membership not found');
+    }
+
+    const seller = await this.prisma.vendedores.upsert({
+      where: {
+        tenant_id_membresia_id: {
+          tenant_id: membership.tenant_id,
+          membresia_id: membership.id,
+        },
+      },
+      update: {},
+      create: {
+        tenant_id: membership.tenant_id,
+        membresia_id: membership.id,
+        usuario_id: membership.perfil_id,
+        nombre:
+          membership.usuarios.nombre?.trim() || membership.username.trim(),
+        cedula: `${ADMINISTRATIVE_SELLER_DOCUMENT_PREFIX}${membership.id}`,
+        activo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return seller.id;
   }
 
   private async assertShiftCanReceiveSales(shiftId: string): Promise<void> {

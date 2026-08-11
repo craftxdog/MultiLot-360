@@ -113,6 +113,13 @@ Prueba negativa: `POST /sales` con un número bloqueado o que exceda el límite 
 ## 8. Ventas durante el día
 
 1. `POST /sales` registra una venta multi-número atómica para un turno abierto.
+   - Vendedor activo: puede vender sin enviar `sellerId`; la venta se atribuye
+     a su perfil vendedor.
+   - ADMIN sin `sellerId`: vende con su propia membresía administrativa; la API
+     crea o reutiliza un perfil vendedor interno del tenant para mantener
+     reportes, matriz, premios y cortes sin exigir un vendedor manual.
+   - ADMIN con `sellerId`: vende a nombre del vendedor elegido dentro del mismo
+     tenant.
 2. `GET /sales` lista ventas según rol: el vendedor solo ve el alcance permitido; el administrador puede filtrar vendedor/turno.
 3. `GET /sales/:saleId` devuelve detalle y estado.
 4. `GET /sales/settings/void-policy` consulta la ventana de anulación.
@@ -159,7 +166,7 @@ Las revisiones financieras no se insertan en el ledger tenant: usan `payment_rev
 - Certificación dinámica: 91/91 rutas de controladores ejecutadas; si aparece una ruta nueva sin ejercicio, el comando falla.
 - Recorrido operacional: 108 comprobaciones, 0 fallos.
 - Recorrido SaaS completo: 30 hitos aprobados desde catálogo/alta/pago hasta logout, incluyendo venta, cierre, resultado, premio y corte.
-- Regresión unitaria: 72 suites y 241 pruebas aprobadas.
+- Regresión unitaria: 73 suites y 245 pruebas aprobadas.
 - Base de datos: 2 suites SQL transaccionales aprobadas para aislamiento RLS, funciones, triggers, facturación y revisión bancaria.
 - E2E: 1 suite aprobada; el smoke Realtime permanece condicional a sus credenciales/fixtures dedicados.
 - Supabase development: 22 migraciones locales/remotas sincronizadas hasta `20260803163000`; linter de `public` y `app_private` sin warnings.

@@ -14,6 +14,7 @@ import { Sale } from '../../domain/entities';
 import {
   SALES_REPOSITORY,
   SaleItemInput,
+  SaleAttribution,
   SalesRepository,
 } from '../../domain/ports';
 
@@ -21,12 +22,16 @@ export type CreateSaleCommand = {
   requestedSellerId?: string;
   currentSellerId?: string;
   actorRoleName?: string;
+  actorUserId?: string;
+  actorMembershipId?: string;
   shiftId: string;
   items: SaleItemInput[];
 };
 
 const SELLER_ASSIGNMENT_REQUIRED_MESSAGE =
-  'sellerId is required for admins or users without an assigned seller profile';
+  'A seller profile is required to create sales';
+const ADMIN_MEMBERSHIP_REQUIRED_MESSAGE =
+  'An active tenant membership is required to create an admin sale';
 
 @Injectable()
 export class CreateSaleUseCase extends UseCase<
@@ -45,10 +50,10 @@ export class CreateSaleUseCase extends UseCase<
 
   async execute(input: CreateSaleCommand): Promise<Result<Sale, AppError>> {
     try {
-      const sellerResult = this.resolveSellerId(input);
+      const attributionResult = this.resolveAttribution(input);
 
-      if (sellerResult.isFailure) {
-        return sellerResult;
+      if (attributionResult.isFailure) {
+        return attributionResult;
       }
 
       const items = this.normalizeItems(input.items);
@@ -62,7 +67,7 @@ export class CreateSaleUseCase extends UseCase<
       }
 
       const sale = await this.salesRepository.create({
-        sellerId: sellerResult.value,
+        attribution: attributionResult.value,
         shiftId: input.shiftId,
         items,
       });
@@ -95,12 +100,16 @@ export class CreateSaleUseCase extends UseCase<
     }
   }
 
-  private resolveSellerId(
+  private resolveAttribution(
     input: Pick<
       CreateSaleCommand,
-      'actorRoleName' | 'currentSellerId' | 'requestedSellerId'
+      | 'actorMembershipId'
+      | 'actorRoleName'
+      | 'actorUserId'
+      | 'currentSellerId'
+      | 'requestedSellerId'
     >,
-  ): Result<string, AppError> {
+  ): Result<SaleAttribution, AppError> {
     const requestedSellerId = input.requestedSellerId;
     const currentSellerId = input.currentSellerId;
 
@@ -119,15 +128,31 @@ export class CreateSaleUseCase extends UseCase<
 
     const sellerId = requestedSellerId ?? currentSellerId;
 
-    if (!sellerId) {
-      return ErrorFactory.useCase(
-        SELLER_ASSIGNMENT_REQUIRED_MESSAGE,
-        undefined,
-        400,
-      );
+    if (sellerId) {
+      return Result.success({ kind: 'SELLER', sellerId });
     }
 
-    return Result.success(sellerId);
+    if (this.isAdmin(input.actorRoleName)) {
+      if (!input.actorUserId || !input.actorMembershipId) {
+        return ErrorFactory.useCase(
+          ADMIN_MEMBERSHIP_REQUIRED_MESSAGE,
+          undefined,
+          403,
+        );
+      }
+
+      return Result.success({
+        kind: 'ADMIN_SELF',
+        userId: input.actorUserId,
+        membershipId: input.actorMembershipId,
+      });
+    }
+
+    return ErrorFactory.useCase(
+      SELLER_ASSIGNMENT_REQUIRED_MESSAGE,
+      undefined,
+      400,
+    );
   }
 
   private normalizeItems(items: SaleItemInput[]): SaleItemInput[] {
@@ -154,6 +179,10 @@ export class CreateSaleUseCase extends UseCase<
   private toHttpStatus(error: unknown): number | undefined {
     if (!(error instanceof Error)) return undefined;
     const message = error.message.toLowerCase();
+
+    if (message.includes('admin tenant membership')) {
+      return 403;
+    }
 
     if (message.includes('not found') || message.includes('does not exist')) {
       return 404;

@@ -100,7 +100,7 @@ DTOs de entrada principales:
 | `UpdateNumberLimitDto` | Campos parciales del límite | `null` elimina alcance de vendedor/sorteo; monto con dos decimales. |
 | `ExpireNumberLimitDto` | `expiresOn` | Fecha efectiva de expiración. |
 | `CreateBlockedNumbersDto` | `numbers`, `shiftId?`, `date?`, `reason?` | Exactamente un alcance operacional: turno o fecha. |
-| `CreateSaleDto` | `sellerId?`, `shiftId`, `items[]` | 1..100 ítems; cada `{number, prizeMiles}` exige dos dígitos y monto positivo con dos decimales. `sellerId` es obligatorio para ADMIN o usuarios sin perfil vendedor. |
+| `CreateSaleDto` | `sellerId?`, `shiftId`, `items[]` | 1..100 ítems; cada `{number, prizeMiles}` exige dos dígitos y monto positivo con dos decimales. Un ADMIN puede omitir `sellerId` para vender con su propia membresía; si lo envía, la venta queda atribuida al vendedor elegido. Un usuario no ADMIN necesita su perfil vendedor activo. |
 | `VoidSaleDto` | `reason` | Motivo obligatorio, máximo 250. |
 | `UpdateSalesVoidPolicyDto` | `windowMinutes` | Entero entre 1 y 1440. |
 | `GetSalesMatrixQueryDto` | `date`, `shiftId?`, `drawCode?`, `sellerId?`, `status?` | `status=ACTIVA|ANULADA|TODAS`; fecha obligatoria. |
@@ -388,7 +388,7 @@ Así, una comprobación previa del frontend nunca puede saltarse la regla.
 | Método | Ruta | Acceso | Propósito |
 | --- | --- | --- | --- |
 | GET | `/sales` | `ventas.read` | Lista ventas; un vendedor queda limitado a las propias. |
-| POST | `/sales` | `ventas.create` | Crea una venta atómica con uno o varios números. |
+| POST | `/sales` | `ventas.create` | Crea una venta atómica con uno o varios números. Un ADMIN puede vender como sí mismo omitiendo `sellerId` o vender a nombre de un vendedor enviando `sellerId`. |
 | GET | `/sales/settings/void-policy` | ADMIN, `ventas.read` | Obtiene la ventana de anulación. |
 | PATCH | `/sales/settings/void-policy` | ADMIN, `ventas.update` | Cambia los minutos permitidos para anular. |
 | GET | `/sales/:saleId` | `ventas.read` | Obtiene una venta respetando ownership. |
