@@ -17,17 +17,19 @@ No se deben mantener ramas locales o remotas permanentes fuera de `develop` y
 
 Cada `push`, `pull_request` o ejecución manual valida:
 
-1. Instalación reproducible con `yarn install --frozen-lockfile`.
-2. `yarn prisma:validate`.
-3. `yarn prisma:generate`.
-4. Chequeo de presencia de migraciones Prisma versionadas.
-5. `yarn format:check`.
-6. `yarn docs:check`, que exige que `docs/api.md` y
+1. Política de ramas y contención completa de `develop` en cada publicación de
+   `master`.
+2. Instalación reproducible con `yarn install --frozen-lockfile`.
+3. `yarn prisma:validate`.
+4. `yarn prisma:generate`.
+5. Chequeo de presencia de migraciones Prisma versionadas.
+6. `yarn format:check`.
+7. `yarn docs:check`, que exige que `docs/api.md` y
    `docs/multilot-api.http` cubran todas las rutas registradas.
-7. `yarn lint:check`.
-8. `yarn test --runInBand --watchman=false`.
-9. `yarn test:e2e --runInBand --watchman=false`.
-10. `yarn build`.
+8. `yarn lint:check`.
+9. `yarn test --runInBand --watchman=false`.
+10. `yarn test:e2e --runInBand --watchman=false`.
+11. `yarn build`.
 
 El job levanta PostgreSQL 16 y Redis 7 como servicios de GitHub Actions para
 que las pruebas que inicializan la aplicación tengan dependencias base sin
@@ -54,16 +56,23 @@ El job `deploy` solo corre cuando CI e imagen terminan correctamente.
 
 `DEPLOY_WEBHOOK_URL` debe ser un secreto de environment, no un secreto global
 compartido. Cada environment contiene el webhook de su propio servicio
-Dokploy. Si no está configurado, el gate termina
-correctamente y deja constancia en el summary. Esto permite activar branch
-protection desde ya sin bloquear el repositorio por falta de proveedor de
-deploy.
+Dokploy. Development puede omitir el deploy mientras se termina de conectar el
+proveedor; producción falla si no existe webhook y nunca se declara desplegada.
+
+Después del webhook, el workflow consulta readiness con reintentos. La variable
+opcional `DEPLOY_HEALTHCHECK_URL` permite sustituir la URL por environment; por
+defecto usa `dev-api.alphaby.cloud` en `develop` y `api.alphaby.cloud` en
+`master`. Después valida también el contrato público de planes con
+`DEPLOY_SMOKE_URL`. Un webhook `2xx` sin readiness y smoke `200` no es un
+despliegue exitoso.
 
 Cuando se conecte el proveedor real, configurar estos secretos en GitHub:
 
 ```txt
 DEPLOY_WEBHOOK_URL
 DEPLOY_WEBHOOK_TOKEN
+DEPLOY_HEALTHCHECK_URL (variable opcional)
+DEPLOY_SMOKE_URL (variable opcional)
 ```
 
 El webhook recibe:
@@ -82,7 +91,7 @@ El webhook recibe:
 En Settings -> Rules -> Rulesets o Branch protection:
 
 - Proteger `develop` y `master`.
-- Requerir status check `Validate, test and build`.
+- Requerir status checks `Policy and branch rules` y `Validate, test and build`.
 - Requerir que el workflow esté verde antes de merge/push protegido.
 - Requerir historial lineal si se decide evitar merge commits.
 - Restringir force-push y borrado de ramas principales.
