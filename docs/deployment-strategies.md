@@ -87,6 +87,17 @@ Opcionalmente, si el proveedor valida un bearer token separado:
 DEPLOY_WEBHOOK_TOKEN
 ```
 
+Variable opcional para healthcheck posterior al webhook:
+
+```text
+DEPLOY_HEALTHCHECK_URL=https://api-del-ambiente.example.com/api/v1/health/ready
+DEPLOY_SMOKE_URL=https://api-del-ambiente.example.com/api/v1/billing/plans?channel=BANK_TRANSFER
+```
+
+Si se omite, el workflow usa los dominios AlphaBy documentados para development
+y producción. Producción exige webhook y readiness sanos; una respuesta exitosa
+del webhook por sí sola no acredita que el contenedor nuevo esté operativo.
+
 No usar un único secreto de repositorio para ambos entornos: un push de
 `develop` podría desplegar el servicio de producción.
 
@@ -218,6 +229,10 @@ Despliegue normal:
 push develop -> development image -> development webhook
 merge master -> production image -> production approval/webhook
 ```
+
+GitHub espera hasta cuatro minutos por `/api/v1/health/ready`. Si PostgreSQL,
+Redis o configuración fallan, el job queda rojo y se debe corregir el runtime
+antes de etiquetar o anunciar la versión.
 
 Rollback seguro:
 

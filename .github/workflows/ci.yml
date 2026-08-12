@@ -23,8 +23,56 @@ env:
   NODE_ENV: test
 
 jobs:
+  policy:
+    name: Policy and branch rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate branch policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            case "${{ github.base_ref }}" in
+              develop|master) ;;
+              *)
+                echo "::error::Pull requests only target develop or master."
+                exit 1
+                ;;
+            esac
+            exit 0
+          fi
+
+          case "${GITHUB_REF_NAME}" in
+            develop|master) ;;
+            *)
+              echo "::error::Only develop and master are release-controlled branches."
+              exit 1
+              ;;
+          esac
+
+      - name: Require master to contain develop before production
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin develop master
+          DEVELOP_SHA="$(git rev-parse origin/develop)"
+          MASTER_SHA="$(git rev-parse origin/master)"
+
+          if ! git merge-base --is-ancestor "${DEVELOP_SHA}" "${MASTER_SHA}"; then
+            echo "::error::master must contain the complete develop history before publishing production artifacts."
+            exit 1
+          fi
+
   quality:
     name: Validate, test and build
+    needs: policy
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -242,6 +290,8 @@ jobs:
     env:
       DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
       DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+      DEPLOY_HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL || (github.ref_name == 'master' && 'https://api.alphaby.cloud/api/v1/health/ready' || 'https://dev-api.alphaby.cloud/api/v1/health/ready') }}
+      DEPLOY_SMOKE_URL: ${{ vars.DEPLOY_SMOKE_URL || (github.ref_name == 'master' && 'https://api.alphaby.cloud/api/v1/billing/plans?channel=BANK_TRANSFER' || 'https://dev-api.alphaby.cloud/api/v1/billing/plans?channel=BANK_TRANSFER') }}
 
     steps:
       - name: Enforce deployment branch policy
@@ -279,9 +329,42 @@ jobs:
       - name: Deployment provider not configured
         if: env.DEPLOY_WEBHOOK_URL == ''
         run: |
+          if [ "${GITHUB_REF_NAME}" = "master" ]; then
+            echo "::error::Configure DEPLOY_WEBHOOK_URL in the production GitHub Environment."
+            exit 1
+          fi
+
           {
             echo "## Deployment gate passed"
             echo ""
             echo "No DEPLOY_WEBHOOK_URL secret is configured yet."
             echo "CI is complete and this job is ready to trigger staging/production once the deployment provider is connected."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify deployed API readiness
+        if: env.DEPLOY_WEBHOOK_URL != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 24); do
+            if curl --fail --silent --show-error "${DEPLOY_HEALTHCHECK_URL}" >/dev/null; then
+              echo "API ready at ${DEPLOY_HEALTHCHECK_URL} after attempt ${attempt}."
+              echo "Readiness: ${DEPLOY_HEALTHCHECK_URL}" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "Waiting for API readiness (${attempt}/24)..."
+            sleep 10
+          done
+
+          echo "::error::API did not become ready at ${DEPLOY_HEALTHCHECK_URL}."
+          exit 1
+
+      - name: Verify deployed SaaS contract
+        if: env.DEPLOY_WEBHOOK_URL != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "${DEPLOY_SMOKE_URL}" >/dev/null
+          echo "SaaS contract: ${DEPLOY_SMOKE_URL}" >> "$GITHUB_STEP_SUMMARY"
