@@ -25,6 +25,12 @@ operacionales.
    - Cargar una cuenta AlphaBy activa por moneda en `billing_bank_accounts`:
      una para `USD` y una para `NIO`.
 
+   Antes de abrir el registro, confirme que no quede ningún precio con
+   `proveedor='DEVELOPMENT'` ni cuentas cuyo código empiece por
+   `ALPHABY_DEV_`. La API puede responder `200` con catálogo vacío mientras el
+   tarifario real no ha sido activado; en ese estado no debe mostrarse el
+   formulario de alta comercial.
+
 2. Mostrar planes al cliente:
    - `GET /billing/plans?channel=BANK_TRANSFER`
    - La UI debe presentar moneda, monto mensual, canal disponible y condiciones.
@@ -38,7 +44,7 @@ operacionales.
   "email": "propietario@empresa.com",
   "username": "propietario",
   "name": "Ana Perez",
-  "password": "Sup3rSecret2026!",
+  "password": "<CONTRASEÑA-SEGURA-DEL-PROPIETARIO>",
   "companyName": "Loteria Central, S.A.",
   "companySlug": "loteria-central",
   "priceId": "uuid-devuelto-por-billing-plans",

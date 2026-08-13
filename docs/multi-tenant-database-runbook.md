@@ -81,16 +81,17 @@ podría ejecutar la siguiente consulta sin el contexto esperado.
 
 ### Tarea programada de Dokploy
 
-Ejecutar una vez al día, por ejemplo a las `00:15 America/Managua`, sin enviar
-`now` desde producción:
+Ejecutar una vez al día a las `00:15 America/Managua`, sin enviar `now` desde
+producción. La imagen runtime no incluye `curl`; use Node, que sí forma parte de
+la imagen:
 
 ```sh
-curl --fail --silent --show-error \
-  -X POST "https://api.example.com/api/v1/billing/internal/cycle" \
-  -H "content-type: application/json" \
-  -H "x-billing-worker-secret: $BILLING_WORKER_SECRET" \
-  -d '{}'
+node -e "fetch('http://127.0.0.1:3000/api/v1/billing/internal/cycle',{method:'POST',headers:{'content-type':'application/json','x-billing-worker-secret':process.env.BILLING_WORKER_SECRET},body:'{}'}).then(async r=>{const b=await r.text();if(!r.ok){console.error(b);process.exit(1)}console.log(b)}).catch(e=>{console.error(e);process.exit(1)})"
 ```
+
+En un servidor Dokploy configurado en UTC, la expresión equivalente es
+`15 6 * * *`. Si Dokploy permite seleccionar zona, use `15 0 * * *` con
+`America/Managua`. No configure ambas tareas.
 
 El secreto debe existir solamente en el servicio/cron de Dokploy. El endpoint es
 idempotente por día y usa un lock transaccional para impedir ejecuciones
@@ -114,6 +115,13 @@ anterior dentro de una transacción; el índice permite solo una activa por
 moneda. Los precios usan unidades menores y deben aprobarse comercialmente antes
 de activar el canal `BANK_TRANSFER`.
 
+La migración
+`20260813182500_quarantine_certification_and_development_commercial_data`
+desactiva explícitamente precios y cuentas ficticias de development cuando
+aparecen en un entorno compartido. Mientras `GET /billing/plans` devuelva una
+lista vacía, el registro comercial debe permanecer cerrado: es un bloqueo
+seguro, no un fallo del backend.
+
 ## Migraciones y validación
 
 Orden recomendado:
@@ -135,7 +143,8 @@ Las pruebas `supabase/tests/database/multi_tenant_isolation.test.sql` y
 `ROLLBACK`. La segunda valida email confirmado, portal pendiente, vendedor
 denegado, monto/moneda exactos, Storage privado, evidencia, cola global,
 aprobación atómica, ledger append-only, duplicados, cron idempotente, grants y
-RLS de todas las tablas públicas.
+RLS de todas las tablas públicas. También comprueba que un tenant cancelado o
+archivado nunca reciba documentos de renovación o reactivación.
 
 ## Suspensión y cobro fallido
 

@@ -18,16 +18,20 @@ BEGIN
   SELECT id INTO v_plan FROM public.billing_plans WHERE codigo='STARTER';
   SELECT bp.id INTO v_price
   FROM public.billing_prices bp
-  JOIN public.billing_price_channels ch ON ch.price_id=bp.id
   WHERE bp.plan_id=v_plan AND bp.moneda='USD' AND bp.intervalo='MENSUAL'
-    AND bp.activo AND ch.canal='BANK_TRANSFER' AND ch.activo
   LIMIT 1;
   IF v_price IS NULL THEN
     INSERT INTO public.billing_prices(
       plan_id,proveedor,proveedor_price_id,moneda,monto_minor,intervalo
     ) VALUES (v_plan,'DEVELOPMENT','bank_test_price','USD',2500,'MENSUAL')
     RETURNING id INTO v_price;
+  ELSE
+    UPDATE public.billing_prices SET activo=true WHERE id=v_price;
   END IF;
+  INSERT INTO public.billing_price_channels(price_id,canal,activo)
+  VALUES (v_price,'BANK_TRANSFER',true)
+  ON CONFLICT (price_id,canal) DO UPDATE
+  SET activo=true,actualizado_en=now();
   SELECT id INTO v_bank FROM public.billing_bank_accounts
   WHERE moneda='USD' AND activo LIMIT 1;
   IF v_bank IS NULL THEN
@@ -303,6 +307,32 @@ BEGIN
 END
 $confirmed_state$;
 
+DO $archived_tenant_fixture$
+DECLARE
+  v_tenant uuid := (SELECT id FROM billing_test_ids WHERE name='tenant');
+  v_subscription uuid;
+  v_invoice uuid;
+BEGIN
+  SELECT id INTO v_subscription
+  FROM public.tenant_subscriptions
+  WHERE tenant_id=v_tenant;
+
+  v_invoice := app_private.create_subscription_invoice(
+    v_tenant,v_subscription,
+    '2025-12-01T00:00:00Z','2026-01-01T00:00:00Z',
+    '2025-12-01T00:00:00Z','REACTIVATION'
+  );
+  INSERT INTO billing_test_ids VALUES ('archived_invoice',v_invoice);
+
+  UPDATE public.tenant_subscriptions
+  SET estado='CANCELADA',cancelar_al_final=true
+  WHERE id=v_subscription;
+  UPDATE public.tenants
+  SET estado='CANCELADO',eliminado_en='2026-01-02T00:00:00Z'
+  WHERE id=v_tenant;
+END
+$archived_tenant_fixture$;
+
 SET LOCAL ROLE multilot_billing_worker;
 DO $cycle_and_privileges$
 DECLARE v_first jsonb; v_second jsonb;
@@ -316,6 +346,23 @@ BEGIN
 END
 $cycle_and_privileges$;
 RESET ROLE;
+
+DO $archived_tenant_not_reissued$
+DECLARE
+  v_tenant uuid := (SELECT id FROM billing_test_ids WHERE name='tenant');
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.billing_invoices
+    WHERE id=(SELECT id FROM billing_test_ids WHERE name='archived_invoice')
+      AND estado='ABIERTA'
+  ) THEN
+    RAISE EXCEPTION 'archived tenant invoice was mutated by the billing cycle';
+  END IF;
+  IF (SELECT count(*) FROM public.billing_invoices WHERE tenant_id=v_tenant)<>2 THEN
+    RAISE EXCEPTION 'billing cycle reissued a document for an archived tenant';
+  END IF;
+END
+$archived_tenant_not_reissued$;
 
 DO $least_privilege$
 BEGIN
