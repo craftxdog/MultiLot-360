@@ -53,34 +53,34 @@ model billing_events {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model billing_invoices {
-  id                                                                                 String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id                                                                          String                     @db.Uuid
-  subscription_id                                                                    String?                    @db.Uuid
+  id                                                                                 String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                                                                          String                      @db.Uuid
+  subscription_id                                                                    String?                     @db.Uuid
   proveedor                                                                          String
   proveedor_invoice_id                                                               String?
-  estado                                                                             factura_estado             @default(BORRADOR)
-  moneda                                                                             String                     @db.Char(3)
-  subtotal_minor                                                                     BigInt                     @default(0)
-  impuesto_minor                                                                     BigInt                     @default(0)
-  total_minor                                                                        BigInt                     @default(0)
-  vencimiento_en                                                                     DateTime?                  @db.Timestamptz(6)
-  pagada_en                                                                          DateTime?                  @db.Timestamptz(6)
+  estado                                                                             factura_estado              @default(BORRADOR)
+  moneda                                                                             String                      @db.Char(3)
+  subtotal_minor                                                                     BigInt                      @default(0)
+  impuesto_minor                                                                     BigInt                      @default(0)
+  total_minor                                                                        BigInt                      @default(0)
+  vencimiento_en                                                                     DateTime?                   @db.Timestamptz(6)
+  pagada_en                                                                          DateTime?                   @db.Timestamptz(6)
   url_factura                                                                        String?
-  creado_en                                                                          DateTime                   @default(now()) @db.Timestamptz(6)
-  actualizado_en                                                                     DateTime                   @default(now()) @db.Timestamptz(6)
-  numero_documento                                                                   String?                    @unique(map: "uq_billing_invoices_document_number", where: raw("(numero_documento IS NOT NULL)"))
-  referencia_bancaria                                                                String?                    @unique(map: "uq_billing_invoices_bank_reference", where: raw("(referencia_bancaria IS NOT NULL)"))
-  periodo_inicia_en                                                                  DateTime?                  @db.Timestamptz(6)
-  periodo_termina_en                                                                 DateTime?                  @db.Timestamptz(6)
-  emitida_en                                                                         DateTime?                  @db.Timestamptz(6)
-  gracia_termina_en                                                                  DateTime?                  @db.Timestamptz(6)
-  revision_pausa_hasta                                                               DateTime?                  @db.Timestamptz(6)
-  metadata                                                                           Json                       @default("{}")
+  creado_en                                                                          DateTime                    @default(now()) @db.Timestamptz(6)
+  actualizado_en                                                                     DateTime                    @default(now()) @db.Timestamptz(6)
+  numero_documento                                                                   String?                     @unique(map: "uq_billing_invoices_document_number", where: raw("(numero_documento IS NOT NULL)"))
+  referencia_bancaria                                                                String?                     @unique(map: "uq_billing_invoices_bank_reference", where: raw("(referencia_bancaria IS NOT NULL)"))
+  periodo_inicia_en                                                                  DateTime?                   @db.Timestamptz(6)
+  periodo_termina_en                                                                 DateTime?                   @db.Timestamptz(6)
+  emitida_en                                                                         DateTime?                   @db.Timestamptz(6)
+  gracia_termina_en                                                                  DateTime?                   @db.Timestamptz(6)
+  revision_pausa_hasta                                                               DateTime?                   @db.Timestamptz(6)
+  metadata                                                                           Json                        @default("{}")
   bank_transfer_submissions                                                          bank_transfer_submissions[]
-  billing_invoice_items_billing_invoice_items_invoice_idTobilling_invoices           billing_invoice_items[]    @relation("billing_invoice_items_invoice_idTobilling_invoices")
-  billing_invoice_items_billing_invoice_items_tenant_id_invoice_idTobilling_invoices billing_invoice_items[]    @relation("billing_invoice_items_tenant_id_invoice_idTobilling_invoices")
-  tenants                                                                            tenants                    @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  tenant_subscriptions                                                               tenant_subscriptions?      @relation(fields: [tenant_id, subscription_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoices_subscription")
+  billing_invoice_items_billing_invoice_items_invoice_idTobilling_invoices           billing_invoice_items[]     @relation("billing_invoice_items_invoice_idTobilling_invoices")
+  billing_invoice_items_billing_invoice_items_tenant_id_invoice_idTobilling_invoices billing_invoice_items[]     @relation("billing_invoice_items_tenant_id_invoice_idTobilling_invoices")
+  tenants                                                                            tenants                     @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_subscriptions                                                               tenant_subscriptions?       @relation(fields: [tenant_id, subscription_id], references: [tenant_id, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoices_subscription")
   subscription_payments                                                              subscription_payments?
 
   @@unique([proveedor, proveedor_invoice_id], map: "uq_invoices_provider")
@@ -264,6 +264,7 @@ model membresias_tenant {
   actualizado_en              DateTime                    @default(now()) @db.Timestamptz(6)
   eliminado_en                DateTime?                   @db.Timestamptz(6)
   puede_gestionar_facturacion Boolean                     @default(false)
+  es_soporte_plataforma       Boolean                     @default(false)
   auditoria_eventos           auditoria_eventos[]
   bank_transfer_submissions   bank_transfer_submissions[]
   codigos_acceso_vendedor     codigos_acceso_vendedor[]
@@ -285,6 +286,7 @@ model membresias_tenant {
   @@unique([tenant_id, id], map: "uq_membresias_tenant_id_id")
   @@unique([tenant_id, perfil_id], map: "uq_membresias_tenant_perfil")
   @@index([perfil_id, estado], map: "ix_membresias_perfil_estado")
+  @@index([perfil_id, tenant_id], map: "ix_memberships_platform_support", where: raw("(es_soporte_plataforma AND (eliminado_en IS NULL))"))
   @@index([tenant_id, invitado_por_membresia_id], map: "ix_membresias_tenant_tenant_id_invitado_por_membresia_id")
   @@index([tenant_id, rol_id], map: "ix_membresias_tenant_tenant_id_rol_id")
 }
@@ -438,6 +440,8 @@ model platform_admins {
   creado_en                      DateTime                         @default(now()) @db.Timestamptz(6)
   activo                         Boolean                          @default(true)
   puede_revisar_facturacion      Boolean                          @default(true)
+  nivel_acceso                   String                           @default("BILLING")
+  acceso_todos_tenants           Boolean                          @default(false)
   payment_reviews                payment_reviews[]
   usuarios                       usuarios                         @relation(fields: [perfil_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   subscription_payment_reversals subscription_payment_reversals[]
@@ -520,18 +524,18 @@ model sorteos_config {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model tenant_billing_accounts {
-  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id               String                   @unique @db.Uuid
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                    @unique @db.Uuid
   proveedor               String
   proveedor_customer_id   String?
   email_facturacion       String?
   razon_social            String?
   identificacion_fiscal   String?
-  datos_fiscales          Json                     @default("{}")
-  creado_en               DateTime                 @default(now()) @db.Timestamptz(6)
-  actualizado_en          DateTime                 @default(now()) @db.Timestamptz(6)
+  datos_fiscales          Json                      @default("{}")
+  creado_en               DateTime                  @default(now()) @db.Timestamptz(6)
+  actualizado_en          DateTime                  @default(now()) @db.Timestamptz(6)
   billing_payment_methods billing_payment_methods[]
-  tenants                 tenants                  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                 tenants                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   tenant_subscriptions    tenant_subscriptions[]
 
   @@unique([tenant_id, id], map: "uq_billing_accounts_tenant_id_id")

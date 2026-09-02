@@ -199,12 +199,17 @@ DB_POOL_MAX=3
 DB_POOL_IDLE_TIMEOUT_MS=30000
 DB_POOL_CONNECTION_TIMEOUT_MS=10000
 SWAGGER_ENABLED=false
-AUTH_SIGNUP_ENABLED=false
+AUTH_SIGNUP_ENABLED=true
 BILLING_PROVIDER=disabled
 BILLING_WORKER_SECRET=<independent-random-secret-at-least-32-characters>
 PAYPAL_ENABLED=false
 LOG_LEVEL=log
 ```
+
+`AUTH_SIGNUP_ENABLED=true` abre el alta comercial pública y debe mantenerse así
+mientras AlphaBy acepte nuevas empresas. Cambiarlo a `false` es el interruptor
+de emergencia para detener nuevas altas sin afectar tenants existentes; no es
+la configuración normal de producción.
 
 Recursos actuales:
 

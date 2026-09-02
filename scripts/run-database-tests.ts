@@ -16,6 +16,7 @@ const databaseUrl = (() => {
 const testFiles = [
   'multi_tenant_isolation.test.sql',
   'bank_transfer_billing.test.sql',
+  'platform_bootstrap.test.sql',
 ];
 
 async function main(): Promise<void> {

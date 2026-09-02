@@ -29,6 +29,8 @@ Documentación de referencia:
 - `docs/ci-cd.md`: reglas de CI/CD, protección de ramas y gate de deploy.
 - `docs/domain-concepts.md`: conceptos, reglas e invariantes del negocio.
 - `docs/operations-runbook.md`: preparación, seguridad y despliegue.
+- `docs/tenant-provisioning-runbook.md`: venta, alta, cobro y configuración
+  completa de una empresa multi-tenant.
 - `src/infrastructure/realtime/README.md`: autenticación, salas y eventos.
 - `src/modules/identity-access/README.md`: Auth y onboarding de vendedores.
 
