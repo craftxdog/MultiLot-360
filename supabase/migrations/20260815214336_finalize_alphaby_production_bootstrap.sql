@@ -56,7 +56,13 @@ $bootstrap$;
 -- the recurring log errors while preserving the API-only architecture.
 CREATE SCHEMA IF NOT EXISTS pgrst_no_exposed_schemas AUTHORIZATION postgres;
 REVOKE ALL ON SCHEMA pgrst_no_exposed_schemas FROM PUBLIC, anon, authenticated;
-ALTER ROLE authenticator SET pgrst.db_schemas = 'pgrst_no_exposed_schemas';
+DO $postgrest_role$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN
+    EXECUTE 'ALTER ROLE authenticator SET pgrst.db_schemas = ''pgrst_no_exposed_schemas''';
+  END IF;
+END
+$postgrest_role$;
 NOTIFY pgrst, 'reload config';
 
 COMMENT ON SCHEMA pgrst_no_exposed_schemas IS

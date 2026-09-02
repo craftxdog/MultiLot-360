@@ -41,9 +41,9 @@ SELECT
   r.id,
   m.id,
   true,
-  m.codigo <> 'MATRIZ_VENTAS',
-  m.codigo <> 'MATRIZ_VENTAS',
-  m.codigo <> 'MATRIZ_VENTAS'
+  true,
+  true,
+  true
 FROM public.roles r
 CROSS JOIN public.modulos m
 JOIN public.tenants t ON t.id = r.tenant_id AND t.es_legacy

@@ -161,7 +161,8 @@ jobs:
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/seed.sql
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/tests/database/multi_tenant_isolation.test.sql
           psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/tests/database/bank_transfer_billing.test.sql
-          test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.roles")" = "2"
+          psql --host localhost --username postgres --dbname multilot360 --set ON_ERROR_STOP=1 --file supabase/tests/database/platform_bootstrap.test.sql
+          test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.roles")" = "3"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.modulos")" = "15"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.permisos_por_rol")" = "21"
           test "$(psql --host localhost --username postgres --dbname multilot360 --tuples-only --no-align --command "select count(*) from public.usuarios")" = "0"
