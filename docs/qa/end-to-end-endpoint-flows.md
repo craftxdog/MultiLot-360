@@ -14,7 +14,7 @@
 
 1. `GET /` confirma el contrato base.
 2. `GET /health` confirma que el proceso está vivo.
-3. `GET /health/ready` comprueba PostgreSQL, Supabase y Redis antes de habilitar tráfico.
+3. `GET /health/ready` comprueba PostgreSQL, Redis y el handshake SMTP cacheado antes de habilitar tráfico.
 
 Resultado esperado: las tres respuestas usan el envelope estándar; readiness debe ser `ok` para iniciar una jornada.
 

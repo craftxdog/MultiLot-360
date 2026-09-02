@@ -105,6 +105,11 @@ Antes de habilitar `MAILERSEND_ENABLED=true`:
 4. Ejecutar un smoke autorizado con una cuenta de prueba.
 5. Revisar entrega, rebotes y spam en los logs de Hostinger Email.
 
+`GET /api/v1/health/ready` valida el handshake SMTP como máximo una vez por
+minuto. En producción responde `503` si el correo está deshabilitado, no puede
+alcanzar Hostinger o las credenciales son rechazadas; liveness continúa
+separado para no reiniciar un proceso sano por una caída externa.
+
 El prefijo `MAILERSEND_*` se conserva temporalmente por compatibilidad con los
 despliegues existentes, aunque el relay activo sea Hostinger.
 

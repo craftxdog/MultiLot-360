@@ -223,7 +223,9 @@ function validateProductionEnv(env: ProductionEnv): void {
     errors.push('REALTIME_REDIS_ENABLED must be true when realtime is enabled');
   }
 
-  if (env.MAILERSEND_ENABLED) {
+  if (!env.MAILERSEND_ENABLED) {
+    errors.push('MAILERSEND_ENABLED must be true');
+  } else {
     requireLength('MAILERSEND_SMTP_HOST', env.MAILERSEND_SMTP_HOST, 3);
     requireLength('MAILERSEND_SMTP_USER', env.MAILERSEND_SMTP_USER, 3);
     requireLength('MAILERSEND_SMTP_PASSWORD', env.MAILERSEND_SMTP_PASSWORD, 12);

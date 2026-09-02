@@ -167,7 +167,7 @@ migraciones recientes están en:
 | --- | --- | --- | --- |
 | GET | `/` | Público | Identifica la API y confirma que responde. |
 | GET | `/health` | Público | Liveness del proceso; no garantiza dependencias externas. |
-| GET | `/health/ready` | Público | Readiness de base de datos, configuración y Redis. |
+| GET | `/health/ready` | Público | Readiness de base de datos, configuración, Redis y conexión SMTP (cacheada por 60 segundos). |
 
 ## Autenticación
 

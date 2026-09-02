@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { EnvConfigService } from '../../../config/env-config.service';
 import { PrismaService } from '../../../infrastructure/database/prisma';
+import { MailerSendMailerService } from '../../../infrastructure/mailer';
 
 export type HealthCheckStatus = 'ok' | 'error';
 
@@ -17,13 +18,18 @@ export type HealthResponse = {
   checks?: Record<string, HealthCheck>;
 };
 
+const MAILER_HEALTH_CACHE_MS = 60_000;
+
 @Injectable()
 export class HealthService {
   private readonly logger = new Logger(HealthService.name);
+  private mailerCheckCache?: { check: HealthCheck; expiresAt: number };
+  private mailerCheckInFlight?: Promise<HealthCheck>;
 
   constructor(
     private readonly envConfig: EnvConfigService,
     private readonly prisma: PrismaService,
+    private readonly mailer: MailerSendMailerService,
   ) {}
 
   liveness(): HealthResponse {
@@ -39,6 +45,7 @@ export class HealthService {
       config: this.checkConfig(),
       database: await this.checkDatabase(),
       redis: await this.checkRedis(),
+      mailer: await this.checkMailer(),
     };
     const status = Object.values(checks).every((check) => check.status === 'ok')
       ? 'ok'
@@ -115,6 +122,54 @@ export class HealthService {
     } finally {
       redis.disconnect();
     }
+  }
+
+  private async checkMailer(): Promise<HealthCheck> {
+    if (!this.envConfig.mailer.enabled) {
+      return this.envConfig.app.env === 'production'
+        ? { status: 'error', details: 'Email delivery is disabled' }
+        : { status: 'ok', details: 'Disabled outside production' };
+    }
+
+    if (this.envConfig.app.env === 'test') {
+      return { status: 'ok', details: 'Skipped in test environment' };
+    }
+
+    const now = Date.now();
+    if (this.mailerCheckCache && this.mailerCheckCache.expiresAt > now) {
+      return this.mailerCheckCache.check;
+    }
+
+    if (this.mailerCheckInFlight) return this.mailerCheckInFlight;
+
+    this.mailerCheckInFlight = this.verifyMailerConnection().finally(() => {
+      this.mailerCheckInFlight = undefined;
+    });
+
+    return this.mailerCheckInFlight;
+  }
+
+  private async verifyMailerConnection(): Promise<HealthCheck> {
+    let check: HealthCheck;
+
+    try {
+      await this.mailer.verifyConnection();
+      check = { status: 'ok' };
+    } catch (error) {
+      this.logger.warn(
+        `Mailer readiness check failed: ${this.errorMessage(error)}`,
+      );
+      check = {
+        status: 'error',
+        details: this.publicDependencyError('Email delivery', error),
+      };
+    }
+
+    this.mailerCheckCache = {
+      check,
+      expiresAt: Date.now() + MAILER_HEALTH_CACHE_MS,
+    };
+    return check;
   }
 
   private publicDependencyError(dependency: string, error: unknown): string {

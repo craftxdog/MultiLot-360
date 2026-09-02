@@ -60,12 +60,22 @@ describe('validateEnv realtime configuration', () => {
     ).toThrow(/DB_POOL_MAX must be an integer between 1 and 10/);
   });
 
-  it('requires complete SMTP credentials when production email is enabled', () => {
+  it('requires email delivery in production', () => {
+    expect(() =>
+      validateEnv({
+        ...productionEnv(),
+        MAILERSEND_ENABLED: 'false',
+      }),
+    ).toThrow(/MAILERSEND_ENABLED must be true/);
+  });
+
+  it('requires complete SMTP credentials in production', () => {
     expect(() =>
       validateEnv({
         ...productionEnv(),
         MAILERSEND_ENABLED: 'true',
         MAILERSEND_SMTP_USER: 'smtp-user',
+        MAILERSEND_SMTP_PASSWORD: 'short',
       }),
     ).toThrow(/MAILERSEND_SMTP_PASSWORD must contain at least 12 characters/);
   });
@@ -126,5 +136,12 @@ function productionEnv(): NodeJS.ProcessEnv {
     SELLER_ACCESS_CODE_SECRET: 'independent-seller-code-secret-for-production',
     BILLING_WORKER_SECRET: 'independent-billing-worker-secret-for-production',
     AUTH_SIGNUP_ENABLED: 'false',
+    MAILERSEND_ENABLED: 'true',
+    MAILERSEND_SMTP_HOST: 'smtp.hostinger.com',
+    MAILERSEND_SMTP_PORT: '465',
+    MAILERSEND_SMTP_USER: 'craftzdog@alphaby.cloud',
+    MAILERSEND_SMTP_PASSWORD: 'smtp-password',
+    MAILERSEND_FROM_EMAIL: 'craftzdog@alphaby.cloud',
+    MAILERSEND_REPLY_TO_EMAIL: 'soporte@alphaby.cloud',
   };
 }
