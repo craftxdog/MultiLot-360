@@ -10,7 +10,9 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -104,6 +106,8 @@ export class SellerOnboardingController {
 
   @Public()
   @Post('access-code/confirm')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @ApiOkResponse({ type: ConfirmSellerAccessCodeResponseDto })
   confirmAccessCode(@Body() body: ConfirmSellerAccessCodeDto) {
     return this.confirmSellerAccessCode.execute({
