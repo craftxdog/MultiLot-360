@@ -68,7 +68,7 @@ producción que exige TLS, secretos fuertes y Redis autenticado.
 
 | Gate | Estado | Acción requerida |
 | --- | --- | --- |
-| API development | `dev-api.alphaby.cloud` no resolvió DNS desde esta certificación. | Recuperar conectividad y ejecutar health/readiness y el recorrido autorizado de QA. |
+| API development | `dev-api.alphaby.cloud` no resolvió DNS desde esta certificación. El frontend development además fue configurado con el host distinto `api-dev.alphaby.cloud`, que tampoco resolvió; no se puede asumir que ambos representen el mismo servicio. | Definir un host canónico, restaurar DNS/TLS y usarlo de forma consistente en el frontend, health/readiness y el recorrido autorizado de QA. |
 | Datos remotos | El proyecto Supabase conectado está inactivo; no se reactivó por su posible coste/impacto. | Autorizar reactivación o proporcionar un entorno activo de sólo lectura; comparar migraciones, RLS y conteos antes de promoción. |
 | Despliegue development | En [MultiLot 360 CI/CD #86](https://github.com/craftxdog/MultiLot-360/actions/runs/38464483965), política, calidad e imagen aprobaron; el webhook de deploy devolvió `404 Application Not Found`. | Corregir la URL o el identificador de aplicación configurado en el proveedor de deploy y volver a ejecutar readiness y smoke. |
 | Rate limiting distribuido | `ThrottlerGuard` usa el store local por defecto. | Antes de escalar horizontalmente, configurar un store Redis compartido y probar límite entre réplicas. |
